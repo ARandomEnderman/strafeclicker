@@ -42,6 +42,7 @@ export function bhopPage() {
   const buildLane = (d: BhopDifficulty) => {
     const { steps } = BHOP_DIFFICULTIES[d];
     blocks.forEach((b) => b.remove());
+    lane.querySelectorAll(".bh-ghost").forEach((g) => g.remove());
     blocks = Array.from({ length: steps + 1 }, (_, i) =>
       h(
         "div",
@@ -52,9 +53,10 @@ export function bhopPage() {
     lane.prepend(...blocks);
   };
 
-  const camera = (i: number, animate: boolean) => {
+  /** Put block `i` about a third of the way across the stage. */
+  const camera = (i: number, animate: boolean, ms = JUMP_MS) => {
     const x = -i * SPACING + Math.min(stage.clientWidth * 0.3, 220);
-    lane.style.transition = animate ? `transform ${JUMP_MS}ms ease-in-out` : "none";
+    lane.style.transition = animate ? `transform ${ms}ms ease-in-out` : "none";
     lane.style.transform = `translateX(${x}px)`;
   };
   const placeAgent = (i: number) => {
@@ -63,7 +65,10 @@ export function bhopPage() {
   };
   const markBlocks = () => blocks.forEach((b, i) => b.classList.toggle("passed", i > 0 && i <= pos));
 
+  let revealTimers: ReturnType<typeof setTimeout>[] = [];
   const reset = () => {
+    revealTimers.forEach(clearTimeout);
+    revealTimers = [];
     pos = 0;
     buildLane(run?.difficulty as BhopDifficulty ?? difficulty);
     placeAgent(0);
@@ -107,9 +112,32 @@ export function bhopPage() {
     });
 
   /** End of a run: show where the lane would have broken. */
+  /**
+   * After cashing out: the blocks you could still have landed on light up, then the
+   * camera pans to the one that would have given way and drops it, and comes back.
+   */
   const reveal = (breaksAt: number | null | undefined) => {
-    if (breaksAt != null && breaksAt > pos) blocks[breaksAt]?.classList.add("revealed");
-    blocks.forEach((b, i) => i > pos && i !== breaksAt && b.classList.add("safe-reveal"));
+    const end = breaksAt ?? blocks.length;
+    blocks.forEach((b, i) => {
+      if (i > pos && i < end) b.classList.add("would-hold");
+      if (i > end) b.classList.add("beyond");
+    });
+    if (breaksAt == null || !blocks[breaksAt]) {
+      banner.textContent += " · The whole lane would have held";
+      return;
+    }
+    const block = blocks[breaksAt];
+    const ghost = h("div", { class: "bh-ghost", style: `left:${breaksAt * SPACING}px` }, h("span", null, "Would have broken"));
+    lane.append(ghost);
+    // Only pan if it's off to the right of what's on screen.
+    const visible = Math.floor((stage.clientWidth - Math.min(stage.clientWidth * 0.3, 220)) / SPACING) - 1;
+    const far = breaksAt - pos > visible;
+    const panMs = far ? Math.min(1600, 300 + (breaksAt - pos) * 90) : 0;
+    if (far) camera(breaksAt - 1, true, panMs);
+    revealTimers.push(
+      setTimeout(() => block.classList.add("would-break"), panMs + 150),
+      setTimeout(() => far && camera(pos, true, panMs), panMs + 2600),
+    );
   };
 
   // ---------- controls ----------
@@ -203,11 +231,14 @@ export function bhopPage() {
     guard(async () => {
       const r = await bhopAction("cashout");
       run = null;
-      reveal(r.breaksAt);
       if (r.result === "cashed") {
         banner.textContent = `Cashed out at ${r.mult}x: +${money(r.payout!)}`;
         banner.className = "bh-banner won";
+      } else {
+        banner.textContent = "Bet returned";
+        banner.className = "bh-banner";
       }
+      reveal(r.breaksAt);
     });
 
   // Space jumps, Enter cashes out.

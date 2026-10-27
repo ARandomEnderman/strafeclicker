@@ -2428,11 +2428,64 @@ a.wallet-item:hover {
   transform: translateY(380px) rotate(18deg);
   opacity: 0;
 }
-.bh-block.revealed {
-  background: linear-gradient(var(--down) 0 6px, #5a2f35 6px 100%);
+.bh-block.would-hold {
+  background: linear-gradient(rgba(62, 207, 142, 0.55) 0 6px, #34403f 6px 100%);
 }
-.bh-block.safe-reveal {
-  opacity: 0.6;
+.bh-block.beyond {
+  opacity: 0.45;
+}
+/* The block that would have given way: it shakes, then drops with its pole. */
+.bh-block.would-break {
+  background: linear-gradient(var(--down) 0 6px, #5a2f35 6px 100%);
+  animation: bh-break 1.3s forwards;
+}
+.bh-block.would-break::after {
+  background: linear-gradient(90deg, #3a2328, #4a2b31);
+}
+@keyframes bh-break {
+  0% {
+    transform: none;
+  }
+  8%,
+  24% {
+    transform: translateX(-3px) rotate(-1.5deg);
+  }
+  16%,
+  32% {
+    transform: translateX(3px) rotate(1.5deg);
+  }
+  40% {
+    transform: none;
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.5, 0, 1, 1);
+  }
+  100% {
+    transform: translateY(420px) rotate(14deg);
+    opacity: 0;
+  }
+}
+.bh-ghost {
+  position: absolute;
+  top: 0;
+  width: 96px;
+  height: 40px;
+  margin-left: -48px;
+  border: 2px dashed var(--down);
+  border-radius: 4px;
+  pointer-events: none;
+}
+.bh-ghost span {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%);
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(239, 91, 91, 0.15);
+  color: var(--down);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
 }
 .bh-mult {
   position: absolute;
@@ -2446,7 +2499,7 @@ a.wallet-item:hover {
   font-variant-numeric: tabular-nums;
 }
 .bh-block.passed .bh-mult,
-.bh-block.revealed .bh-mult {
+.bh-block.would-break .bh-mult {
   color: var(--text);
 }
 .bh-agent {
