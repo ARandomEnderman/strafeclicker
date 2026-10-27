@@ -46,18 +46,40 @@ async function post<T>(action: string, body: object = {}, defer = false): Promis
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    if (res.status === 401 && data.error === "auth") onLoggedOut();
     if (data.account) set(data.account);
     if (data.error === "insufficient") throw new InsufficientFunds(data.message);
     throw new ServerError(data.error ?? "http", data.message ?? `HTTP ${res.status}`);
   }
-  if (!defer) set(data.account);
+  if (!defer && data.account) set(data.account);
   return data;
 }
 
-export async function initState() {
+/** Called when the server says the session is gone (expired, logged out elsewhere). */
+let onLoggedOut = () => {};
+export const setLoggedOutHandler = (fn: () => void) => (onLoggedOut = fn);
+
+/** Load the logged-in account. Returns false if nobody is logged in. */
+export async function initState(): Promise<boolean> {
   const res = await fetch("/api/me");
+  if (res.status === 401) return false;
   if (!res.ok) throw new Error(`/api/me: HTTP ${res.status}`);
   set(await res.json());
+  return true;
+}
+
+export async function register(username: string, password: string) {
+  await post("register", { username, password });
+}
+
+export async function login(username: string, password: string) {
+  await post("login", { username, password });
+}
+
+export async function logout() {
+  await flushClicks();
+  await post("logout").catch(() => undefined);
+  location.reload();
 }
 
 // ---------- clicker ----------

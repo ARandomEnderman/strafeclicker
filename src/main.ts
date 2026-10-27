@@ -1,7 +1,8 @@
 import "./style.css";
 import { getCase, getCatalog, loadCatalog } from "./catalog";
 import type { Case } from "./types";
-import { displayBalance, getState, initState, resetAll, subscribe } from "./state";
+import { displayBalance, getState, initState, logout, resetAll, setLoggedOutHandler, subscribe } from "./state";
+import { authPage } from "./ui/auth-page";
 import { h, money } from "./ui/dom";
 import { casesPage } from "./ui/cases-page";
 import { casePage } from "./ui/case-page";
@@ -53,6 +54,12 @@ function header() {
       soundBtn,
       h("span", { class: "balance-label" }, "Balance"),
       balance,
+      h(
+        "div",
+        { class: "user" },
+        h("span", { class: "user-name", title: "Logged in" }, getState().username),
+        h("button", { class: "btn btn-ghost btn-sm", onclick: () => logout() }, "Log out"),
+      ),
     ),
   );
 }
@@ -68,7 +75,7 @@ function footer() {
       {
         class: "linklike",
         onclick: async () => {
-          if (!confirm("Wipe balance, inventory and stats?")) return;
+          if (!confirm(`Wipe ${getState().username}'s balance, inventory, stats and upgrades? This can't be undone.`)) return;
           await resetAll();
           route();
         },
@@ -107,18 +114,26 @@ function route() {
   window.scrollTo(0, 0);
 }
 
-async function boot() {
-  try {
-    await Promise.all([loadCatalog(), initState()]);
-  } catch (err) {
-    app.replaceChildren(h("p", { class: "empty" }, `Couldn't load the item catalog: ${(err as Error).message}`));
-    throw err;
-  }
+function startApp() {
   app.replaceChildren(header(), main, footer(), h("div", { id: "toasts" }));
   window.addEventListener("hashchange", route);
   route();
   onPrices(showInventoryChange);
   startLive();
+}
+
+async function boot() {
+  let loggedIn: boolean;
+  try {
+    [, loggedIn] = await Promise.all([loadCatalog(), initState()]);
+  } catch (err) {
+    app.replaceChildren(h("p", { class: "empty" }, `Couldn't load the item catalog: ${(err as Error).message}`));
+    throw err;
+  }
+  // Session expired mid-visit: back to the login screen (a reload keeps it simple).
+  setLoggedOutHandler(() => location.reload());
+  if (loggedIn) startApp();
+  else app.replaceChildren(authPage(async () => (await initState()) && startApp()));
 }
 
 boot();

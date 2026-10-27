@@ -79,6 +79,7 @@ export interface OwnedItem extends Drop {
 
 /** Everything the server lets the browser see about its account. */
 export interface Account {
+  username: string;
   balance: number;
   /** Upgrade-tree levels, see PERKS in shared/game.js. */
   perks: { multiOpen: number; clickPower: number };

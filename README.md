@@ -7,7 +7,7 @@ A CS2 case-opening simulator. Play money only: no deposits, no withdrawals, noth
 - **Live market prices**: the server refreshes every wear / StatTrak / phase price from Skinport (lowest current listing) once a minute, on the minute. Every browser sees the same countdown and gets the update pushed at the same moment; clients can't trigger or delay it.
 - **Inventory change popup** after each update that moves your inventory's value, with the biggest movers. It also covers time away: reopen the site and it shows what changed since you last looked.
 - **Price history graphs** for every item variant (click any item), recorded by the server.
-- **Server-side everything**: each browser gets an anonymous account (an HttpOnly cookie). Balance, inventory and every roll live on the server; the browser only ever sees outcomes.
+- **Accounts**: sign up with a username and password (no guest accounts). Balance, inventory and every roll live on the server in SQLite; the browser only ever sees outcomes.
 - **Clicker**: click to earn money ($0.05 per click to start). The server caps clicks at a burst of 20, then 15 per second.
 - **Upgrader**: stake up to 10 items for one pricier skin or sticker. Chance = your value ÷ target price × 90%, between 1% and 80%.
 - **Upgrade tree**: spend balance to open up to 5 cases at once and raise click value up to $1.00. Levels and costs are in `PERKS` in `shared/game.js`.
@@ -26,7 +26,15 @@ Behind an HTTP proxy on Node 22, prefix with `NODE_USE_ENV_PROXY=1` so `fetch` u
 
 Needs a host that runs Node (a VPS, Fly.io, Render, Railway…). Static hosting like GitHub Pages won't work anymore because the price schedule lives on the server.
 
-Accounts are saved to `data/accounts.json`. Everyone starts at $0.
+Needs **Node 22.13 or newer** (it uses Node's built-in SQLite, so there's nothing extra to install).
+
+## Accounts
+
+- Everything is stored in `data/strafeclicker.db` (SQLite): users, inventories and login sessions. Back up that file to back up everyone's stuff.
+- Passwords are hashed with scrypt. Sessions are random tokens in an HttpOnly cookie, valid for 30 days; only their hash is stored.
+- Failed logins are limited to 10 per username and 30 per IP every 10 minutes. Behind a reverse proxy, set `TRUST_PROXY=1` so the real client IP is used.
+- Everyone starts at $0 (`STARTING_BALANCE` in `server/game.mjs`).
+- Anonymous accounts from older versions (`data/accounts.json`) are imported on first start. Signing up from the same browser carries that account's balance and items over.
 
 ## How prices work
 
@@ -44,13 +52,16 @@ Accounts are saved to `data/accounts.json`. Everyone starts at $0.
 | `GET /api/status` | Last / next update time, version, last error |
 | `GET /api/events` | SSE stream of `status` events |
 | `GET /api/history/:itemId` | Price history for every variant of an item |
-| `GET /api/me` | Your account (creates one on first visit) |
+| `POST /api/register` `{username, password}` | Create an account and log in |
+| `POST /api/login` `{username, password}` | Log in |
+| `POST /api/logout` | Log out |
+| `GET /api/me` | Your account (401 when logged out) |
 | `POST /api/click` `{clicks}` | Credit clicks (capped per second) |
 | `POST /api/open` `{caseId, count}` | Open 1–5 of a case, up to your multi-open level |
 | `POST /api/sell` `{uids}` | Sell items at the current price |
 | `POST /api/upgrade` `{uids, target}` | Stake items on a target variant |
 | `POST /api/perk` `{perk}` | Buy the next level of `multiOpen` or `clickPower` |
-| `POST /api/reset` | Wipe your account |
+| `POST /api/reset` | Wipe your balance, items and upgrades (keeps the login) |
 
 POST bodies must be `application/json`, which also stops other sites from posting forms to it.
 
@@ -77,7 +88,9 @@ The returned element is placed in a fixed 4:3 box and should fill it.
 | Path | What |
 | --- | --- |
 | `server/index.mjs` | HTTP server, price ticks, SSE, account cookies |
-| `server/game.mjs` | Accounts and every money action: open, sell, click, upgrade, perks |
+| `server/game.mjs` | Every money action: open, sell, click, upgrade, perks |
+| `server/auth.mjs` | Sign-up, login, sessions |
+| `server/db.mjs` | SQLite schema |
 | `shared/game.js` | Odds, float generation, upgrade chance, perk table (server rolls with it, browser displays it) |
 | `server/data.mjs` | Case contents + Skinport prices |
 | `server/history.mjs` | Price history log |

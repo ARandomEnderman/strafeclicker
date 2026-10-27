@@ -1,0 +1,109 @@
+// Usernames, passwords and login sessions.
+
+import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
+import { GameError } from "./game.mjs";
+
+const scryptAsync = promisify(scrypt);
+const SCRYPT = { N: 16384, r: 8, p: 1 };
+const KEY_LEN = 64;
+const SESSION_DAYS = 30;
+
+export const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
+export const MIN_PASSWORD = 8;
+
+/** "scrypt$N$r$p$salt$hash", so the parameters can change later without breaking old hashes. */
+async function hashPassword(password) {
+  const salt = randomBytes(16);
+  const hash = await scryptAsync(password, salt, KEY_LEN, SCRYPT);
+  return ["scrypt", SCRYPT.N, SCRYPT.r, SCRYPT.p, salt.toString("base64"), hash.toString("base64")].join("$");
+}
+
+async function verifyPassword(password, stored) {
+  const [algo, N, r, p, salt, hash] = stored.split("$");
+  if (algo !== "scrypt") return false;
+  const expected = Buffer.from(hash, "base64");
+  const actual = await scryptAsync(password, Buffer.from(salt, "base64"), expected.length, { N: +N, r: +r, p: +p });
+  return timingSafeEqual(actual, expected);
+}
+
+const sha256 = (s) => createHash("sha256").update(s).digest("hex");
+
+/** Failed logins: at most 10 per username and 30 per IP every 10 minutes. */
+const failures = new Map();
+const FAIL_WINDOW_MS = 10 * 60_000;
+function tooManyFailures(keys, limits) {
+  const now = Date.now();
+  return keys.some((k, i) => {
+    const list = (failures.get(k) ?? []).filter((t) => now - t < FAIL_WINDOW_MS);
+    failures.set(k, list);
+    return list.length >= limits[i];
+  });
+}
+function noteFailure(keys) {
+  for (const k of keys) {
+    if (!failures.has(k)) failures.set(k, []);
+    failures.get(k).push(Date.now());
+  }
+}
+
+export class Auth {
+  constructor(db, game) {
+    this.db = db;
+    this.game = game;
+    this.q = {
+      byName: db.prepare("SELECT id, pass_hash FROM users WHERE username = ?"),
+      session: db.prepare("SELECT user_id FROM sessions WHERE token_hash = ? AND expires_at > ?"),
+      addSession: db.prepare("INSERT INTO sessions (token_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)"),
+      dropSession: db.prepare("DELETE FROM sessions WHERE token_hash = ?"),
+      expire: db.prepare("DELETE FROM sessions WHERE expires_at <= ?"),
+    };
+    this.q.expire.run(Date.now());
+  }
+
+  /** Returns a new session token (only its hash is stored). */
+  #newSession(userId) {
+    const token = randomBytes(32).toString("base64url");
+    const now = Date.now();
+    this.q.addSession.run(sha256(token), userId, now, now + SESSION_DAYS * 86_400_000);
+    return token;
+  }
+
+  userForToken(token) {
+    if (!token) return null;
+    return this.q.session.get(sha256(token), Date.now())?.user_id ?? null;
+  }
+
+  logout(token) {
+    if (token) this.q.dropSession.run(sha256(token));
+  }
+
+  async register(username, password, legacyId) {
+    username = String(username ?? "").trim();
+    password = String(password ?? "");
+    if (!USERNAME_RE.test(username)) throw new GameError("bad_username", "Username must be 3–20 letters, numbers or _");
+    if (password.length < MIN_PASSWORD) throw new GameError("bad_password", `Password must be at least ${MIN_PASSWORD} characters`);
+    if (password.length > 200) throw new GameError("bad_password", "Password is too long");
+    if (this.q.byName.get(username)) throw new GameError("taken", "That username is taken", 409);
+    const passHash = await hashPassword(password);
+    // Re-check after the slow hash in case of a simultaneous signup.
+    if (this.q.byName.get(username)) throw new GameError("taken", "That username is taken", 409);
+    const userId = this.game.createUser(username, passHash, legacyId);
+    return { userId, token: this.#newSession(userId) };
+  }
+
+  async login(username, password, ip) {
+    username = String(username ?? "").trim();
+    password = String(password ?? "");
+    const keys = [`u:${username.toLowerCase()}`, `ip:${ip}`];
+    if (tooManyFailures(keys, [10, 30])) throw new GameError("rate_limited", "Too many failed logins. Try again in a few minutes.", 429);
+    const row = this.q.byName.get(username);
+    // Hash even for unknown users so response time doesn't reveal which usernames exist.
+    const ok = row ? await verifyPassword(password, row.pass_hash) : (await hashPassword(password), false);
+    if (!ok) {
+      noteFailure(keys);
+      throw new GameError("bad_login", "Wrong username or password", 401);
+    }
+    return { userId: row.id, token: this.#newSession(row.id) };
+  }
+}

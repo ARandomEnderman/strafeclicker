@@ -22,6 +22,8 @@ import {
   indexListings,
   priceCatalog,
 } from "./data.mjs";
+import { Auth } from "./auth.mjs";
+import { openDb } from "./db.mjs";
 import { Game, GameError } from "./game.mjs";
 import { History } from "./history.mjs";
 
@@ -84,7 +86,9 @@ const diffs = [];
 let tradableListing = null;
 const status = { lastUpdateAt: null, nextUpdateAt: null, changed: 0, error: null };
 const history = new History(join(DATA_DIR, "history.ndjson"));
-const game = new Game(join(DATA_DIR, "accounts.json"), { contents: () => contents, prices: () => prices });
+const db = openDb(join(DATA_DIR, "strafeclicker.db"));
+const game = new Game(db, { contents: () => contents, prices: () => prices });
+const auth = new Auth(db, game);
 
 async function boot() {
   const snapshot = await readFile(SNAPSHOT)
@@ -105,8 +109,9 @@ async function boot() {
     gzip: gzipSync(raw),
     br: brotliCompressSync(raw, { params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 9 } }),
   };
-  await game.load();
-  log(`accounts: ${game.accounts.size}`);
+  const imported = game.importLegacyFile(join(DATA_DIR, "accounts.json"));
+  if (imported) log(`accounts: imported ${imported} anonymous accounts from accounts.json (claimed on register)`);
+  log(`accounts: ${game.userCount} users`);
 
   const validKeys = new Set(allVariants(contents).map((v) => v.key));
   const keep = (map) => Object.fromEntries(Object.entries(map ?? {}).filter(([k]) => validKeys.has(k)));
@@ -235,7 +240,9 @@ function sendCatalog(req, res) {
 
 // ---------- accounts ----------
 
-const COOKIE = "sc_account";
+const SESSION_COOKIE = "sc_session";
+/** The pre-login anonymous account cookie; claimed into a new user on register. */
+const LEGACY_COOKIE = "sc_account";
 
 function cookieValue(req, name) {
   for (const part of (req.headers.cookie ?? "").split(";")) {
@@ -245,16 +252,16 @@ function cookieValue(req, name) {
   return null;
 }
 
-/** The caller's account, creating one (and its cookie) on first visit. */
-function accountFor(req, headers) {
-  const id = cookieValue(req, COOKIE);
-  const a = game.account(id);
-  if (a.id !== id) {
-    const secure = req.headers["x-forwarded-proto"] === "https" ? "; Secure" : "";
-    headers["Set-Cookie"] = `${COOKIE}=${encodeURIComponent(a.id)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000${secure}`;
-  }
-  return a;
+function cookie(req, name, value, maxAgeSec) {
+  const secure = req.headers["x-forwarded-proto"] === "https" ? "; Secure" : "";
+  return `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSec}${secure}`;
 }
+
+const sessionUser = (req) => auth.userForToken(cookieValue(req, SESSION_COOKIE));
+
+/** Behind a reverse proxy set TRUST_PROXY=1 so login rate limits see the real client IP. */
+const clientIp = (req) =>
+  (process.env.TRUST_PROXY ? req.headers["x-forwarded-for"]?.split(",")[0].trim() : null) ?? req.socket.remoteAddress ?? "?";
 
 async function readJson(req) {
   // Requiring a JSON content type also means other sites can't post here with a plain form.
@@ -273,14 +280,35 @@ async function readJson(req) {
   }
 }
 
-/** POST /api/<action> handlers. Each returns extra response fields; the account view is always added. */
+/** POST /api/<action> handlers for logged-in users. Each returns its result plus the account view. */
 const actions = {
-  click: (a, body) => ({ credited: game.click(a, body.clicks) }),
-  open: (a, body) => ({ items: game.open(a, String(body.caseId ?? ""), body.count ?? 1) }),
-  perk: (a, body) => ({ level: game.buyPerk(a, String(body.perk ?? "")) }),
-  sell: (a, body) => ({ sold: game.sell(a, body.uids) }),
-  upgrade: (a, body) => game.upgrade(a, body.uids, body.target),
-  reset: (a) => (game.reset(a), {}),
+  click: (userId, body) => game.click(userId, body.clicks),
+  open: (userId, body) => game.open(userId, String(body.caseId ?? ""), body.count ?? 1),
+  perk: (userId, body) => game.buyPerk(userId, String(body.perk ?? "")),
+  sell: (userId, body) => game.sell(userId, body.uids),
+  upgrade: (userId, body) => game.upgrade(userId, body.uids, body.target),
+  reset: (userId) => game.reset(userId),
+};
+
+const SESSION_MAX_AGE = 30 * 86_400;
+
+/** POST /api/register, /api/login, /api/logout. They set or clear the session cookie. */
+const authActions = {
+  async register(req, body, headers) {
+    const { userId, token } = await auth.register(body.username, body.password, cookieValue(req, LEGACY_COOKIE));
+    headers["Set-Cookie"] = [cookie(req, SESSION_COOKIE, token, SESSION_MAX_AGE), cookie(req, LEGACY_COOKIE, "", 0)];
+    return { account: game.view(userId) };
+  },
+  async login(req, body, headers) {
+    const { userId, token } = await auth.login(body.username, body.password, clientIp(req));
+    headers["Set-Cookie"] = cookie(req, SESSION_COOKIE, token, SESSION_MAX_AGE);
+    return { account: game.view(userId) };
+  },
+  async logout(req, _body, headers) {
+    auth.logout(cookieValue(req, SESSION_COOKIE));
+    headers["Set-Cookie"] = cookie(req, SESSION_COOKIE, "", 0);
+    return {};
+  },
 };
 
 function pricesBody(since) {
@@ -295,19 +323,21 @@ function pricesBody(since) {
 async function api(req, res, url) {
   if (url.pathname === "/api/catalog") return sendCatalog(req, res);
   if (url.pathname === "/api/me") {
-    const headers = {};
-    const a = accountFor(req, headers);
-    return send(req, res, 200, game.view(a), undefined, headers);
+    const userId = sessionUser(req);
+    if (!userId) return send(req, res, 401, { error: "auth", message: "Not logged in" });
+    return send(req, res, 200, game.view(userId));
   }
   const action = url.pathname.match(/^\/api\/(\w+)$/)?.[1];
-  if (action && Object.hasOwn(actions, action)) {
+  const isAuth = action && Object.hasOwn(authActions, action);
+  if (isAuth || (action && Object.hasOwn(actions, action))) {
     if (req.method !== "POST") return send(req, res, 405, { error: "POST only" });
     const headers = {};
     try {
       const body = await readJson(req);
-      const a = accountFor(req, headers);
-      const result = actions[action](a, body);
-      return send(req, res, 200, { ...result, account: game.view(a) }, undefined, headers);
+      if (isAuth) return send(req, res, 200, await authActions[action](req, body, headers), undefined, headers);
+      const userId = sessionUser(req);
+      if (!userId) throw new GameError("auth", "Please log in", 401);
+      return send(req, res, 200, actions[action](userId, body));
     } catch (err) {
       if (!(err instanceof GameError)) throw err;
       return send(req, res, err.status, { error: err.code, message: err.message }, undefined, headers);
@@ -374,13 +404,11 @@ async function main() {
   server.listen(PORT, () => log(`listening on http://localhost:${PORT}${DEV ? " (dev)" : ""}`));
 }
 
-// Accounts are saved a second after each change; don't lose that second on shutdown.
+// Close the database cleanly so the WAL is checkpointed.
 for (const sig of ["SIGINT", "SIGTERM"]) {
   process.on(sig, () => {
-    game
-      .flush()
-      .catch((e) => console.error(e))
-      .finally(() => process.exit(0));
+    db.close();
+    process.exit(0);
   });
 }
 
