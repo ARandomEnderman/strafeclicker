@@ -66,3 +66,11 @@ export function battleReel(c: Case, winnerId: string, r: () => number): { ids: s
 export const DEFUSE_TILES: number;
 export const DEFUSE_RTP: number;
 export function defuseMultiplier(bombs: number, k: number): number;
+export type RouletteColor = "t" | "ct" | "green";
+export const ROULETTE_COLORS: RouletteColor[];
+export const ROULETTE_PAYOUT: Record<RouletteColor, number>;
+export const ROULETTE_WHEEL: number[];
+export function rouletteColor(n: number): RouletteColor;
+export const ROULETTE_BET_MS: number;
+export const ROULETTE_SPIN_MS: number;
+export const ROULETTE_RESULT_MS: number;

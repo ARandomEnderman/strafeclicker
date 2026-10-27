@@ -262,6 +262,11 @@ export interface BhopResult {
   run: BhopRun | null;
 }
 
+export async function rouletteBet(color: string, bet: number) {
+  await flushClicks();
+  return post("roulette", { color, bet });
+}
+
 export interface DefuseRun {
   bombs: number;
   stake: number;

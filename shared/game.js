@@ -335,3 +335,17 @@ export function defuseMultiplier(bombs, k) {
   for (let i = 0; i < k; i++) m *= (DEFUSE_TILES - i) / (DEFUSE_TILES - bombs - i);
   return k <= 0 ? 1 : Math.floor(m * 100 + 1e-9) / 100;
 }
+
+// ---------- roulette ----------
+// The classic CS-site wheel: 15 numbers, 0 is green (14x), 1–7 are T (2x) and 8–14 are
+// CT (2x). One shared round: bets for ROULETTE_BET_MS, then a ROULETTE_SPIN_MS spin
+// that everyone sees land on the same number, then the result for ROULETTE_RESULT_MS.
+
+export const ROULETTE_COLORS = ["t", "ct", "green"];
+export const ROULETTE_PAYOUT = { t: 2, ct: 2, green: 14 };
+/** The order numbers sit in on the wheel's strip. */
+export const ROULETTE_WHEEL = [1, 14, 2, 13, 3, 12, 4, 0, 11, 5, 10, 6, 9, 7, 8];
+export const rouletteColor = (n) => (n === 0 ? "green" : n <= 7 ? "t" : "ct");
+export const ROULETTE_BET_MS = 20_000;
+export const ROULETTE_SPIN_MS = 6000;
+export const ROULETTE_RESULT_MS = 3000;

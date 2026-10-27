@@ -6,13 +6,18 @@ import { openModal } from "./modal";
 import { openPriceChart } from "./price-chart";
 
 const MAX_MOVERS = 8;
+/** The popup only opens once the inventory has moved at least this much since you last saw one... */
+const MIN_CHANGE_USD = 0.5;
+/** ...and by at least this share of its value. Smaller moves keep adding up until they do. */
+const MIN_CHANGE_SHARE = 0.02;
 
-// If updates arrive while the popup is still open, it keeps the value from
-// before the first one, so it always shows the change since you last looked.
-let open: { close: () => void; baseline: Map<string, number> } | null = null;
+// Each item's value when you last saw a popup (or when it first showed up). Changes are
+// measured from here, so lots of tiny moves still surface once they add up, and an
+// update arriving while the popup is open folds into it.
+const baseline = new Map<string, number>();
+let open: { close: () => void } | null = null;
 
 export function showInventoryChange(change: InventoryChange) {
-  const baseline = open?.baseline ?? new Map<string, number>();
   for (const { drop, before } of change.items) if (!baseline.has(drop.uid)) baseline.set(drop.uid, before);
 
   const rows = change.items.map(({ drop, after }) => ({ drop, before: baseline.get(drop.uid)!, after }));
@@ -20,6 +25,8 @@ export function showInventoryChange(change: InventoryChange) {
   const after = round2(rows.reduce((s, r) => s + r.after, 0));
   const movers = rows.filter((r) => r.after !== r.before).sort((a, b) => Math.abs(b.after - b.before) - Math.abs(a.after - a.before));
   if (!movers.length) return;
+  const moved = Math.abs(after - before);
+  if (!open && (moved < MIN_CHANGE_USD || moved < before * MIN_CHANGE_SHARE)) return;
 
   open?.close();
   const delta = round2(after - before);
@@ -57,6 +64,12 @@ export function showInventoryChange(change: InventoryChange) {
       movers.length > MAX_MOVERS ? h("div", { class: "movers-more" }, `+${movers.length - MAX_MOVERS} more`) : null,
     ),
   );
-  const close = openModal(delta >= 0 ? "Prices went up" : "Prices went down", body, { onClose: () => (open = null) });
-  open = { close, baseline };
+  const close = openModal(delta >= 0 ? "Prices went up" : "Prices went down", body, {
+    onClose: () => {
+      open = null;
+      // Seen: the next popup counts from here.
+      for (const r of rows) baseline.set(r.drop.uid, r.after);
+    },
+  });
+  open = { close };
 }

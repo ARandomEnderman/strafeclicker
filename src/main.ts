@@ -19,6 +19,8 @@ import { plinkoPage } from "./ui/plinko-page";
 import { flashbangPage } from "./ui/flashbang-page";
 import { bhopPage } from "./ui/bhop-page";
 import { defusePage } from "./ui/defuse-page";
+import { roulettePage } from "./ui/roulette-page";
+import "./roulette";
 import { battlesPage } from "./ui/battles-page";
 import { battlePage } from "./ui/battle-page";
 import "./battles";
@@ -46,6 +48,7 @@ const MAIN_NAV: NavItem[] = [
   { route: "upgrader", href: "#/upgrader", label: "Upgrader", icon: "upgrader" },
   { route: "plinko", href: "#/plinko", label: "Plinko", icon: "plinko" },
   { route: "flashbang", href: "#/flashbang", label: "Flashbang", icon: "flashbang" },
+  { route: "roulette", href: "#/roulette", label: "Roulette", icon: "roulette" },
   { route: "bhop", href: "#/bhop", label: "B-hop", icon: "bhop" },
   { route: "defuse", href: "#/defuse", label: "Defuse", icon: "bomb" },
 ];
@@ -201,6 +204,7 @@ function route() {
   else if (page === "flashbang") view = flashbangPage();
   else if (page === "bhop") view = bhopPage();
   else if (page === "defuse") view = defusePage();
+  else if (page === "roulette") view = roulettePage();
   else if (page === "battles") view = arg ? battlePage(Number(arg)) : battlesPage(new URLSearchParams(query).get("code"));
   else if (page === "friends") view = friendsPage();
   else if (page === "trade") view = tradePage(new URLSearchParams(query).get("with"));

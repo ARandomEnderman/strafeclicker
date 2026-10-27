@@ -32,6 +32,7 @@ import { plinko } from "./games/plinko.mjs";
 import { Flashbang } from "./games/flashbang.mjs";
 import { Bhop } from "./games/bhop.mjs";
 import { Defuse } from "./games/defuse.mjs";
+import { Roulette } from "./games/roulette.mjs";
 import { Battles } from "./games/battles.mjs";
 import { Friends } from "./friends.mjs";
 import { Trades } from "./trades.mjs";
@@ -240,6 +241,8 @@ function toUser(userId, event, data) {
 
 const flashbang = new Flashbang(game, db, { broadcast, toUser });
 flashbang.start();
+const roulette = new Roulette(game, db, { broadcast, toUser });
+roulette.start();
 const bhop = new Bhop(game, db);
 const defuse = new Defuse(game, db);
 /** Like broadcast, but each connection gets data made for its user. */
@@ -279,6 +282,7 @@ function events(req, res) {
   res.write(`retry: 3000\nevent: status\ndata: ${JSON.stringify(statusBody())}\n\n`);
   res.write(`event: wins\ndata: ${JSON.stringify(feed.recent())}\n\n`);
   res.write(`event: fb\ndata: ${JSON.stringify(flashbang.state())}\n\n`);
+  res.write(`event: roulette\ndata: ${JSON.stringify(roulette.state())}\n\n`);
   // Server-settled results (a flashbang auto cash-out, a pop) reach the player this way.
   res.userId = sessionUser(req);
   res.write(`event: battles\ndata: ${JSON.stringify(battles.list(res.userId))}\n\n`);
@@ -417,6 +421,7 @@ const actions = {
     else if (body.action !== "list") throw new GameError("bad_input", "Unknown action");
     return { ...friends.list(userId, isOnline), account: game.view(userId) };
   },
+  roulette: (userId, body) => roulette.bet(userId, body),
   defuse: (userId, body) => {
     if (body.action === "state") return defuse.state(userId);
     if (body.action === "start") return defuse.start(userId, body);
@@ -560,6 +565,7 @@ async function main() {
 for (const sig of ["SIGINT", "SIGTERM"]) {
   process.on(sig, () => {
     flashbang.stop();
+    roulette.stop();
     void steam.stop().finally(() => {
       db.close();
       process.exit(0);
