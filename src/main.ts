@@ -6,6 +6,9 @@ import { displayBalance, getState, initState, logout, resetAll, setLoggedOutHand
 import { openModal } from "./ui/modal";
 import { icon, type IconName } from "./ui/icons";
 import { feedPanel } from "./ui/feed";
+import { chatButton, chatPanel } from "./ui/chat-panel";
+import { missionsPage } from "./ui/missions-page";
+import { leaderboardPage } from "./ui/leaderboard-page";
 import { authPage } from "./ui/auth-page";
 import { h, money, toast } from "./ui/dom";
 import { casesPage } from "./ui/cases-page";
@@ -53,7 +56,7 @@ import { showInventoryChange } from "./ui/price-popup";
 
 const app = document.getElementById("app")!;
 
-type NavItem = { route: string; href: string; label: string; icon: IconName };
+type NavItem = { route: string; href: string; label: string; icon: IconName; title?: string };
 const MAIN_NAV: NavItem[] = [
   { route: "clicker", href: "#/clicker", label: "Clicker", icon: "clicker" },
   { route: "cases", href: "#/", label: "Cases", icon: "cases" },
@@ -78,8 +81,13 @@ const BOTTOM_NAV: NavItem[] = [
   { route: "inventory", href: "#/inventory", label: "Inventory", icon: "inventory" },
   { route: "trade", href: "#/trade", label: "Trade", icon: "trade" },
   { route: "tree", href: "#/tree", label: "Upgrades", icon: "upgrades" },
-  { route: "achievements", href: "#/achievements", label: "Achievements", icon: "achievements" },
-  { route: "spin", href: "#/spin", label: "Daily spin", icon: "gift" },
+];
+/** Free rewards and rankings, as one row of tiles. */
+const REWARDS_NAV: NavItem[] = [
+  { route: "missions", href: "#/missions", label: "Missions", icon: "missions", title: "Daily missions" },
+  { route: "spin", href: "#/spin", label: "Spin", icon: "gift", title: "Daily spin" },
+  { route: "achievements", href: "#/achievements", label: "Awards", icon: "achievements", title: "Achievements" },
+  { route: "leaderboard", href: "#/leaderboard", label: "Leaders", icon: "leaderboard", title: "Leaderboards" },
 ];
 
 function navLink(n: NavItem, extra?: Node) {
@@ -96,12 +104,16 @@ function sidebar() {
   setInterval(syncSpin, 30_000);
   subscribe(syncSpin);
   syncSpin();
+  const missionsReady = h("span", { class: "badge ping", hidden: true });
   const sync = () => {
     invCount.textContent = String(getState().inventory.length);
     const a = getState();
     const n = Object.keys(a.achievements).filter((id) => !a.claimed[id]).length;
     toClaim.hidden = !n;
     toClaim.textContent = String(n);
+    const m = a.missions?.list.filter((x) => x.done && !x.claimed).length ?? 0;
+    missionsReady.hidden = !m;
+    missionsReady.textContent = String(m);
   };
   subscribe(sync);
   sync();
@@ -126,8 +138,21 @@ function sidebar() {
     feedPanel(),
     h(
       "nav",
+      { class: "side-games side-rewards", "aria-label": "Rewards" },
+      ...REWARDS_NAV.map((n) =>
+        h(
+          "a",
+          { href: n.href, "data-route": n.route, class: "side-link game-tile", title: n.title ?? n.label },
+          icon(n.icon, 18),
+          h("span", null, n.label),
+          ({ achievements: toClaim, spin: spinReady, missions: missionsReady } as Record<string, HTMLElement>)[n.route] ?? "",
+        ),
+      ),
+    ),
+    h(
+      "nav",
       { class: "side-nav bottom" },
-      ...BOTTOM_NAV.map((n) => navLink(n, { inventory: invCount, achievements: toClaim, trade: offers, spin: spinReady }[n.route])),
+      ...BOTTOM_NAV.map((n) => navLink(n, { inventory: invCount, trade: offers }[n.route])),
       ...(getState().isAdmin ? [navLink({ route: "admin", href: "#/admin", label: "Admin", icon: "admin" })] : []),
     ),
   );
@@ -186,6 +211,7 @@ function topbar() {
     h(
       "div",
       { class: "profile" },
+      chatButton(),
       friendsBtn,
       soundBtn,
       myName,
@@ -245,6 +271,8 @@ function route() {
   else if (page === "towers") view = towersPage();
   else if (page === "race") view = racePage();
   else if (page === "blackjack") view = blackjackPage();
+  else if (page === "missions") view = missionsPage();
+  else if (page === "leaderboard") view = leaderboardPage();
   else if (page === "admin" && getState().isAdmin) view = adminPage();
   else if (page === "coinflip") view = arg ? coinflipView(Number(arg)) : coinflipPage(new URLSearchParams(query).get("code"));
   else if (page === "battles") view = arg ? battlePage(Number(arg)) : battlesPage(new URLSearchParams(query).get("code"));
@@ -265,7 +293,7 @@ function route() {
 
 function startApp() {
   app.replaceChildren(
-    h("div", { class: "shell" }, sidebar(), h("div", { class: "content" }, topbar(), siteBanner(), main, footer())),
+    h("div", { class: "shell" }, sidebar(), h("div", { class: "content" }, topbar(), siteBanner(), main, footer()), chatPanel()),
     h("div", { class: "nav-scrim", onclick: () => document.body.classList.remove("nav-open") }),
     h("div", { id: "toasts" }),
   );

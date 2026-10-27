@@ -432,3 +432,12 @@ export const BJ_BET_MS = 12_000;
 export const BJ_PLAY_MS = 30_000;
 export const BJ_DEALER_CARD_MS = 800;
 export const BJ_RESULT_MS = 6000;
+
+// ---------- Chat rain ----------
+// A rain splits the rainer's own money evenly among everyone else online. How big the
+// effect on everyone's screen is goes by log10 of the amount: $1–9 is level 0, $10–99
+// level 1, ... $100,000 and up level 5.
+
+export const RAIN_LEVELS = ["Drizzle", "Shower", "Downpour", "Storm", "Thunderstorm", "Monsoon"];
+export const rainLevel = (usd) => Math.max(0, Math.min(RAIN_LEVELS.length - 1, Math.floor(Math.log10(Math.max(1, usd)))));
+export const CHAT_MAX_LEN = 200;

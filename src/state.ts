@@ -296,6 +296,11 @@ export async function playKeno(bet: number, picks: number[]): Promise<KenoResult
   return { ...r, reveal: hidePayout(r.payout) };
 }
 
+export const sendChat = (text: string) => post("chat", { text });
+export const redeemPromo = (code: string) => post<{ reward: string }>("promo", { code });
+export const claimMission = (id?: string) => post<{ reward: number }>("missions", { id });
+export const getLeaderboard = <T>() => post<{ board: T }>("leaderboard");
+
 export async function blackjackAction(action: "bet" | "hit" | "stand" | "double", bet?: number) {
   await flushClicks();
   return post("blackjack", { action, bet });

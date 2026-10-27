@@ -54,3 +54,16 @@ const REVEAL_FREQ: Record<Tier, number[]> = {
 export function playReveal(tier: Tier) {
   REVEAL_FREQ[tier].forEach((f, i) => setTimeout(() => beep(f, 220, 0.06, "triangle"), i * 90));
 }
+
+/** Rain: a patter of ticks, then for big rains a rumble of thunder (level 0–5). */
+export function playRain(level: number) {
+  const drops = 6 + level * 6;
+  for (let i = 0; i < drops; i++) setTimeout(() => beep(1400 + Math.random() * 1600, 18, 0.02, "triangle"), Math.random() * (1200 + level * 400));
+  [784, 988, 1175, 1568].slice(0, Math.min(4, level + 1)).forEach((f, i) => setTimeout(() => beep(f, 200, 0.05, "triangle"), 150 + i * 110));
+  if (level >= 3) {
+    setTimeout(() => {
+      beep(60, 900 + level * 200, 0.22, "sawtooth");
+      beep(40, 1200 + level * 200, 0.18, "sine");
+    }, 500);
+  }
+}

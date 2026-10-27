@@ -28,6 +28,7 @@ import {
 } from "../shared/game.js";
 import { tx } from "./db.mjs";
 import { ACHIEVEMENTS, newlyMet } from "../shared/achievements.js";
+import { claimMissions, ensureMissions, missionsView, trackMissions } from "./missions.mjs";
 
 export const STARTING_BALANCE = 0;
 /** Most clicks one request can carry. */
@@ -116,6 +117,8 @@ export class Game {
     this.clickBuckets = new Map();
     /** userId -> [{ cents, until }]: credited winnings not spendable until `until` (see spendable). */
     this.locks = new Map();
+    /** fn(a, event) for every bet, case opening and click batch (see track). */
+    this.trackers = [];
     this.q = {
       user: db.prepare("SELECT id, username, display_name, created_at, balance_cents, perks, stats, last_active FROM users WHERE id = ?"),
       rename: db.prepare("UPDATE users SET display_name = ? WHERE id = ?"),
@@ -249,6 +252,7 @@ export class Game {
     const out = tx(this.db, () => {
       const a = this.#load(userId);
       const offline = this.#payOffline(a);
+      ensureMissions(a);
       const result = fn(a, changes);
       const unlocked = this.#unlockAchievements(a);
       this.#save(a, changes);
@@ -319,6 +323,28 @@ export class Game {
     if (stakeCents > 0) st.bestMult = Math.max(st.bestMult, Math.round((payoutCents / stakeCents) * 100) / 100);
     for (const [k, v] of Object.entries(max)) st[k] = Math.max(st[k] ?? 0, v);
     for (const [k, v] of Object.entries(add)) st[k] = (st[k] ?? 0) + v;
+    this.track(a, { type: "game", game, stakeCents, payoutCents });
+  }
+
+  /**
+   * One bet settled, cases opened or clicks paid: counts towards daily missions and
+   * the leaderboards. Called inside the account's transaction.
+   * @param {{ type: "game" | "cases" | "clicks", game?: string, n?: number, stakeCents?: number, payoutCents?: number }} ev
+   */
+  track(a, ev) {
+    trackMissions(a, ev);
+    for (const fn of this.trackers) fn(a, ev);
+  }
+
+  /** Collect the reward of one finished daily mission, or all of them (id omitted). */
+  claimMission(userId, id) {
+    return this.#act(userId, (a) => {
+      const total = claimMissions(a, id);
+      if (!total) throw new GameError("nothing", "Nothing to claim");
+      a.balanceCents += total;
+      a.stats.missionCents = (a.stats.missionCents ?? 0) + total;
+      return { reward: total / 100 };
+    });
   }
 
   /**
@@ -485,6 +511,7 @@ export class Game {
         offlineEarned: (s.offlineCents ?? 0) / 100,
       },
       nextSpinAt: (s.lastSpin ?? 0) + DAILY_SPIN_EVERY_MS,
+      missions: missionsView(s.missions),
       achievements: s.achievements,
       claimed: s.claimed,
     };
@@ -548,6 +575,7 @@ export class Game {
       this.clickBuckets.set(a.id, st);
       a.balanceCents += credited;
       a.stats.clicks += n;
+      this.track(a, { type: "clicks", n });
       return { credited: n, paid };
     });
   }
@@ -586,6 +614,7 @@ export class Game {
         this.#noteBest(a, owned);
       }
       // Only the best of a multi-open goes to the feed, held back until the reel lands (6 s).
+      this.track(a, { type: "cases", game: "cases", n, stakeCents: cost, payoutCents: items.reduce((sum, it) => sum + cents(this.#price(it)), 0) });
       const best = items.reduce((x, y) => (this.#price(y) > this.#price(x) ? y : x));
       this.announce(changes, a, "case", best, cost / n / 100, { source: c.name }, 6500);
       return { items };
@@ -667,6 +696,7 @@ export class Game {
         this.announce(changes, a, "upgrader", owned, inputCents / 100, {}, 4400);
       }
       a.stats.upgrades++;
+      this.track(a, { type: "game", game: "upgrade", stakeCents: inputCents, payoutCents: won ? targetCents : 0 });
       return { won, chance, item: owned };
     });
   }
@@ -678,7 +708,7 @@ export class Game {
       a.inventory = [];
       a.balanceCents = cents(STARTING_BALANCE);
       // Achievements stay unlocked so their rewards can't be farmed by resetting.
-      a.stats = { ...freshStats(), achievements: a.stats.achievements, claimed: a.stats.claimed };
+      a.stats = { ...freshStats(), achievements: a.stats.achievements, claimed: a.stats.claimed, missions: a.stats.missions };
       a.perks = { ...NO_PERKS };
       return {};
     });

@@ -7,6 +7,15 @@ import { RIGGABLE } from "./settings.mjs";
 
 export const ADMIN_USERNAME = "admin";
 
+/** A fresh drop of one item variant ({ itemId, wear, phase, stattrak }; bad wear / phase fall back to the first). */
+export function makeDrop(game, spec) {
+  const item = game.item(String(spec?.itemId ?? ""));
+  if (!item) throw new GameError("bad_input", "Unknown item");
+  const wear = item.wears.length ? (item.wears.includes(spec.wear) ? spec.wear : item.wears[0]) : null;
+  const phase = item.phases ? (item.phases.some((p) => p.name === spec.phase) ? spec.phase : item.phases[0].name) : null;
+  return { itemId: item.id, phase, wear, stattrak: !!spec.stattrak && item.stattrak && item.kind !== "gloves", float: floatInWear(item, wear, Math.random()), seed: item.kind === "sticker" ? null : Math.floor(Math.random() * 1001) };
+}
+
 /** Plinko's average payback for one table when bounces lean `rig / 2` toward the middle. */
 function plinkoRtp(rows, risk, rig) {
   let dist = [1]; // dist[k] = chance of k right bounces so far
@@ -81,7 +90,7 @@ export class Admin {
       count: db.prepare("SELECT COUNT(*) AS n, COALESCE(SUM(balance_cents), 0) AS bal FROM users"),
       items: db.prepare("SELECT item_id, phase, wear, stattrak FROM items"),
       stats: db.prepare("SELECT stats FROM users"),
-      search: db.prepare(`SELECT u.id, u.username, u.display_name, u.balance_cents, u.created_at, u.last_active, u.banned,
+      search: db.prepare(`SELECT u.id, u.username, u.display_name, u.balance_cents, u.created_at, u.last_active, u.banned, u.muted_until,
         (SELECT COUNT(*) FROM items i WHERE i.user_id = u.id) AS items
         FROM users u WHERE u.username LIKE ? OR u.display_name LIKE ? ORDER BY u.last_active DESC NULLS LAST LIMIT 50`),
       ban: db.prepare("UPDATE users SET banned = ? WHERE id = ?"),
@@ -118,7 +127,14 @@ export class Admin {
       itemValue: Math.round(itemValue * 100) / 100,
       games: Object.entries(games).map(([game, t]) => ({ game, ...t, house: Math.round((t.wagered - t.paid) * 100) / 100, rtp: t.wagered ? pct(t.paid / t.wagered) : null })),
       steam: { prices: this.steam.prices.size, sweep: this.steam.start, total: this.steam.total, intervalMs: this.steam.intervalMs, sweeps: this.steam.sweeps },
-      settings: { rig: this.settings.get("rig"), rigGames: this.settings.get("rigGames"), maintenance: this.settings.get("maintenance"), announcement: this.settings.get("announcement") },
+      settings: {
+        rig: this.settings.get("rig"),
+        rigGames: this.settings.get("rigGames"),
+        maintenance: this.settings.get("maintenance"),
+        announcement: this.settings.get("announcement"),
+        lbPrizes: this.settings.get("lbPrizes"),
+        rainMin: this.settings.get("rainMin"),
+      },
       rigGames: RIGGABLE,
       report: rigReport(this.settings),
     };
@@ -135,6 +151,7 @@ export class Admin {
       createdAt: u.created_at,
       lastActive: u.last_active,
       banned: !!u.banned,
+      mutedUntil: u.muted_until && u.muted_until > Date.now() ? u.muted_until : null,
       online: this.isOnline(u.id),
     }));
   }
@@ -161,11 +178,7 @@ export class Admin {
   /** Give a specific item variant. */
   giveItem(username, body) {
     const id = this.#userId(username);
-    const item = this.game.item(String(body.itemId ?? ""));
-    if (!item) throw new GameError("bad_input", "Unknown item");
-    const wear = item.wears.length ? (item.wears.includes(body.wear) ? body.wear : item.wears[0]) : null;
-    const phase = item.phases ? (item.phases.some((p) => p.name === body.phase) ? body.phase : item.phases[0].name) : null;
-    const drop = { itemId: item.id, phase, wear, stattrak: !!body.stattrak && item.stattrak && item.kind !== "gloves", float: floatInWear(item, wear, Math.random()), seed: item.kind === "sticker" ? null : Math.floor(Math.random() * 1001) };
+    const drop = makeDrop(this.game, body);
     const { account } = this.game.act(id, (a, changes) => {
       this.game.grant(a, changes, [drop], "admin");
       return {};
@@ -195,6 +208,11 @@ export class Admin {
       this.settings.set("rigGames", out);
     }
     if (body.maintenance != null) this.settings.set("maintenance", !!body.maintenance);
+    if (body.lbPrizes != null) {
+      const prizes = (list) => (Array.isArray(list) ? list.slice(0, 10).map((x) => Math.max(0, Math.round((Number(x) || 0) * 100) / 100)) : []);
+      this.settings.set("lbPrizes", { daily: prizes(body.lbPrizes.daily), weekly: prizes(body.lbPrizes.weekly) });
+    }
+    if (body.rainMin != null) this.settings.set("rainMin", Math.max(0.01, Number(body.rainMin) || 1));
     if (body.announcement !== undefined) this.settings.set("announcement", body.announcement ? String(body.announcement).slice(0, 300) : null);
     this.broadcast("site", this.settings.public());
     return this.overview();

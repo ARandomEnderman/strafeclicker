@@ -110,6 +110,11 @@ export interface Account {
   claimed: Record<string, number>;
   /** Present once, right after achievements were unlocked. */
   unlocked?: string[];
+  /** Today's three daily missions. */
+  missions: {
+    resetsAt: number;
+    list: { id: string; tier: number; label: string; progress: number; target: number; money: boolean; reward: number; done: boolean; claimed: boolean }[];
+  };
 }
 
 /** An entry in the live big-wins feed. */

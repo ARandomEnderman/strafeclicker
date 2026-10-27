@@ -22,7 +22,14 @@ interface Overview {
   itemValue: number;
   games: { game: string; played: number; wagered: number; paid: number; house: number; rtp: number | null }[];
   steam: { prices: number; sweep: number; total: number | null; intervalMs: number; sweeps: number };
-  settings: { rig: number; rigGames: Record<string, number>; maintenance: boolean; announcement: string | null };
+  settings: {
+    rig: number;
+    rigGames: Record<string, number>;
+    maintenance: boolean;
+    announcement: string | null;
+    lbPrizes: { daily: number[]; weekly: number[] };
+    rainMin: number;
+  };
   rigGames: string[];
   report: ReportRow[];
 }
@@ -35,7 +42,17 @@ interface AdminUser {
   createdAt: number;
   lastActive: number | null;
   banned: boolean;
+  mutedUntil: number | null;
   online: boolean;
+}
+interface PromoCode {
+  code: string;
+  reward: string;
+  uses: number;
+  maxUses: number;
+  expiresAt: number | null;
+  createdAt: number;
+  active: boolean;
 }
 
 const GAME_NAMES: Record<string, string> = {
@@ -162,6 +179,146 @@ export function adminPage() {
     );
   };
 
+  // ---------- chat and rewards ----------
+  const chatSection = () => {
+    const o = ov!;
+    const rainMin = h("input", { class: "admin-num", type: "number", min: "0.01", step: "0.01", value: String(o.settings.rainMin) }) as HTMLInputElement;
+    const daily = h("input", { class: "search", value: o.settings.lbPrizes.daily.join(", "), placeholder: "e.g. 25, 10, 5" }) as HTMLInputElement;
+    const weekly = h("input", { class: "search", value: o.settings.lbPrizes.weekly.join(", "), placeholder: "e.g. 100, 50, 25" }) as HTMLInputElement;
+    const nums = (v: string) =>
+      v
+        .split(/[,\s]+/)
+        .filter(Boolean)
+        .map(Number)
+        .filter((x) => Number.isFinite(x) && x >= 0);
+    const save = () =>
+      run(async () => {
+        ov = (await adminAction<Overview>("settings", { rainMin: Number(rainMin.value), lbPrizes: { daily: nums(daily.value), weekly: nums(weekly.value) } })) as Overview;
+        draw();
+      }, "Saved");
+    return section(
+      "Chat & rewards",
+      h("p", { class: "hint" }, "Leaderboard prizes go to the top wagerers when a day / week ends (UTC), first place first. Leave empty for no prizes. The admin account is never on the leaderboards."),
+      h("div", { class: "admin-row" }, h("b", null, "Daily prizes ($)"), daily),
+      h("div", { class: "admin-row" }, h("b", null, "Weekly prizes ($)"), weekly),
+      h("div", { class: "admin-row" }, h("b", null, "Smallest /rain ($)"), rainMin, h("button", { class: "btn btn-primary", onclick: () => void save() }, "Save")),
+      h(
+        "div",
+        { class: "admin-row" },
+        h("b", null, "Chat"),
+        h("span", { class: "admin-muted" }, "Delete single messages with the bin icon in the chat itself. Mute players in the list below."),
+        h("button", { class: "btn btn-ghost", onclick: () => confirm("Delete every chat message?") && void run(() => adminAction("chatClear"), "Chat cleared") }, "Clear chat"),
+      ),
+    );
+  };
+
+  // ---------- promo codes ----------
+  const promoList = h("div", { class: "admin-promos" });
+  const drawPromos = (codes: PromoCode[]) =>
+    promoList.replaceChildren(
+      codes.length
+        ? h(
+            "div",
+            { class: "admin-table-wrap" },
+            h(
+              "table",
+              { class: "admin-table" },
+              h("thead", null, h("tr", null, h("th", null, "Code"), h("th", null, "Gives"), h("th", null, "Used"), h("th", null, "Expires"), h("th", null, ""))),
+              h(
+                "tbody",
+                null,
+                ...codes.map((c) =>
+                  h(
+                    "tr",
+                    { class: c.active ? "" : "admin-banned" },
+                    h("td", null, h("b", null, c.code)),
+                    h("td", null, c.reward),
+                    h("td", null, `${c.uses}${c.maxUses ? ` / ${c.maxUses}` : ""}`),
+                    h("td", null, c.expiresAt ? new Date(c.expiresAt).toLocaleString() : "never"),
+                    h(
+                      "td",
+                      { class: "admin-actions" },
+                      h(
+                        "button",
+                        {
+                          class: "btn btn-sm btn-ghost",
+                          onclick: async () => {
+                            const r = await run(() => adminAction<{ codes: PromoCode[] }>("promoDelete", { code: c.code }), "Code deleted");
+                            if (r) drawPromos(r.codes);
+                          },
+                        },
+                        "Delete",
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          )
+        : h("p", { class: "hint" }, "No codes yet."),
+    );
+  const promoSection = () => {
+    const code = h("input", { class: "search", placeholder: "CODE", maxlength: "24" }) as HTMLInputElement;
+    const usd = h("input", { class: "admin-num", type: "number", min: "0", step: "0.01", placeholder: "$" }) as HTMLInputElement;
+    const uses = h("input", { class: "admin-num", type: "number", min: "0", step: "1", placeholder: "any" }) as HTMLInputElement;
+    const hours = h("input", { class: "admin-num", type: "number", min: "0", step: "1", placeholder: "never" }) as HTMLInputElement;
+    let item: { itemId: string; wear: string; stattrak: boolean; name: string } | null = null;
+    const itemLabel = h("span", { class: "admin-muted" }, "No item");
+    const q = h("input", { class: "search", placeholder: "Optional: add an item (search)" }) as HTMLInputElement;
+    const results = h("div", { class: "admin-results" });
+    q.addEventListener("input", () => {
+      const sq = q.value.toLowerCase().trim();
+      const found = sq.length < 2 ? [] : Object.values(getCatalog().items).filter((it) => it.name.toLowerCase().includes(sq)).slice(0, 8);
+      results.replaceChildren(
+        ...found.map((it) =>
+          h(
+            "button",
+            {
+              class: "trade-item",
+              style: `--rarity:${it.color}`,
+              onclick: () => {
+                const wear = it.wears.length ? (prompt(`Wear for ${it.name}: ${it.wears.join(", ")}`, it.wears[0]) ?? it.wears[0]) : "";
+                item = { itemId: it.id, wear, stattrak: false, name: it.name };
+                itemLabel.replaceChildren(`${it.name}${wear ? ` (${wear})` : ""} `, h("button", { class: "linklike", onclick: () => ((item = null), (itemLabel.textContent = "No item")) }, "remove"));
+                results.replaceChildren();
+                q.value = "";
+              },
+            },
+            h("img", { src: it.image, alt: "" }),
+            h("span", { class: "trade-item-name" }, it.name),
+          ),
+        ),
+      );
+    });
+    const create = async () => {
+      const r = await run(
+        () => adminAction<{ codes: PromoCode[] }>("promoCreate", { code: code.value, usd: Number(usd.value) || 0, maxUses: Number(uses.value) || 0, hours: Number(hours.value) || 0, item }),
+        `Code ${code.value.toUpperCase()} created`,
+      );
+      if (r) {
+        drawPromos(r.codes);
+        code.value = usd.value = uses.value = hours.value = "";
+      }
+    };
+    void run(() => adminAction<{ codes: PromoCode[] }>("promos")).then((r) => r && drawPromos(r.codes));
+    return section(
+      "Promo codes",
+      h("p", { class: "hint" }, "Players redeem codes on the Missions page, once each. Give balance, an item, or both."),
+      h(
+        "div",
+        { class: "admin-row" },
+        code,
+        h("label", { class: "admin-check" }, "Balance ", usd),
+        h("label", { class: "admin-check" }, "Max uses ", uses),
+        h("label", { class: "admin-check" }, "Expires in (hours) ", hours),
+      ),
+      h("div", { class: "admin-row" }, q, itemLabel),
+      results,
+      h("div", { class: "admin-row" }, h("button", { class: "btn btn-primary", onclick: () => void create() }, "Create code")),
+      promoList,
+    );
+  };
+
   // ---------- economy ----------
   const economySection = () => {
     const o = ov!;
@@ -234,7 +391,7 @@ export function adminPage() {
               h(
                 "tr",
                 { class: u.banned ? "admin-banned" : "" },
-                h("td", null, h("span", { class: `dot${u.online ? " on" : ""}` }), " ", userLink(u.user, u.name), h("span", { class: "admin-muted" }, ` @${u.user}${u.banned ? " · banned" : ""}`)),
+                h("td", null, h("span", { class: `dot${u.online ? " on" : ""}` }), " ", userLink(u.user, u.name), h("span", { class: "admin-muted" }, ` @${u.user}${u.banned ? " · banned" : ""}${u.mutedUntil ? ` · muted ${u.mutedUntil > Date.now() + 3e11 ? "for good" : `till ${new Date(u.mutedUntil).toLocaleString()}`}` : ""}`)),
                 h("td", null, money(u.balance)),
                 h("td", null, String(u.items)),
                 h("td", null, u.online ? "online" : ago(u.lastActive)),
@@ -253,6 +410,18 @@ export function adminPage() {
                     "Money",
                   ),
                   h("button", { class: "btn btn-sm", onclick: () => openGiveItem(u.user) }, "Give item"),
+                  h(
+                    "button",
+                    {
+                      class: "btn btn-sm",
+                      onclick: async () => {
+                        if (u.mutedUntil) return (await run(() => adminAction("mute", { username: u.user, minutes: 0 }), "Unmuted")) && void loadUsers();
+                        const v = prompt(`Mute ${u.user} in chat for how many minutes? (-1 = for good)`, "60");
+                        if (v && (await run(() => adminAction("mute", { username: u.user, minutes: Number(v) }), "Muted"))) void loadUsers();
+                      },
+                    },
+                    u.mutedUntil ? "Unmute" : "Mute",
+                  ),
                   h(
                     "button",
                     { class: "btn btn-sm", onclick: async () => confirm(`Wipe ${u.user}'s balance, items, stats and upgrades?`) && (await run(() => adminAction("reset", { username: u.user }), "Account reset")) && void loadUsers() },
@@ -334,6 +503,8 @@ export function adminPage() {
       h("div", { class: "admin-top" }, h("h1", null, icon("admin", 22), " Admin"), h("button", { class: "btn btn-ghost", onclick: () => void load() }, "Refresh")),
       rigSection(),
       siteSection(),
+      chatSection(),
+      promoSection(),
       economySection(),
       section("Players", search, giveBox, usersBox),
     );

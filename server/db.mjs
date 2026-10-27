@@ -66,6 +66,7 @@ export function openDb(file) {
   if (!userCols.has("last_active")) db.exec("ALTER TABLE users ADD COLUMN last_active INTEGER");
   if (!userCols.has("display_name")) db.exec("ALTER TABLE users ADD COLUMN display_name TEXT");
   if (!userCols.has("banned")) db.exec("ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0");
+  if (!userCols.has("muted_until")) db.exec("ALTER TABLE users ADD COLUMN muted_until INTEGER");
   return db;
 }
 

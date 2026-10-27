@@ -26,6 +26,14 @@ A CS2 case-opening simulator. Play money only: no deposits, no withdrawals, noth
 - **Blackjack**: tables of up to four players against one dealer. The first bet starts a 12 s window for others to sit down; then everyone gets two cards and all players play their hand at the same time (hit, stand, or double on the first two cards) within 30 s; anyone still deciding then stands. The dealer turns the hole card and draws to 17 (stands on soft 17) one card at a time, the same on every screen. Blackjack pays 3:2, a win 1:1, a push returns the bet; the dealer peeks for blackjack. Six decks, no splits or insurance. You see your own hand plus the up to three others at your table. About 99% payback with perfect basic strategy.
 - **Keno**: a 7×7 grid. Pick 1–10 tiles, the server draws 10 of the 49, and you're paid by how many of yours were hit (`KENO_TABLES` in `shared/game.js`; each row pays back about 99%).
 - **Daily spin**: a free wheel once every 24 hours paying $0.25 to $100 into your balance (about $2.27 a day on average; prizes in `DAILY_PRIZES` in `shared/game.js`). A red dot in the sidebar shows when it's ready.
+- **Chat**: a global chat on the right (a drawer on small screens; the speech-bubble button in the top bar opens it and counts unread messages). Two commands:
+  - `/rain <amount>` (the **Rain** button types it for you): your own money is split evenly among everyone else online right now. Everyone online sees it rain on their screen, bigger by log10 of the amount: $1–9 Drizzle, $10+ Shower, $100+ Downpour (rain streaks), $1,000+ Storm (lightning), $10,000+ Thunderstorm (the screen shakes), $100,000+ Monsoon. The chat shows how much was rained, on how many players, and how much you got.
+  - `/pay <user> <amount>`: send money to one player. Only the two of you see it in the chat. The **Pay** button on any profile card types it for you.
+
+  Amounts can be written as `50`, `$1,250.50` or `2k`. Messages are up to 200 characters, about one every second at most.
+- **Daily missions**: three random tasks every UTC day (one easy, one medium, one hard: open cases, click, wager, play or win rounds of a game, hit a multiplier) paying $1 / $2.50 / $5, claimed on the Missions page. The task list is in `server/missions.mjs`.
+- **Leaderboards**: most wagered and biggest single win, today and this week (UTC, weeks start Monday), plus the richest players (balance + inventory). When a day or week ends, the top wagerers get the prizes set in the admin panel (default $25 / $10 / $5 daily, $100 / $50 / $25 weekly) and the chat announces them. The admin account isn't ranked.
+- **Promo codes**: made in the admin panel, redeemed on the Missions page, once per player.
 - **Live wins**: the sidebar shows notable items people unbox, upgrade into or win in battles (only items; casino payouts aren't posted). Knives, gloves and Covert items always show; otherwise an item needs to be worth $25+, or 10x what its case cost and $2+. A multi-open posts only its best item. Flood control: one entry per player per 15 s, and once 8 went out in a minute only $50+ items get through (knives, gloves and $100+ items skip both limits). The rules are at the top of `server/feed.mjs`. Entries wait until the reel has landed so they never spoil your own roll.
 - **Upgrader**: stake up to 10 items for one pricier skin or sticker. Chance = your value ÷ target price × 90%, between 1% and 80%.
 - **Upgrade tree**: an Obsidian-style graph (drag nodes, pan, zoom). Each node shows its icon and price; hover for details, click to pin and buy. Spend balance to open up to 5 cases at once, raise click value up to $1.00, raise offline income from $0.25 to $4.00 per hour, and raise how many cases you can put in a case battle from 3 to 20. Levels and costs are in `PERKS` in `shared/game.js`.
@@ -48,7 +56,9 @@ Log in as the account named exactly `admin` (same case) and an **Admin** link ap
   Player-vs-player games (battles, jackpot, coinflip between players) have no house and aren't affected.
 - **Site**: maintenance mode (no new bets or openings; cash-outs, selling and trading still work), a site-wide announcement banner, and popping the current flashbang round.
 - **Economy**: players online, total balances and item value, and per game the rounds played, amount wagered and paid out, the house's result and the actual payback; Steam price-collector status.
-- **Players**: search, give or take money, give any item (pick wear / StatTrak), reset an account, ban / unban (a ban logs them out at once).
+- **Chat & rewards**: leaderboard prizes per place for days and weeks, the smallest /rain allowed, and clearing the chat. Single messages are deleted with the bin icon that shows on them in the chat (admin only).
+- **Promo codes**: create codes that give balance, an item, or both, with an optional use limit and expiry; see how often each was used; delete them.
+- **Players**: search, give or take money, give any item (pick wear / StatTrak), reset an account, mute in chat (for some minutes or for good), ban / unban (a ban logs them out at once).
 
 ## Run
 
@@ -138,6 +148,10 @@ No `git` on the box? Download the code instead:
 | `POST /api/coinflip` `{action: "create", uids, side, visibility}` / `join` `{id, uids}` or `{code}` / `bot` / `cancel` | Coinflips; the list comes over SSE as `flips` events |
 | `POST /api/jackpot` `{uids}` / `{action: "withdraw"}` | Deposit items into the pot, or take them back before anyone else joins; round state comes over SSE as `jackpot` events |
 | `POST /api/admin` `{action, ...}` | Admin panel (account `admin` only) |
+| `POST /api/chat` `{text}` | Send a chat message, `/rain <amount>` or `/pay <user> <amount>`; the chat comes over SSE as `chat` (history) and `chatmsg` events |
+| `POST /api/missions` `{id?}` | Claim a finished daily mission (all of them without `id`) |
+| `POST /api/leaderboard` | Today's, this week's and the richest leaderboards |
+| `POST /api/promo` `{code}` | Redeem a promo code |
 | `POST /api/spin` | The daily spin |
 | `POST /api/keno` `{bet, picks}` | A keno round (picks are tile numbers 0–48) |
 | `POST /api/towers` `{action: "start", bet, difficulty}` / `pick` `{door}` / `cashout` / `state` | Towers |
@@ -178,7 +192,9 @@ The returned element is placed in a fixed 4:3 box and should fill it.
 | `server/friends.mjs` | Friend requests and lists |
 | `server/trades.mjs` | Trade offers |
 | `server/profiles.mjs` | Player profiles |
-| `server/admin.mjs`, `server/settings.mjs` | Admin panel and its settings (rig, maintenance, announcement) |
+| `server/admin.mjs`, `server/settings.mjs` | Admin panel and its settings (rig, maintenance, announcement, prizes) |
+| `server/chat.mjs` | Chat, /rain and /pay |
+| `server/missions.mjs`, `server/leaderboard.mjs`, `server/promos.mjs` | Daily missions, leaderboards, promo codes |
 | `server/steam.mjs` | Steam Market price collector |
 | `shared/achievements.js` | Achievement list, goals and rewards |
 | `shared/game.js` | Odds, float generation, upgrade chance, perk table (server rolls with it, browser displays it) |

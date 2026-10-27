@@ -40,6 +40,9 @@ import { Jackpot } from "./games/jackpot.mjs";
 import { keno } from "./games/keno.mjs";
 import { Race } from "./games/race.mjs";
 import { Blackjack } from "./games/blackjack.mjs";
+import { Chat } from "./chat.mjs";
+import { Leaderboard } from "./leaderboard.mjs";
+import { Promos } from "./promos.mjs";
 import { Battles } from "./games/battles.mjs";
 import { Friends } from "./friends.mjs";
 import { Trades } from "./trades.mjs";
@@ -273,13 +276,18 @@ const coinflip = new Coinflip(game, db, friends, { broadcastPer, toUser });
 coinflip.start();
 const blackjack = new Blackjack(game, db, { broadcastPer, toUser });
 blackjack.start();
+const onlineIds = () => new Set([...clients].map((r) => r.userId).filter((id) => id != null));
+const chat = new Chat(db, game, settings, { broadcastPer, broadcast, toUser, onlineIds });
+const leaderboard = new Leaderboard(db, game, settings, { toUser, announce: (text) => chat.system(text) });
+leaderboard.start();
+const promos = new Promos(db, game);
 const profiles = new Profiles(game, db, friends, isOnline);
 const admin = new Admin({
   db,
   game,
   settings,
   isOnline,
-  onlineCount: () => new Set([...clients].map((r) => r.userId).filter((id) => id != null)).size,
+  onlineCount: () => onlineIds().size,
   steam,
   broadcast,
   toUser,
@@ -321,6 +329,7 @@ function events(req, res) {
   res.write(`event: battles\ndata: ${JSON.stringify(battles.list(res.userId))}\n\n`);
   res.write(`event: flips\ndata: ${JSON.stringify(coinflip.list(res.userId))}\n\n`);
   res.write(`event: bj\ndata: ${JSON.stringify(blackjack.view(res.userId))}\n\n`);
+  res.write(`event: chat\ndata: ${JSON.stringify(chat.history(res.userId))}\n\n`);
   const wasOnline = res.userId != null && isOnline(res.userId);
   clients.add(res);
   if (res.userId != null && !wasOnline) presenceChanged(res.userId);
@@ -446,6 +455,10 @@ const actions = {
   click: (userId, body) => game.click(userId, body.clicks, body.times),
   plinko: (userId, body) => plinko(game, userId, body),
   claim: (userId, body) => game.claim(userId, body.id == null ? null : String(body.id)),
+  chat: (userId, body) => chat.send(userId, body.text),
+  leaderboard: (userId) => ({ board: leaderboard.view(userId, auth.usernameOf(userId)) }),
+  promo: (userId, body) => promos.redeem(userId, body.code),
+  missions: (userId, body) => game.claimMission(userId, body.id == null ? null : String(body.id)),
   flashbang: (userId, body) => {
     if (body.action === "bet") return flashbang.bet(userId, body);
     if (body.action === "cancel") return flashbang.cancel(userId);
@@ -481,6 +494,12 @@ const actions = {
       : a === "reset" ? admin.reset(body.username)
       : a === "settings" ? admin.setSettings(body)
       : a === "pop" ? admin.popFlashbang()
+      : a === "promos" ? { codes: promos.list() }
+      : a === "promoCreate" ? promos.create(body)
+      : a === "promoDelete" ? promos.remove(body.code)
+      : a === "chatDelete" ? chat.delete(body.id)
+      : a === "chatClear" ? chat.clear()
+      : a === "mute" ? chat.mute(body.username, body.minutes)
       : null;
     if (!r) throw new GameError("bad_input", "Unknown action");
     return { ...r, account: game.view(userId) };
@@ -677,6 +696,7 @@ for (const sig of ["SIGINT", "SIGTERM"]) {
     jackpot.stop();
     race.stop();
     blackjack.stop();
+    leaderboard.stop();
     void steam.stop().finally(() => {
       db.close();
       process.exit(0);

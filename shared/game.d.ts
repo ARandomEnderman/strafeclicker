@@ -103,3 +103,6 @@ export const BJ_BET_MS: number;
 export const BJ_PLAY_MS: number;
 export const BJ_DEALER_CARD_MS: number;
 export const BJ_RESULT_MS: number;
+export const RAIN_LEVELS: string[];
+export function rainLevel(usd: number): number;
+export const CHAT_MAX_LEN: number;

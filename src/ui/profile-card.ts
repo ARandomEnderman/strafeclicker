@@ -1,4 +1,5 @@
 import { friendsAction, getProfile, getState, ServerError, type Profile } from "../state";
+import { openChat } from "./chat-panel";
 import { set as setFriends } from "../friends";
 import { h, money, toast } from "./dom";
 import { icon } from "./icons";
@@ -80,6 +81,22 @@ export function profileCard(p: Profile, opts: { compact?: boolean; onChange?: ()
   if (p.relation === "none") actions.push(h("button", { class: "btn btn-primary btn-sm", onclick: () => void friendAction("request", `Friend request sent to ${p.name}`) }, icon("friends", 14), " Add friend"));
   if (p.relation === "incoming") actions.push(h("button", { class: "btn btn-primary btn-sm", onclick: () => void friendAction("accept", `You and ${p.name} are now friends`) }, icon("friends", 14), " Accept friend request"));
   if (p.relation === "outgoing") actions.push(h("span", { class: "pc-note" }, "Friend request sent"));
+  if (!me)
+    actions.push(
+      h(
+        "button",
+        {
+          class: "btn btn-sm",
+          title: "Send money with /pay in the chat",
+          onclick: () => {
+            open?.close();
+            openChat(`/pay ${p.user} `);
+          },
+        },
+        icon("pay", 14),
+        " Pay",
+      ),
+    );
 
   return h(
     "div",
