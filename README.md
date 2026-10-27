@@ -69,10 +69,10 @@ No `git` on the box? Download the code instead:
 
 ## How prices work
 
-- **Steam Community Market** is the main source: the lowest current listing of each item (what a buyer pays, Steam's fee included). Steam has no bulk price API and its market search returns 10 items per request, so `server/steam.mjs` collects prices continuously, one request every `STEAM_INTERVAL_MS` (default 3000 ms):
+- **Steam Community Market** is the main source: the lowest current listing of each item (what a buyer pays, Steam's fee included). Steam has no bulk price API and its market search returns 10 items per request, so `server/steam.mjs` collects prices continuously, at most one request every `STEAM_INTERVAL_MS` (default 4000 ms):
   - two requests in three walk the whole market (~35,000 items) in name order, so every item is refreshed every few hours;
   - one in three looks up a "hot" item (anything someone owns, then cases and capsules), so those stay minutes fresh.
-  - If Steam rate-limits (HTTP 429) it pauses for 1 minute, doubling up to 15. What it has collected is saved to `data/steam-prices.json`, so a restart picks up where it left off.
+  - If Steam rate-limits (HTTP 429) it pauses for 1 minute (doubling up to 15) and slows its pace by 1.5x; after 100 requests in a row without a 429 it speeds up again by 10%, never faster than `STEAM_INTERVAL_MS`. So it settles at whatever Steam allows your IP. What it has collected (and the pace it settled on) is saved to `data/steam-prices.json`, so a restart picks up where it left off.
 - **Skinport** (lowest listing) fills what Steam can't: Doppler and Gamma Doppler phases (Steam lists all phases of a knife under one name) and items Steam hasn't reached yet. Skinport allows 8 requests per 5 minutes and refreshes about every 5 minutes; the server uses 6.
 - `server/index.mjs` ticks at every wall-clock minute and builds the price list from whatever both sources have at that moment, so each tick carries the Steam prices collected during the last minute. The countdown resets every minute.
 - When the server first switches to Steam, prices move from Skinport's to Steam's as the sweep reaches each item (Steam is usually higher), so expect one bigger jump in the graphs and the inventory-change popup.
