@@ -10,7 +10,8 @@ A CS2 case-opening simulator. Play money only: no deposits, no withdrawals, noth
 - **Accounts**: sign up with a username and password (no guest accounts). Balance, inventory and every roll live on the server in SQLite; the browser only ever sees outcomes.
 - **Clicker**: click to earn money ($0.05 per click to start). The server caps clicks at a burst of 20, then 15 per second.
 - **Upgrader**: stake up to 10 items for one pricier skin or sticker. Chance = your value ÷ target price × 90%, between 1% and 80%.
-- **Upgrade tree**: spend balance to open up to 5 cases at once and raise click value up to $1.00. Levels and costs are in `PERKS` in `shared/game.js`.
+- **Upgrade tree**: an Obsidian-style graph (drag nodes, pan, zoom). Spend balance to open up to 5 cases at once, raise click value up to $1.00, and raise offline income from $0.25 to $4.00 per hour. Levels and costs are in `PERKS` in `shared/game.js`.
+- **Offline income**: time away (gaps of 5+ minutes, up to 12 hours) is paid out when you come back, with a welcome-back popup.
 
 ## Run
 
@@ -60,7 +61,7 @@ Needs **Node 22.13 or newer** (it uses Node's built-in SQLite, so there's nothin
 | `POST /api/open` `{caseId, count}` | Open 1–5 of a case, up to your multi-open level |
 | `POST /api/sell` `{uids}` | Sell items at the current price |
 | `POST /api/upgrade` `{uids, target}` | Stake items on a target variant |
-| `POST /api/perk` `{perk}` | Buy the next level of `multiOpen` or `clickPower` |
+| `POST /api/perk` `{perk}` | Buy the next level of `multiOpen`, `clickPower` or `offlineIncome` |
 | `POST /api/reset` | Wipe your balance, items and upgrades (keeps the login) |
 
 POST bodies must be `application/json`, which also stops other sites from posting forms to it.

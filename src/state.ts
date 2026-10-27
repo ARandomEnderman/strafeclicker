@@ -16,9 +16,15 @@ export function subscribe(fn: () => void) {
 }
 
 function set(next: Account) {
-  account = next;
+  const { offline, ...rest } = next;
+  account = rest;
   listeners.forEach((fn) => fn());
+  if (offline && offline.earned > 0) onOffline(offline);
 }
+
+/** Called when the server just paid offline income. */
+let onOffline: (o: NonNullable<Account["offline"]>) => void = () => {};
+export const setOfflineHandler = (fn: typeof onOffline) => (onOffline = fn);
 
 export class InsufficientFunds extends Error {}
 

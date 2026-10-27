@@ -4,6 +4,7 @@ import { WEAR_BUCKETS } from "../shared/game.js";
 // The rules themselves live in shared/game.js so the server rolls with exactly
 // the odds the site shows.
 export {
+  OFFLINE_CAP_HOURS,
   PERKS,
   PHASE_WEIGHTS,
   STATTRAK_ODDS,

@@ -1,7 +1,9 @@
 import "./style.css";
 import { getCase, getCatalog, loadCatalog } from "./catalog";
 import type { Case } from "./types";
-import { displayBalance, getState, initState, logout, resetAll, setLoggedOutHandler, subscribe } from "./state";
+import type { Account } from "./types";
+import { displayBalance, getState, initState, logout, resetAll, setLoggedOutHandler, setOfflineHandler, subscribe } from "./state";
+import { openModal } from "./ui/modal";
 import { authPage } from "./ui/auth-page";
 import { h, money } from "./ui/dom";
 import { casesPage } from "./ui/cases-page";
@@ -120,9 +122,41 @@ function startApp() {
   route();
   onPrices(showInventoryChange);
   startLive();
+  if (pendingOffline) showOffline(pendingOffline);
+  pendingOffline = null;
+}
+
+function duration(seconds: number) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return h ? `${h}h ${m}m` : `${m}m`;
+}
+
+/** "Welcome back" popup for offline income (shown once the app is on screen). */
+let pendingOffline: NonNullable<Account["offline"]> | null = null;
+function showOffline(o: NonNullable<Account["offline"]>) {
+  if (!document.querySelector(".topbar")) {
+    pendingOffline = o;
+    return;
+  }
+  openModal(
+    "Welcome back",
+    h(
+      "div",
+      { class: "popup-body" },
+      h(
+        "div",
+        { class: "popup-hero" },
+        h("div", { class: "popup-label" }, `You were away for ${duration(o.seconds)}`),
+        h("div", { class: "popup-value" }, `+${money(o.earned)}`),
+        h("div", { class: "popup-was" }, "offline income. ", h("a", { href: "#/tree" }, "Earn more"), " in the upgrade tree."),
+      ),
+    ),
+  );
 }
 
 async function boot() {
+  setOfflineHandler(showOffline);
   let loggedIn: boolean;
   try {
     [, loggedIn] = await Promise.all([loadCatalog(), initState()]);

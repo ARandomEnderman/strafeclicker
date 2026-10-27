@@ -61,6 +61,9 @@ export function openDb(file) {
   const db = new DatabaseSync(file);
   db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
   db.exec(SCHEMA);
+  // Columns added after the first release.
+  const userCols = new Set(db.prepare("PRAGMA table_info(users)").all().map((c) => c.name));
+  if (!userCols.has("last_active")) db.exec("ALTER TABLE users ADD COLUMN last_active INTEGER");
   return db;
 }
 

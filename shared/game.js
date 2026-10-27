@@ -64,6 +64,17 @@ export const PERKS = {
       { value: 5, cost: 500 },
     ],
   },
+  offlineIncome: {
+    name: "Offline income",
+    unit: "per hour away",
+    levels: [
+      { value: 0.25, cost: 0 },
+      { value: 0.5, cost: 15 },
+      { value: 1, cost: 60 },
+      { value: 2, cost: 200 },
+      { value: 4, cost: 600 },
+    ],
+  },
   clickPower: {
     name: "Click power",
     unit: "per click",
@@ -79,7 +90,11 @@ export const PERKS = {
   },
 };
 
-export const NO_PERKS = { multiOpen: 0, clickPower: 0 };
+export const NO_PERKS = { multiOpen: 0, clickPower: 0, offlineIncome: 0 };
+
+/** Offline income only counts gaps of at least this long, and pays at most this many hours. */
+export const OFFLINE_MIN_GAP_MS = 5 * 60_000;
+export const OFFLINE_CAP_HOURS = 12;
 
 /** Current value of a perk for an account's perk levels. */
 export const perkValue = (perks, id) => PERKS[id].levels[perks?.[id] ?? 0].value;

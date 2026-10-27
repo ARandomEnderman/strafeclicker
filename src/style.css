@@ -1312,106 +1312,141 @@ nav a {
   min-width: 0;
 }
 
-/* ---------- upgrade tree ---------- */
+/* ---------- upgrade tree (graph) ---------- */
 
-.tree {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.tree-root {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  border-radius: 999px;
-  background: var(--bg-3);
+.graph {
+  position: relative;
+  height: 540px;
+  margin: 8px 0 16px;
+  border-radius: var(--radius);
   border: 1px solid var(--line);
+  background: radial-gradient(circle at 50% 50%, #161b27 0%, var(--bg) 70%);
+  overflow: hidden;
+  /* Let pointer drags pan/drag instead of scrolling the page on touch screens. */
+  touch-action: none;
+  user-select: none;
 }
-.tree-branches {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 32px;
+.graph-svg {
+  display: block;
   width: 100%;
-  margin-top: 28px;
+  height: 100%;
+  cursor: grab;
 }
-/* Connector from the root down to both branches. */
-.tree-branches::before {
-  content: "";
-  position: absolute;
-  top: -28px;
-  left: 25%;
-  right: 25%;
-  height: 14px;
-  border: 2px solid var(--line);
-  border-bottom: 0;
-  border-radius: 10px 10px 0 0;
+.graph-svg:active {
+  cursor: grabbing;
 }
-.tree-branches::after {
-  content: "";
-  position: absolute;
-  top: -42px;
-  left: 50%;
-  width: 2px;
-  height: 14px;
-  background: var(--line);
+.graph-edges line {
+  stroke: #3a4157;
+  stroke-width: 1.5;
+  transition: opacity 0.2s, stroke 0.2s;
 }
-.tree-branch {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  position: relative;
+.graph-edges line.owned {
+  stroke: var(--accent);
+  stroke-width: 2;
 }
-.tree-branch-head {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
+.graph-edges line.next {
+  stroke: #6b6f80;
+  stroke-dasharray: 4 4;
 }
-.tree-branch-head span {
-  color: var(--muted);
+.graph-edges line.dim {
+  opacity: 0.15;
+}
+.graph-node {
+  cursor: pointer;
+  transition: opacity 0.2s;
+  outline: none;
+}
+.graph-node.dim {
+  opacity: 0.2;
+}
+.graph-dot {
+  fill: #2a3042;
+  stroke: #4a5068;
+  stroke-width: 1.5;
+  transition: fill 0.2s, stroke 0.2s;
+}
+.graph-node.root .graph-dot {
+  fill: #e6e9f0;
+  stroke: none;
+}
+.graph-node.owned .graph-dot {
+  fill: var(--accent);
+  stroke: none;
+}
+.graph-node.next .graph-dot {
+  fill: #2a3042;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+.graph-halo {
+  fill: var(--accent);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.graph-node.next .graph-halo {
+  animation: graph-pulse 2.2s ease-in-out infinite;
+}
+.graph-node.focus .graph-halo,
+.graph-node.selected .graph-halo,
+.graph-node:focus-visible .graph-halo {
+  opacity: 0.22;
+  animation: none;
+}
+@keyframes graph-pulse {
+  50% {
+    opacity: 0.16;
+  }
+}
+.graph-label {
+  fill: var(--text);
   font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
 }
-.tree-node {
-  position: relative;
+.graph-sub {
+  fill: var(--muted);
+  font-size: 10px;
+  pointer-events: none;
+}
+.graph-icon {
+  font-size: 18px;
+  pointer-events: none;
+}
+.graph-node.locked .graph-label {
+  fill: var(--muted);
+}
+.graph-card {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 10px;
-  padding: 12px 14px;
+  padding: 16px;
   border-radius: var(--radius);
   background: var(--bg-2);
   border: 1px solid var(--line);
+  align-items: flex-start;
 }
-/* Link each node to the one above it. */
-.tree-node::before {
-  content: "";
-  position: absolute;
-  top: -19px;
-  left: 50%;
-  width: 2px;
-  height: 18px;
-  background: var(--line);
+.graph-card-title {
+  font-weight: 700;
+  font-size: 16px;
 }
-.tree-node.owned {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, var(--bg-2));
+.graph-card-hint {
+  color: var(--muted);
+  font-size: 12px;
 }
-.tree-node.owned::before {
-  background: var(--accent);
-}
-.tree-node.next {
-  border-color: #3a4259;
-}
-.tree-node.locked {
-  opacity: 0.5;
-}
-.tree-node-main {
+.graph-row {
+  width: 100%;
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--bg-3);
+  border: 1px solid var(--line);
 }
-.tree-node-main span,
+.graph-row.owned {
+  border-color: var(--accent);
+}
 .tree-cost {
   color: var(--muted);
   font-size: 12px;
@@ -1421,15 +1456,9 @@ nav a {
   font-weight: 700;
   font-size: 13px;
 }
-
-@media (max-width: 600px) {
-  .tree-branches {
-    gap: 14px;
-  }
-  .tree-node {
-    flex-direction: column;
-    align-items: stretch;
-    text-align: center;
+@media (max-width: 720px) {
+  .graph {
+    height: 420px;
   }
 }
 

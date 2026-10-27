@@ -82,7 +82,9 @@ export interface Account {
   username: string;
   balance: number;
   /** Upgrade-tree levels, see PERKS in shared/game.js. */
-  perks: { multiOpen: number; clickPower: number };
+  perks: { multiOpen: number; clickPower: number; offlineIncome: number };
+  /** Present once, right after offline income was paid out. */
+  offline?: { earned: number; seconds: number };
   inventory: OwnedItem[];
   stats: {
     opened: number;

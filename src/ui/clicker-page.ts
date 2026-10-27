@@ -1,3 +1,4 @@
+import { OFFLINE_CAP_HOURS, perkValue } from "../odds";
 import { click, clickValue, displayBalance, getState, subscribe } from "../state";
 import { h, money } from "./dom";
 import { onLeave } from "./page";
@@ -57,6 +58,12 @@ export function clickerPage() {
       h("div", { class: "stat" }, h("span", null, "Per click"), perClick),
       h("div", { class: "stat" }, h("span", null, "This visit"), session),
       h("div", { class: "stat" }, h("span", null, "All-time clicks"), lifetime),
+      h(
+        "div",
+        { class: "stat", title: `Paid when you come back, for up to ${OFFLINE_CAP_HOURS} hours away` },
+        h("span", null, "Offline income"),
+        h("b", null, `${money(perkValue(getState().perks, "offlineIncome"))}/h`),
+      ),
     ),
   );
 }

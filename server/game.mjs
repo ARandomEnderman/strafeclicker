@@ -6,6 +6,8 @@ import { randomBytes, randomInt } from "node:crypto";
 import { readFileSync, renameSync } from "node:fs";
 import {
   NO_PERKS,
+  OFFLINE_CAP_HOURS,
+  OFFLINE_MIN_GAP_MS,
   PERKS,
   UPGRADE_MAX_CHANCE,
   UPGRADE_MAX_ITEMS,
@@ -67,10 +69,10 @@ export class Game {
     /** userId -> click rate-limit bucket (in memory; resets harmlessly on restart) */
     this.clickBuckets = new Map();
     this.q = {
-      user: db.prepare("SELECT id, username, balance_cents, perks, stats FROM users WHERE id = ?"),
+      user: db.prepare("SELECT id, username, balance_cents, perks, stats, last_active FROM users WHERE id = ?"),
       items: db.prepare("SELECT * FROM items WHERE user_id = ? ORDER BY obtained_at DESC, rowid DESC"),
-      saveUser: db.prepare("UPDATE users SET balance_cents = ?, perks = ?, stats = ? WHERE id = ?"),
-      addUser: db.prepare("INSERT INTO users (username, pass_hash, created_at, balance_cents, perks, stats) VALUES (?, ?, ?, ?, ?, ?)"),
+      saveUser: db.prepare("UPDATE users SET balance_cents = ?, perks = ?, stats = ?, last_active = ? WHERE id = ?"),
+      addUser: db.prepare("INSERT INTO users (username, pass_hash, created_at, balance_cents, perks, stats, last_active) VALUES (?, ?, ?, ?, ?, ?, ?)"),
       addItem: db.prepare(
         "INSERT INTO items (uid, user_id, item_id, phase, float, wear, stattrak, seed, source, obtained_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       ),
@@ -115,6 +117,7 @@ export class Game {
         old?.balanceCents ?? cents(STARTING_BALANCE),
         JSON.stringify({ ...NO_PERKS, ...old?.perks }),
         JSON.stringify({ ...freshStats(), ...old?.stats }),
+        Date.now(),
       );
       const userId = Number(lastInsertRowid);
       if (old) {
@@ -136,6 +139,7 @@ export class Game {
     return {
       id: r.id,
       username: r.username,
+      lastActive: r.last_active,
       balanceCents: r.balance_cents,
       perks: { ...NO_PERKS, ...JSON.parse(r.perks) },
       stats: { ...freshStats(), ...JSON.parse(r.stats) },
@@ -144,19 +148,36 @@ export class Game {
   }
 
   #save(a, { added = [], removed = [] } = {}) {
-    this.q.saveUser.run(a.balanceCents, JSON.stringify(a.perks), JSON.stringify(a.stats), a.id);
+    this.q.saveUser.run(a.balanceCents, JSON.stringify(a.perks), JSON.stringify(a.stats), Date.now(), a.id);
     for (const uid of removed) this.q.dropItem.run(uid, a.id);
     for (const it of [...added].reverse()) this.#insertItem(a.id, it);
   }
 
-  /** Load the account, let fn change it, save it, all in one transaction. */
+  /**
+   * Pay offline income for the time since the account was last active, if that gap was
+   * long enough to count as being away. Capped at OFFLINE_CAP_HOURS.
+   */
+  #payOffline(a) {
+    const now = Date.now();
+    const gap = a.lastActive == null ? 0 : now - a.lastActive;
+    if (gap < OFFLINE_MIN_GAP_MS) return null;
+    const ms = Math.min(gap, OFFLINE_CAP_HOURS * 3_600_000);
+    const earned = Math.floor((perkValue(a.perks, "offlineIncome") * 100 * ms) / 3_600_000);
+    if (earned <= 0) return null;
+    a.balanceCents += earned;
+    a.stats.offlineCents = (a.stats.offlineCents ?? 0) + earned;
+    return { earned: earned / 100, seconds: Math.round(ms / 1000) };
+  }
+
+  /** Load the account, pay any offline income, let fn change it, save it: one transaction. */
   #act(userId, fn) {
     return tx(this.db, () => {
       const a = this.#load(userId);
+      const offline = this.#payOffline(a);
       const changes = {};
       const result = fn(a, changes);
       this.#save(a, changes);
-      return { ...result, account: this.#view(a) };
+      return { ...result, account: { ...this.#view(a), ...(offline ? { offline } : {}) } };
     });
   }
 
@@ -180,8 +201,9 @@ export class Game {
     };
   }
 
+  /** Also marks the account active (and pays offline income), so it's a transaction too. */
   view(userId) {
-    return this.#view(this.#load(userId));
+    return this.#act(userId, () => ({})).account;
   }
 
   #price(variant) {
