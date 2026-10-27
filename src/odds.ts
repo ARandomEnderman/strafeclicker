@@ -4,10 +4,16 @@ import { WEAR_BUCKETS } from "../shared/game.js";
 // The rules themselves live in shared/game.js so the server rolls with exactly
 // the odds the site shows.
 export {
+  BET_MAX,
+  BET_MIN,
   CLICK_CPS_LIMIT,
   OFFLINE_CAP_HOURS,
   PERKS,
   PHASE_WEIGHTS,
+  PLINKO_DROP_MS,
+  PLINKO_RISKS,
+  PLINKO_ROWS,
+  PLINKO_TABLES,
   STATTRAK_ODDS,
   TIERS,
   TIER_ODDS,

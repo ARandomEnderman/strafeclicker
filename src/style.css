@@ -1955,3 +1955,213 @@ a.wallet-item:hover {
   font-weight: 700;
   font-size: 13px;
 }
+
+/* ---------- casino games: shared layout and controls ---------- */
+
+.game-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+  align-items: start;
+}
+.game-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+}
+.game-panel .btn-lg {
+  width: 100%;
+}
+.game-panel .hint {
+  margin: 0;
+  font-size: 12px;
+}
+.game-stage {
+  position: relative;
+  min-width: 0;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: radial-gradient(circle at 50% 0%, #161b27 0%, var(--bg-2) 80%);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.field-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.bet-row {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  overflow: hidden;
+}
+.bet-cur {
+  display: grid;
+  place-items: center;
+  padding-left: 10px;
+  color: var(--accent);
+}
+.bet-field {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 8px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  -moz-appearance: textfield;
+}
+.bet-field::-webkit-inner-spin-button,
+.bet-field::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
+.bet-btn {
+  padding: 9px 10px;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: var(--bg-3);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.bet-btn:hover:not(:disabled) {
+  background: var(--line);
+}
+.seg {
+  display: flex;
+  padding: 3px;
+  gap: 3px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+.seg-btn {
+  flex: 1;
+  padding: 7px 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.seg-btn.active {
+  background: var(--bg-3);
+  color: var(--text);
+}
+.seg-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+@media (max-width: 900px) {
+  .game-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .game-stage {
+    order: -1;
+  }
+}
+
+/* ---------- plinko ---------- */
+
+.plinko-board {
+  position: relative;
+  max-width: 760px;
+  margin: 0 auto;
+}
+.plinko-pegs .peg {
+  position: absolute;
+  width: calc(var(--s) * 0.18);
+  height: calc(var(--s) * 0.18);
+  min-width: 4px;
+  min-height: 4px;
+  border-radius: 50%;
+  background: #e6e9f0;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.5);
+}
+.plinko-pegs .peg.hit {
+  animation: peg-hit 0.35s ease-out;
+}
+@keyframes peg-hit {
+  from {
+    box-shadow: 0 0 0 calc(var(--s) * 0.18) rgba(255, 255, 255, 0.35);
+  }
+}
+.plinko-slots .slot {
+  position: absolute;
+  transform: translateX(-50%);
+  height: calc(var(--s) * 0.7);
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  background: var(--c);
+  color: #1a1203;
+  font-size: clamp(8px, calc(var(--s) * 0.3), 13px);
+  font-weight: 800;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.plinko-slots .slot.land {
+  animation: slot-land 0.4s ease-out;
+}
+@keyframes slot-land {
+  30% {
+    transform: translateX(-50%) translateY(35%);
+    filter: brightness(1.3);
+  }
+}
+.plinko-balls .ball {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff 0%, #ffd27a 30%, var(--accent) 70%);
+  box-shadow: 0 0 10px rgba(245, 165, 36, 0.6);
+  will-change: transform;
+}
+.plinko-history {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 1;
+}
+.plinko-chip {
+  min-width: 52px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--c);
+  color: #1a1203;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+  animation: win-in 0.3s ease-out;
+}
+@media (max-width: 600px) {
+  .plinko-history {
+    flex-direction: row;
+    position: static;
+    margin-bottom: 8px;
+    overflow: hidden;
+  }
+}

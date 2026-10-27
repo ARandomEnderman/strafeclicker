@@ -9,8 +9,9 @@ A CS2 case-opening simulator. Play money only: no deposits, no withdrawals, noth
 - **Price history graphs** for every item variant (click any item), recorded by the server.
 - **Accounts**: sign up with a username and password (no guest accounts). Balance, inventory and every roll live on the server in SQLite; the browser only ever sees outcomes.
 - **Clicker**: click to earn money ($0.05 per click to start). Up to 10 clicks per second pay in full; faster than that, each click is worth exponentially less (12 cps pays 50%, 15 cps 18%, 20 cps 3%). The server works this out from the click timings, and won't accept a timeline that runs ahead of real time.
-- **Achievements**: 23 goals (clicks, cases opened, rare drops, upgrades, each game, net worth), each with a one-off cash reward. Checked by the server after every action; they stay unlocked through "Reset everything" so rewards can't be farmed.
-- **Live wins**: the sidebar shows everyone's big wins as they happen ($5+ or 10x+ the stake), held back until the reel or animation has finished so it never spoils your own roll.
+- **Achievements**: 23 goals named in tiers (Clicker I to IV, Unboxer I to III, ...) (clicks, cases opened, rare drops, upgrades, each game, net worth), each with a one-off cash reward. Checked by the server after every action; they stay unlocked through "Reset everything" so rewards can't be farmed.
+- **Plinko**: 8, 12 or 16 rows at low, medium or high risk, with Stake's multiplier tables (each pays back about 99% on average). The server picks the path; several balls can be in the air at once.
+- **Live wins**: the sidebar shows everyone's big wins as they happen (at least 2x the stake, and $5+ or 10x+), held back until the reel or animation has finished so it never spoils your own roll.
 - **Upgrader**: stake up to 10 items for one pricier skin or sticker. Chance = your value ÷ target price × 90%, between 1% and 80%.
 - **Upgrade tree**: an Obsidian-style graph (drag nodes, pan, zoom). Each node shows its icon and price; hover for details, click to pin and buy. Spend balance to open up to 5 cases at once, raise click value up to $1.00, and raise offline income from $0.25 to $4.00 per hour. Levels and costs are in `PERKS` in `shared/game.js`.
 - **Offline income**: time away (gaps of 5+ minutes, up to 12 hours) is paid out when you come back, with a welcome-back popup.
@@ -86,6 +87,7 @@ No `git` on the box? Download the code instead:
 | `POST /api/sell` `{uids}` | Sell items at the current price |
 | `POST /api/upgrade` `{uids, target}` | Stake items on a target variant |
 | `POST /api/perk` `{perk}` | Buy the next level of `multiOpen`, `clickPower` or `offlineIncome` |
+| `POST /api/plinko` `{bet, rows, risk}` | Drop a plinko ball; returns its path and payout |
 | `POST /api/reset` | Wipe your balance, items and upgrades (keeps the login) |
 
 POST bodies must be `application/json`, which also stops other sites from posting forms to it.
@@ -117,6 +119,7 @@ The returned element is placed in a fixed 4:3 box and should fill it.
 | `server/auth.mjs` | Sign-up, login, sessions |
 | `server/db.mjs` | SQLite schema |
 | `server/feed.mjs` | Live big-wins feed |
+| `server/games/` | Plinko and the other casino games |
 | `shared/achievements.js` | Achievement list, goals and rewards |
 | `shared/game.js` | Odds, float generation, upgrade chance, perk table (server rolls with it, browser displays it) |
 | `server/data.mjs` | Case contents + Skinport prices |

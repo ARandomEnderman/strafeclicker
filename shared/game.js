@@ -220,3 +220,34 @@ export function variants(item) {
       for (const wear of item.wears.length ? item.wears : [null]) out.push({ itemId: item.id, phase, wear, stattrak });
   return out;
 }
+
+// ---------- bets (plinko, flashbang, b-hop) ----------
+
+export const BET_MIN = 0.01;
+export const BET_MAX = 10_000;
+
+// ---------- plinko ----------
+// Stake's multiplier tables. With a fair 50/50 bounce at every peg each one pays back
+// about 99% on average (binomial odds per slot).
+
+export const PLINKO_ROWS = [8, 12, 16];
+export const PLINKO_RISKS = ["low", "medium", "high"];
+export const PLINKO_TABLES = {
+  8: {
+    low: [5.6, 2.1, 1.1, 1, 0.5, 1, 1.1, 2.1, 5.6],
+    medium: [13, 3, 1.3, 0.7, 0.4, 0.7, 1.3, 3, 13],
+    high: [29, 4, 1.5, 0.3, 0.2, 0.3, 1.5, 4, 29],
+  },
+  12: {
+    low: [10, 3, 1.6, 1.4, 1.1, 1, 0.5, 1, 1.1, 1.4, 1.6, 3, 10],
+    medium: [33, 11, 4, 2, 1.1, 0.6, 0.3, 0.6, 1.1, 2, 4, 11, 33],
+    high: [170, 24, 8.1, 2, 0.7, 0.2, 0.2, 0.2, 0.7, 2, 8.1, 24, 170],
+  },
+  16: {
+    low: [16, 9, 2, 1.4, 1.4, 1.2, 1.1, 1, 0.5, 1, 1.1, 1.2, 1.4, 1.4, 2, 9, 16],
+    medium: [110, 41, 10, 5, 3, 1.5, 1, 0.5, 0.3, 0.5, 1, 1.5, 3, 5, 10, 41, 110],
+    high: [1000, 130, 26, 9, 4, 2, 0.2, 0.2, 0.2, 0.2, 0.2, 2, 4, 9, 26, 130, 1000],
+  },
+};
+/** How long the browser's ball takes to fall (ms), so the live feed can wait for it. */
+export const PLINKO_DROP_MS = (rows) => 400 + rows * 190;

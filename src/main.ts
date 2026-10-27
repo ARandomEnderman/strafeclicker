@@ -15,6 +15,7 @@ import { clickerPage } from "./ui/clicker-page";
 import { upgraderPage } from "./ui/upgrader-page";
 import { treePage } from "./ui/tree-page";
 import { achievementsPage } from "./ui/achievements-page";
+import { plinkoPage } from "./ui/plinko-page";
 import { ACHIEVEMENTS } from "../shared/achievements.js";
 import { leavePage } from "./ui/page";
 import { setSound, soundEnabled } from "./ui/sound";
@@ -132,7 +133,6 @@ const KINDS: Case["kind"][] = ["case", "capsule", "autograph"];
 /** Pages that aren't built yet. */
 const SOON: Record<string, string> = {
   battles: "Open cases against other players. Highest total value takes every item.",
-  plinko: "Drop a ball through the pegs.",
   flashbang: "A flashbang rises with the multiplier. Cash out before it pops.",
   bhop: "Jump from tile to tile. Every jump raises the multiplier, one wrong tile loses it.",
 };
@@ -164,6 +164,7 @@ function route() {
   else if (page === "upgrader") view = upgraderPage();
   else if (page === "tree") view = treePage();
   else if (page === "achievements") view = achievementsPage();
+  else if (page === "plinko") view = plinkoPage();
   else if (SOON[page]) view = soonPage(page);
   else {
     const kind = new URLSearchParams(query).get("kind") as Case["kind"];

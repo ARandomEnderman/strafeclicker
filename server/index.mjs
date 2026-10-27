@@ -27,6 +27,7 @@ import { openDb } from "./db.mjs";
 import { Feed } from "./feed.mjs";
 import { Game, GameError } from "./game.mjs";
 import { History } from "./history.mjs";
+import { plinko } from "./games/plinko.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = join(ROOT, "dist");
@@ -301,6 +302,7 @@ async function readJson(req) {
 /** POST /api/<action> handlers for logged-in users. Each returns its result plus the account view. */
 const actions = {
   click: (userId, body) => game.click(userId, body.clicks, body.times),
+  plinko: (userId, body) => plinko(game, userId, body),
   open: (userId, body) => game.open(userId, String(body.caseId ?? ""), body.count ?? 1),
   perk: (userId, body) => game.buyPerk(userId, String(body.perk ?? "")),
   sell: (userId, body) => game.sell(userId, body.uids),

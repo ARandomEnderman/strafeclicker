@@ -119,8 +119,23 @@ export function clickSpeed() {
   return { cps, efficiency: clickEfficiency(cps) };
 }
 
-/** Balance including clicks that haven't reached the server yet. */
-export const displayBalance = () => round2(account.balance + pendingPaid * clickValue());
+/** Balance including clicks that haven't reached the server yet, minus payouts not revealed yet. */
+export const displayBalance = () => round2(account.balance + pendingPaid * clickValue() - hiddenPayouts);
+
+// Winnings the server has already credited but the page is still animating (a plinko
+// ball in flight). Hidden from the balance until revealed.
+let hiddenPayouts = 0;
+function hidePayout(usd: number) {
+  hiddenPayouts = round2(hiddenPayouts + usd);
+  listeners.forEach((fn) => fn());
+  let done = false;
+  return () => {
+    if (done) return;
+    done = true;
+    hiddenPayouts = round2(hiddenPayouts - usd);
+    listeners.forEach((fn) => fn());
+  };
+}
 
 /** Register one click; returns what it earned. */
 export function click(): number {
@@ -150,6 +165,22 @@ export async function flushClicks(): Promise<void> {
 }
 
 // ---------- actions ----------
+
+export interface PlinkoResult {
+  path: number[];
+  slot: number;
+  mult: number;
+  payout: number;
+  stake: number;
+  /** Show the payout in the balance (call when the ball lands). */
+  reveal: () => void;
+}
+
+export async function dropPlinko(bet: number, rows: number, risk: string): Promise<PlinkoResult> {
+  await flushClicks();
+  const r = await post<Omit<PlinkoResult, "reveal">>("plinko", { bet, rows, risk });
+  return { ...r, reveal: hidePayout(r.payout) };
+}
 
 /** Open `count` of a case at once (up to the multi-open perk). */
 export async function openCases(c: Case, count: number): Promise<OwnedItem[]> {

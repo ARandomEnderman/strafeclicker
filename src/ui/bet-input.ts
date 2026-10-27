@@ -1,0 +1,96 @@
+import { BET_MAX, BET_MIN } from "../odds";
+import { displayBalance } from "../state";
+import { h } from "./dom";
+import { icon } from "./icons";
+
+const KEY = "strafeclicker:bet";
+
+/** Bet amount field with half / double / max buttons. Remembers the last amount. */
+export function betInput(onChange?: () => void) {
+  let saved = 0.1;
+  try {
+    saved = Number(localStorage.getItem(KEY)) || saved;
+  } catch {
+    // storage unavailable
+  }
+  const input = h("input", {
+    class: "bet-field",
+    type: "number",
+    min: String(BET_MIN),
+    max: String(BET_MAX),
+    step: "0.01",
+    inputmode: "decimal",
+    value: saved.toFixed(2),
+    "aria-label": "Bet amount",
+  }) as HTMLInputElement;
+
+  const clamp = (v: number) => Math.round(Math.min(BET_MAX, Math.max(BET_MIN, v)) * 100) / 100;
+  const set = (v: number) => {
+    input.value = clamp(v).toFixed(2);
+    save();
+    onChange?.();
+  };
+  const save = () => {
+    try {
+      localStorage.setItem(KEY, String(value()));
+    } catch {
+      // ignore
+    }
+  };
+  const value = () => clamp(Number(input.value) || 0);
+  input.addEventListener("change", () => set(value()));
+  input.addEventListener("input", () => onChange?.());
+
+  const el = h(
+    "div",
+    { class: "bet" },
+    h("label", { class: "field-label" }, "Bet amount"),
+    h(
+      "div",
+      { class: "bet-row" },
+      h("span", { class: "bet-cur" }, icon("coins", 14)),
+      input,
+      h("button", { class: "bet-btn", type: "button", onclick: () => set(value() / 2) }, "½"),
+      h("button", { class: "bet-btn", type: "button", onclick: () => set(value() * 2) }, "2×"),
+      h("button", { class: "bet-btn", type: "button", onclick: () => set(Math.floor(displayBalance() * 100) / 100) }, "Max"),
+    ),
+  );
+  return {
+    el,
+    value,
+    set,
+    setDisabled(d: boolean) {
+      el.querySelectorAll<HTMLInputElement | HTMLButtonElement>("input, button").forEach((x) => (x.disabled = d));
+    },
+  };
+}
+
+/** A row of mutually exclusive options. */
+export function segmented<T extends string | number>(label: string, options: { value: T; label: string }[], initial: T, onPick: (v: T) => void) {
+  let current = initial;
+  const buttons = options.map((o) =>
+    h(
+      "button",
+      {
+        type: "button",
+        class: `seg-btn${o.value === current ? " active" : ""}`,
+        onclick: () => {
+          current = o.value;
+          buttons.forEach((b, i) => b.classList.toggle("active", options[i].value === current));
+          onPick(current);
+        },
+      },
+      o.label,
+    ),
+  );
+  const el = h("div", { class: "seg-wrap" }, h("label", { class: "field-label" }, label), h("div", { class: "seg" }, ...buttons));
+  return {
+    el,
+    get value() {
+      return current;
+    },
+    setDisabled(d: boolean) {
+      buttons.forEach((b) => (b.disabled = d));
+    },
+  };
+}

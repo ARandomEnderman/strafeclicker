@@ -29,15 +29,16 @@ function winRow(w: Win, fresh: boolean) {
   const art = item
     ? h("img", { src: imageOf(w.drop!), alt: "", loading: "lazy" })
     : icon(GAME_ICON[w.game] ?? "coins", 22);
-  const name = item ? `${w.drop!.stattrak ? "StatTrak " : ""}${item.name}` : (w.label ?? GAME_NAME[w.game]);
-  const how = [GAME_NAME[w.game] ?? w.game, w.mult != null && w.mult >= 2 ? `${w.mult.toFixed(w.mult < 100 ? 2 : 0)}x` : null].filter(Boolean).join(" · ");
+  const name = item ? `${w.drop!.stattrak ? "StatTrak " : ""}${item.name}` : (GAME_NAME[w.game] ?? w.game);
+  const mult = w.mult != null ? `${+w.mult.toFixed(w.mult < 100 ? 2 : 0)}x` : null;
+  const how = (item ? [GAME_NAME[w.game], mult] : [mult]).filter(Boolean).join(" · ");
   return h(
     "div",
     { class: `win${fresh ? " fresh" : ""}`, style: item ? `--rarity:${item.color}` : "", title: `${w.user} won ${money(w.value)}${w.source ? ` from ${w.source}` : ""}` },
     h("div", { class: "win-art" }, art),
     h("div", { class: "win-user" }, w.user),
     h("div", { class: "win-name" }, name),
-    h("div", { class: "win-who" }, h("span", { class: "win-value" }, money(w.value)), ` · ${how}`),
+    h("div", { class: "win-who" }, h("span", { class: "win-value" }, money(w.value)), how ? ` · ${how}` : ""),
   );
 }
 

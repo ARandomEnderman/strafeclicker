@@ -2,14 +2,17 @@
 // restart doesn't empty it. Wins can be held back for a few seconds so a case reel or
 // a plinko ball isn't spoiled by the feed before it lands.
 
-/** A win makes the feed at this payout (USD)... */
+/** A win makes the feed if it paid at least 2x the stake and either this much (USD)... */
 export const BIG_WIN_USD = 5;
-/** ...or at this multiple of the stake, if it paid at least BIG_WIN_MULT_MIN_USD. */
+/** ...or this multiple of the stake (worth at least BIG_WIN_MULT_MIN_USD). */
 export const BIG_WIN_MULT = 10;
 const BIG_WIN_MULT_MIN_USD = 0.5;
 const KEEP = 40;
 
-export const isBigWin = (value, stake) => value >= BIG_WIN_USD || (stake > 0 && value / stake >= BIG_WIN_MULT && value >= BIG_WIN_MULT_MIN_USD);
+export function isBigWin(value, stake) {
+  const mult = stake > 0 ? value / stake : Infinity;
+  return mult >= 2 && (value >= BIG_WIN_USD || (mult >= BIG_WIN_MULT && value >= BIG_WIN_MULT_MIN_USD));
+}
 
 export class Feed {
   /** @param {import("node:sqlite").DatabaseSync} db */

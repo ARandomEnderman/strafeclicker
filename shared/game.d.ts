@@ -38,3 +38,11 @@ export function canStatTrak(item: Item): boolean;
 export function resolveDrop(c: Case, getItem: (id: string) => Item, r: number[]): Drop;
 export function floatInWear(item: Item, wear: WearKey | null, r: number): number | null;
 export function variants(item: Item): Variant[];
+
+export const BET_MIN: number;
+export const BET_MAX: number;
+export type PlinkoRisk = "low" | "medium" | "high";
+export const PLINKO_ROWS: number[];
+export const PLINKO_RISKS: PlinkoRisk[];
+export const PLINKO_TABLES: Record<number, Record<PlinkoRisk, number[]>>;
+export function PLINKO_DROP_MS(rows: number): number;
