@@ -109,7 +109,8 @@ export class Game {
     /** userId -> [{ cents, until }]: credited winnings not spendable until `until` (see spendable). */
     this.locks = new Map();
     this.q = {
-      user: db.prepare("SELECT id, username, balance_cents, perks, stats, last_active FROM users WHERE id = ?"),
+      user: db.prepare("SELECT id, username, display_name, created_at, balance_cents, perks, stats, last_active FROM users WHERE id = ?"),
+      rename: db.prepare("UPDATE users SET display_name = ? WHERE id = ?"),
       items: db.prepare("SELECT * FROM items WHERE user_id = ? ORDER BY obtained_at DESC, rowid DESC"),
       saveUser: db.prepare("UPDATE users SET balance_cents = ?, perks = ?, stats = ?, last_active = ? WHERE id = ?"),
       addUser: db.prepare("INSERT INTO users (username, pass_hash, created_at, balance_cents, perks, stats, last_active) VALUES (?, ?, ?, ?, ?, ?, ?)"),
@@ -180,6 +181,8 @@ export class Game {
     return {
       id: r.id,
       username: r.username,
+      displayName: r.display_name || r.username,
+      createdAt: r.created_at,
       lastActive: r.last_active,
       balanceCents: r.balance_cents,
       lockedCents: this.#lockedCents(r.id),
@@ -310,6 +313,38 @@ export class Game {
     for (const [k, v] of Object.entries(add)) st[k] = (st[k] ?? 0) + v;
   }
 
+  /**
+   * Change the name shown to other players (the username, used to log in and to be
+   * added as a friend, stays). 1–24 characters; empty resets it to the username.
+   */
+  rename(userId, name) {
+    const clean = String(name ?? "")
+      .normalize("NFC")
+      .replace(/[\p{C}]/gu, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if ([...clean].length > 24) throw new GameError("bad_input", "Display names are up to 24 characters");
+    return this.#act(userId, (a) => {
+      this.q.rename.run(clean || null, a.id);
+      a.displayName = clean || a.username;
+      return {};
+    });
+  }
+
+  /** Account details other players may see (the caller decides how much of it). */
+  publicAccount(userId) {
+    const a = this.#load(userId);
+    return {
+      user: a.username,
+      name: a.displayName,
+      joinedAt: a.createdAt,
+      balance: a.balanceCents / 100,
+      inventory: a.inventory,
+      inventoryValue: Math.round(a.inventory.reduce((s, it) => s + this.#price(it), 0) * 100) / 100,
+      stats: a.stats,
+    };
+  }
+
   /** For the other games (server/games/*): the same transaction wrapper. */
   act(userId, fn) {
     return this.#act(userId, fn);
@@ -320,7 +355,7 @@ export class Game {
    * whether it's worth showing). `stake` is what the case or upgrade cost, USD.
    */
   announce(changes, a, game, owned, stake, extra = {}, delayMs = 0) {
-    const win = { user: a.username, game, value: this.#price(owned), stake, tier: this.#item(owned.itemId).tier, drop: dropOf(owned), ...extra };
+    const win = { user: a.username, name: a.displayName, game, value: this.#price(owned), stake, tier: this.#item(owned.itemId).tier, drop: dropOf(owned), ...extra };
     (changes.wins ??= []).push({ win, delayMs });
   }
 
@@ -372,6 +407,7 @@ export class Game {
     const s = a.stats;
     return {
       username: a.username,
+      displayName: a.displayName,
       balance: a.balanceCents / 100,
       perks: a.perks,
       inventory: a.inventory,

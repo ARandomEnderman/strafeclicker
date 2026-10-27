@@ -216,11 +216,29 @@ export async function tradeAction<T>(action: "list" | "inventory" | "offer" | "a
 }
 
 export async function friendsAction(action: "list" | "request" | "accept" | "remove", username?: string) {
-  return post<{
-    friends: { user: string; online: boolean }[];
-    incoming: { user: string; online: boolean }[];
-    outgoing: { user: string; online: boolean }[];
-  }>("friends", { action, username });
+  return post<import("./friends").FriendLists>("friends", { action, username });
+}
+
+export interface Profile {
+  user: string;
+  name: string;
+  joinedAt: number;
+  relation: "self" | "friends" | "incoming" | "outgoing" | "none";
+  stats: { opened: number; best: { name: string; value: number } | null; battlesWon: number; achievements: number; achievementsTotal: number };
+  /** Only for friends and yourself. */
+  online?: boolean;
+  balance?: number;
+  inventoryValue?: number;
+  itemCount?: number;
+  inventory?: OwnedItem[];
+}
+
+export async function getProfile(username: string) {
+  return (await post<{ profile: Profile }>("profile", { username })).profile;
+}
+
+export async function renameMe(name: string) {
+  return post("profile", { action: "rename", name });
 }
 
 export async function battleAction(action: "create" | "join" | "bots" | "cancel", body: object) {

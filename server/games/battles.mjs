@@ -116,13 +116,14 @@ export class Battles {
         createdAt: Date.now(),
         creatorId: userId,
         creator: a.username,
+        creatorName: a.displayName,
         cases: ids,
         size,
         costCents,
         caseCosts: ids.map((id) => this.game.caseCost(id).costCents),
         visibility,
         code: visibility === "private" ? this.#newCode() : null,
-        slots: Array.from({ length: size }, (_, i) => (i === 0 ? { userId, user: a.username, bot: false } : null)),
+        slots: Array.from({ length: size }, (_, i) => (i === 0 ? { userId, user: a.username, name: a.displayName, bot: false } : null)),
       };
       const { lastInsertRowid } = this.q.add.run("waiting", JSON.stringify(battle));
       battle.id = Number(lastInsertRowid);
@@ -146,7 +147,7 @@ export class Battles {
     const out = this.game.act(userId, (a) => {
       if (spendable(a) < b.costCents) throw new GameError("insufficient", "Not enough balance");
       a.balanceCents -= b.costCents;
-      b.slots[seat] = { userId, user: a.username, bot: false };
+      b.slots[seat] = { userId, user: a.username, name: a.displayName, bot: false };
       this.#save(b);
       return { id: b.id };
     });
@@ -233,7 +234,7 @@ export class Battles {
         let best = null;
         b.rounds.forEach((r, ri) => r.forEach((x) => (!best || x.value > best.value) && (best = { ...x, ri })));
         const stake = (b.caseCosts?.[best.ri] ?? b.costCents / b.cases.length) / 100;
-        this.game.feed?.push({ user: w.user, game: "battle", value: best.value, stake, tier: this.game.item(best.drop.itemId).tier, drop: best.drop, source: `${b.size}-player battle` });
+        this.game.feed?.push({ user: w.user, name: w.name ?? w.user, game: "battle", value: best.value, stake, tier: this.game.item(best.drop.itemId).tier, drop: best.drop, source: `${b.size}-player battle` });
       }
       this.#trim();
       this.#publish();
@@ -269,10 +270,11 @@ const publicBattle = (b, seated) => ({
   // Only people in the battle see its code (to pass it on).
   code: seated ? b.code : null,
   creator: b.creator,
+  creatorName: b.creatorName ?? b.creator,
   cases: b.cases,
   size: b.size,
   cost: b.costCents / 100,
-  slots: b.slots.map((s) => (s ? { user: s.user, bot: s.bot } : null)),
+  slots: b.slots.map((s) => (s ? { user: s.user, name: s.name ?? s.user, bot: s.bot } : null)),
   createdAt: b.createdAt,
   startAt: b.startAt ?? null,
   rounds: b.status === "waiting" ? null : b.rounds,

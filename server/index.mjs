@@ -34,6 +34,7 @@ import { Bhop } from "./games/bhop.mjs";
 import { Battles } from "./games/battles.mjs";
 import { Friends } from "./friends.mjs";
 import { Trades } from "./trades.mjs";
+import { Profiles } from "./profiles.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = join(ROOT, "dist");
@@ -249,6 +250,12 @@ const friends = new Friends(db);
 const battles = new Battles(game, db, friends, { broadcastPer, toUser });
 battles.start();
 const trades = new Trades(game, db, friends, { toUser });
+const profiles = new Profiles(game, db, friends, isOnline);
+
+/** Someone came online or went offline: refresh their friends' lists. */
+function presenceChanged(userId) {
+  for (const id of friends.friendIds(userId)) toUser(id, "friends", friends.list(id, isOnline));
+}
 
 /** After a friendship change: both sides' lists, and battles they can now (not) see. */
 function friendsChanged(...userIds) {
@@ -273,8 +280,13 @@ function events(req, res) {
   // Server-settled results (a flashbang auto cash-out, a pop) reach the player this way.
   res.userId = sessionUser(req);
   res.write(`event: battles\ndata: ${JSON.stringify(battles.list(res.userId))}\n\n`);
+  const wasOnline = res.userId != null && isOnline(res.userId);
   clients.add(res);
-  req.on("close", () => clients.delete(res));
+  if (res.userId != null && !wasOnline) presenceChanged(res.userId);
+  req.on("close", () => {
+    clients.delete(res);
+    if (res.userId != null && !isOnline(res.userId)) presenceChanged(res.userId);
+  });
 }
 
 // ---------- HTTP ----------
@@ -376,6 +388,15 @@ const actions = {
     if (body.action === "bots") return battles.bots(userId, body);
     if (body.action === "cancel") return battles.cancel(userId, body);
     throw new GameError("bad_input", "Unknown action");
+  },
+  profile: (userId, body) => {
+    if (body.action === "rename") {
+      const out = game.rename(userId, body.name);
+      // Friends' lists show the new name.
+      friendsChanged(userId, ...friends.friendIds(userId));
+      return out;
+    }
+    return { profile: profiles.get(userId, body.username), account: game.view(userId) };
   },
   trade: (userId, body) => {
     const withAccount = (r) => ({ ...r, account: r.account ?? game.view(userId) });

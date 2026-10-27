@@ -20,7 +20,7 @@ export class Friends {
       add: db.prepare("INSERT INTO friends (user_a, user_b, status, requested_by, at) VALUES (?, ?, 'pending', ?, ?)"),
       accept: db.prepare("UPDATE friends SET status = 'accepted', at = ? WHERE user_a = ? AND user_b = ?"),
       remove: db.prepare("DELETE FROM friends WHERE user_a = ? AND user_b = ?"),
-      of: db.prepare(`SELECT f.status, f.requested_by, u.id, u.username FROM friends f
+      of: db.prepare(`SELECT f.status, f.requested_by, u.id, u.username, u.display_name FROM friends f
         JOIN users u ON u.id = CASE WHEN f.user_a = ? THEN f.user_b ELSE f.user_a END
         WHERE f.user_a = ? OR f.user_b = ? ORDER BY u.username COLLATE NOCASE`),
       count: db.prepare("SELECT COUNT(*) AS n FROM friends WHERE (user_a = ? OR user_b = ?) AND status = 'accepted'"),
@@ -28,6 +28,19 @@ export class Friends {
   }
 
   #pair = (x, y) => (x < y ? [x, y] : [y, x]);
+
+  /** How y looks from x's side: "friends", "outgoing" (x asked), "incoming" (y asked) or "none". */
+  relation(x, y) {
+    const row = this.q.get.get(...this.#pair(x, y));
+    if (!row) return "none";
+    if (row.status === "accepted") return "friends";
+    return row.requested_by === x ? "outgoing" : "incoming";
+  }
+
+  /** Ids of everyone x is friends with. */
+  friendIds(x) {
+    return this.q.of.all(x, x, x).filter((r) => r.status === "accepted").map((r) => r.id);
+  }
 
   areFriends(x, y) {
     if (x == null || y == null) return false;
@@ -37,7 +50,7 @@ export class Friends {
   /** @param {(id: number) => boolean} online */
   list(userId, online = () => false) {
     const rows = this.q.of.all(userId, userId, userId);
-    const pick = (r) => ({ user: r.username, online: online(r.id) });
+    const pick = (r) => ({ user: r.username, name: r.display_name || r.username, online: online(r.id) });
     return {
       friends: rows.filter((r) => r.status === "accepted").map(pick),
       incoming: rows.filter((r) => r.status === "pending" && r.requested_by !== userId).map(pick),

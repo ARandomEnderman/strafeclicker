@@ -8,6 +8,7 @@ import { h, money, toast } from "./dom";
 import { icon } from "./icons";
 import { displayName } from "./item-card";
 import { onLeave } from "./page";
+import { userLink } from "./profile-card";
 
 // Trading with friends: pick items (and cash) from both inventories and send an offer.
 // Nothing is held while it's open; the server checks everything again on accept.
@@ -35,8 +36,9 @@ function itemTile(it: TradeItem, opts: { selected?: boolean; onClick?: () => voi
   );
 }
 
-export function tradePage() {
-  let tab: "offers" | "new" | "history" = tradeLists().open.some((t) => t.incoming) ? "offers" : "new";
+/** @param withUser a friend to start an offer with (#/trade?with=...) */
+export function tradePage(withUser: string | null = null) {
+  let tab: "offers" | "new" | "history" = withUser ? "new" : tradeLists().open.some((t) => t.incoming) ? "offers" : "new";
   const body = h("div", { class: "trade-body" });
   const tabsEl = h("div", { class: "tabs trade-tabs" });
 
@@ -61,7 +63,8 @@ export function tradePage() {
     const iGet = t.from === me ? t.get : t.give;
     const cashGive = t.from === me ? t.giveCash : t.getCash;
     const cashGet = t.from === me ? t.getCash : t.giveCash;
-    const other = t.from === me ? t.to : t.from;
+    const other = t.from === me ? (t.toName ?? t.to) : (t.fromName ?? t.from);
+    const otherUser = t.from === me ? t.to : t.from;
     const side = (title: string, items: TradeItem[], cash: number) =>
       h(
         "div",
@@ -93,7 +96,7 @@ export function tradePage() {
         "div",
         { class: "trade-card-head" },
         icon("trade", 16),
-        h("b", null, `With ${other}`),
+        h("b", null, "With ", userLink(otherUser, other)),
         h("span", { class: "trade-status" }, status[t.status]),
         h("span", { class: "trade-when" }, new Date(t.status === "open" ? t.createdAt : t.updatedAt).toLocaleString()),
       ),
@@ -164,7 +167,7 @@ export function tradePage() {
       "select",
       { class: "search trade-partner", onchange: (e: Event) => void pickPartner((e.target as HTMLSelectElement).value) },
       h("option", { value: "" }, "Choose a friend"),
-      ...friends.map((f) => h("option", { value: f.user, selected: f.user === partner }, `${f.user}${f.online ? " (online)" : ""}`)),
+      ...friends.map((f) => h("option", { value: f.user, selected: f.user.toLowerCase() === partner.toLowerCase() }, `${f.name}${f.name !== f.user ? ` (@${f.user})` : ""}${f.online ? ", online" : ""}`)),
     );
     if (!partner) return [select];
     const mine = getState().inventory;
@@ -223,6 +226,7 @@ export function tradePage() {
   void loadTrades();
   void loadFriends();
   draw();
+  if (withUser) void pickPartner(withUser);
 
   return h("section", { class: "page" }, h("h1", null, "Trade"), h("p", { class: "hint" }, "Swap items and cash with friends. Nothing changes hands until they accept."), tabsEl, body);
 }

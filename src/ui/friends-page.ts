@@ -3,6 +3,8 @@ import { friendsAction, ServerError } from "../state";
 import { h, toast } from "./dom";
 import { icon } from "./icons";
 import { onLeave } from "./page";
+import { avatar, userLink } from "./profile-card";
+import type { Friend } from "../friends";
 
 export function friendsPage() {
   const input = h("input", { class: "search", placeholder: "Username", autocomplete: "off", "aria-label": "Username to add" }) as HTMLInputElement;
@@ -33,8 +35,14 @@ export function friendsPage() {
     h("button", { class: "btn btn-primary", type: "submit" }, icon("user", 14), " Add friend"),
   );
 
-  const row = (user: string, online: boolean, ...actions: HTMLElement[]) =>
-    h("div", { class: "friend" }, h("span", { class: `dot${online ? " on" : ""}`, title: online ? "Online" : "Offline" }), h("b", null, user), h("div", { class: "friend-actions" }, ...actions));
+  const row = (f: Friend, ...actions: HTMLElement[]) =>
+    h(
+      "div",
+      { class: "friend" },
+      h("span", { class: "friend-avatar" }, avatar(f.user, f.name, 32), h("span", { class: `dot${f.online ? " on" : ""}`, title: f.online ? "Online" : "Offline" })),
+      h("div", { class: "friend-names" }, userLink(f.user, f.name), h("span", null, f.name !== f.user ? `@${f.user}` : f.online ? "Online" : "Offline")),
+      h("div", { class: "friend-actions" }, ...actions),
+    );
 
   const draw = () => {
     const l = friendLists();
@@ -45,21 +53,20 @@ export function friendsPage() {
         "Requests",
         l.incoming.map((f) =>
           row(
-            f.user,
-            f.online,
+            f,
             h("button", { class: "btn btn-primary btn-sm", onclick: () => void run("accept", f.user, `You and ${f.user} are now friends`) }, "Accept"),
             h("button", { class: "btn btn-ghost btn-sm", onclick: () => void run("remove", f.user) }, "Decline"),
           ),
         ),
       ),
       ...section(
-        `Friends (${l.friends.length})`,
-        l.friends.map((f) => row(f.user, f.online, h("button", { class: "btn btn-ghost btn-sm", onclick: () => confirm(`Remove ${f.user} from your friends?`) && void run("remove", f.user) }, "Remove"))),
+        `Friends (${l.friends.filter((f) => f.online).length} online, ${l.friends.length} total)`,
+        [...l.friends].sort((a, b) => +b.online - +a.online).map((f) => row(f, h("a", { class: "btn btn-sm", href: `#/u/${encodeURIComponent(f.user)}` }, "Inventory"), h("a", { class: "btn btn-sm", href: `#/trade?with=${encodeURIComponent(f.user)}` }, "Trade"), h("button", { class: "btn btn-ghost btn-sm", onclick: () => confirm(`Remove ${f.user} from your friends?`) && void run("remove", f.user) }, "Remove"))),
         "No friends yet. Add someone by their username.",
       ),
       ...section(
         "Sent",
-        l.outgoing.map((f) => row(f.user, f.online, h("button", { class: "btn btn-ghost btn-sm", onclick: () => void run("remove", f.user) }, "Cancel"))),
+        l.outgoing.map((f) => row(f, h("button", { class: "btn btn-ghost btn-sm", onclick: () => void run("remove", f.user) }, "Cancel"))),
       ),
     );
   };

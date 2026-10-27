@@ -6,6 +6,7 @@ import { flashbangAction, getState, InsufficientFunds, ServerError } from "../st
 import { betInput } from "./bet-input";
 import { h, money, toast } from "./dom";
 import { onLeave } from "./page";
+import { userLink } from "./profile-card";
 
 // Crash game. The server runs one round for everyone; this page draws the multiplier
 // curve with the flashbang riding its tip, and the pop.
@@ -231,7 +232,7 @@ export function flashbangPage() {
     h(
       "div",
       { class: `fb-bet ${b.status}${b.user === getState().username ? " me" : ""}` },
-      h("span", { class: "fb-user" }, b.user),
+      h("span", { class: "fb-user" }, userLink(b.user, b.name ?? b.user)),
       h("span", { class: "fb-stake" }, money(b.stake)),
       h(
         "span",

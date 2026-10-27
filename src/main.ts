@@ -23,6 +23,8 @@ import { battlePage } from "./ui/battle-page";
 import "./battles";
 import { friendsPage } from "./ui/friends-page";
 import { tradePage } from "./ui/trade-page";
+import { profilePage } from "./ui/profile-page";
+import { avatar } from "./ui/profile-card";
 import { loadTrades, onTrades, tradeLists } from "./trades";
 import { friendLists, loadFriends, onFriends } from "./friends";
 import "./flashbang";
@@ -119,6 +121,12 @@ function topbar() {
   });
   void loadFriends();
 
+  // Your name, linking to your profile; follows display name changes.
+  const myName = h("a", { class: "user-name", href: `#/u/${encodeURIComponent(getState().username)}`, title: "Your profile" });
+  const syncName = () => myName.replaceChildren(avatar(getState().username, getState().displayName, 22), h("span", null, getState().displayName));
+  subscribe(syncName);
+  syncName();
+
   const menuBtn = h(
     "button",
     { class: "btn btn-ghost btn-sm icon-btn menu-btn", "aria-label": "Menu", onclick: () => document.body.classList.toggle("nav-open") },
@@ -141,7 +149,7 @@ function topbar() {
       { class: "profile" },
       friendsBtn,
       soundBtn,
-      h("span", { class: "user-name", title: "Logged in" }, icon("user", 16), getState().username),
+      myName,
       h("button", { class: "btn btn-ghost btn-sm icon-btn", title: "Log out", "aria-label": "Log out", onclick: () => logout() }, icon("logout")),
     ),
   );
@@ -192,7 +200,8 @@ function route() {
   else if (page === "bhop") view = bhopPage();
   else if (page === "battles") view = arg ? battlePage(Number(arg)) : battlesPage(new URLSearchParams(query).get("code"));
   else if (page === "friends") view = friendsPage();
-  else if (page === "trade") view = tradePage();
+  else if (page === "trade") view = tradePage(new URLSearchParams(query).get("with"));
+  else if (page === "u" && arg) view = profilePage(decodeURIComponent(arg));
   else {
     const kind = new URLSearchParams(query).get("kind") as Case["kind"];
     view = casesPage(KINDS.includes(kind) ? kind : "case");

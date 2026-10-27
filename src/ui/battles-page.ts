@@ -120,7 +120,7 @@ export function battlesPage(code: string | null = null) {
       b.cases.length > 6 ? h("span", { class: "bt-more" }, `+${b.cases.length - 6}`) : "",
     );
     const status =
-      b.status === "waiting" ? `${seated}/${b.size} players` : b.status === "running" ? "In progress" : `Won by ${b.slots[b.winner!]?.user ?? "?"}`;
+      b.status === "waiting" ? `${seated}/${b.size} players` : b.status === "running" ? "In progress" : `Won by ${b.slots[b.winner!]?.name ?? "?"}`;
     return h(
       "a",
       { class: `bt-card ${b.status}${mine ? " mine" : ""}`, href: `#/battles/${b.id}` },
@@ -128,7 +128,7 @@ export function battlesPage(code: string | null = null) {
         "div",
         { class: "bt-card-head" },
         h("b", null, `${Array(b.size).fill("1").join("v")}`),
-        h("span", null, `${b.cases.length} round${b.cases.length === 1 ? "" : "s"} · by ${b.creator}`),
+        h("span", null, `${b.cases.length} round${b.cases.length === 1 ? "" : "s"} · by ${b.creatorName ?? b.creator}`),
         b.visibility !== "public" ? h("span", { class: "bt-vis" }, icon(b.visibility === "friends" ? "friends" : "lock", 12), VISIBILITY_LABEL[b.visibility]) : "",
       ),
       caseStrip,

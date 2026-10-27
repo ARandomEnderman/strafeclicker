@@ -8,6 +8,7 @@ import { h, money, toast } from "./dom";
 import { displayName } from "./item-card";
 import { icon } from "./icons";
 import { onLeave } from "./page";
+import { userLink } from "./profile-card";
 import { playReveal, playTick } from "./sound";
 
 // One battle. Every browser plays the rounds back on the same clock
@@ -117,7 +118,7 @@ export function battlePage(id: number) {
           h(
             "div",
             { class: `bt-col${s ? "" : " empty"}` },
-            h("div", { class: "bt-player" }, icon(s?.bot ? "box" : "user", 16), h("b", null, s?.user ?? "Open seat")),
+            h("div", { class: "bt-player" }, icon(s?.bot ? "box" : "user", 16), s && !s.bot ? userLink(s.user, s.name) : h("b", null, s?.name ?? "Open seat")),
             s
               ? h("div", { class: "bt-wait" }, "Ready")
               : seated
@@ -149,7 +150,7 @@ export function battlePage(id: number) {
       h(
         "div",
         { class: "bt-col" },
-        h("div", { class: "bt-player" }, icon(s!.bot ? "box" : "user", 16), h("b", null, s!.user), totalEls[i]),
+        h("div", { class: "bt-player" }, icon(s!.bot ? "box" : "user", 16), s!.bot ? h("b", null, s!.name) : userLink(s!.user, s!.name), totalEls[i]),
         reelWraps[i],
         winsEls[i],
       ),
@@ -214,7 +215,7 @@ export function battlePage(id: number) {
       cols.forEach((c, i) => c.classList.toggle("winner", i === w));
       cols.forEach((c, i) => c.classList.toggle("loser", i !== w));
       const pot = b.totals!.reduce((s, t) => s + t, 0);
-      banner.textContent = `${b.slots[w]!.user} wins ${money(pot)}`;
+      banner.textContent = `${b.slots[w]!.name ?? b.slots[w]!.user} wins ${money(pot)}`;
       banner.classList.add("show");
       const best = rounds.flat().reduce((x, y) => (y.value > x.value ? y : x));
       playReveal(getItem(best.drop.itemId).tier);

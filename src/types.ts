@@ -80,6 +80,8 @@ export interface OwnedItem extends Drop {
 /** Everything the server lets the browser see about its account. */
 export interface Account {
   username: string;
+  /** The name other players see (defaults to the username). */
+  displayName: string;
   balance: number;
   /** Upgrade-tree levels, see PERKS in shared/game.js. */
   perks: { multiOpen: number; clickPower: number; offlineIncome: number; battleRounds: number };
@@ -110,6 +112,7 @@ export interface Account {
 export interface Win {
   id: number;
   user: string;
+  name?: string;
   game: "case" | "upgrader" | "plinko" | "flashbang" | "bhop" | "battle";
   /** Payout, USD. */
   value: number;

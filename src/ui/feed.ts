@@ -3,6 +3,7 @@ import { onServerEvent } from "../live";
 import type { Win } from "../types";
 import { h, money } from "./dom";
 import { icon, type IconName } from "./icons";
+import { userLink } from "./profile-card";
 
 // Sidebar list of big wins from everyone, pushed live by the server.
 
@@ -34,9 +35,9 @@ function winRow(w: Win, fresh: boolean) {
   const how = (item ? [GAME_NAME[w.game], mult] : [mult]).filter(Boolean).join(" · ");
   return h(
     "div",
-    { class: `win${fresh ? " fresh" : ""}`, style: item ? `--rarity:${item.color}` : "", title: `${w.user} won ${money(w.value)}${w.source ? ` from ${w.source}` : ""}` },
+    { class: `win${fresh ? " fresh" : ""}`, style: item ? `--rarity:${item.color}` : "", title: `${w.name ?? w.user} won ${money(w.value)}${w.source ? ` from ${w.source}` : ""}` },
     h("div", { class: "win-art" }, art),
-    h("div", { class: "win-user" }, w.user),
+    h("div", { class: "win-user" }, userLink(w.user, w.name ?? w.user)),
     h("div", { class: "win-name" }, name),
     h("div", { class: "win-who" }, h("span", { class: "win-value" }, money(w.value)), how ? ` · ${how}` : ""),
   );

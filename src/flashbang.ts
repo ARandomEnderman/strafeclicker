@@ -8,6 +8,7 @@ import { flashScreen } from "./ui/flash";
 
 export interface FbBet {
   user: string;
+  name: string;
   stake: number;
   status: "queued" | "open" | "won" | "lost";
   mult: number | null;

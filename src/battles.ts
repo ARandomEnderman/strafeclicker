@@ -5,6 +5,7 @@ import type { Drop } from "./types";
 
 export interface BattleSlot {
   user: string;
+  name: string;
   bot: boolean;
 }
 export interface Battle {
@@ -14,6 +15,7 @@ export interface Battle {
   /** Join code; only sent to people in the battle. */
   code: string | null;
   creator: string;
+  creatorName: string;
   cases: string[];
   size: number;
   cost: number;

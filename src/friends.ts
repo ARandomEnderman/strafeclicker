@@ -4,10 +4,15 @@ import { friendsAction } from "./state";
 // Your friends and pending requests. Fetched once, then kept fresh by the server's
 // "friends" events whenever someone adds, accepts or removes you.
 
+export interface Friend {
+  user: string;
+  name: string;
+  online: boolean;
+}
 export interface FriendLists {
-  friends: { user: string; online: boolean }[];
-  incoming: { user: string; online: boolean }[];
-  outgoing: { user: string; online: boolean }[];
+  friends: Friend[];
+  incoming: Friend[];
+  outgoing: Friend[];
 }
 
 let lists: FriendLists = { friends: [], incoming: [], outgoing: [] };

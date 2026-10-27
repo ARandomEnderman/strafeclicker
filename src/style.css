@@ -3288,3 +3288,227 @@ button.trade-item:hover {
     transform: rotate(90deg);
   }
 }
+
+/* ---------- profiles ---------- */
+
+.page.narrow-wide {
+  max-width: 1100px;
+}
+.avatar {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  background: hsl(var(--h) 45% 32%);
+  color: hsl(var(--h) 80% 88%);
+  font-weight: 800;
+  line-height: 1;
+}
+a.user-name {
+  text-decoration: none;
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+a.user-name:hover {
+  background: var(--bg-3);
+}
+.user-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.user-link span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.user-link:hover span {
+  text-decoration: underline;
+}
+.win-user .user-link {
+  font-weight: 700;
+}
+.presence {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+}
+.presence i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--line);
+}
+.presence.on {
+  color: var(--up);
+}
+.presence.on i {
+  background: var(--up);
+}
+.mini-profile {
+  position: fixed;
+  z-index: 200;
+  width: min(340px, calc(100vw - 16px));
+  border-radius: 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+  animation: win-in 0.15s ease-out;
+}
+.pc-loading {
+  padding: 16px;
+  color: var(--muted);
+}
+.profile-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+}
+.profile-page .profile-card {
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  padding: 20px;
+}
+.pc-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.pc-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+.pc-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.profile-page .pc-name {
+  font-size: 24px;
+}
+.pc-you {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--bg-3);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.pc-user,
+.pc-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+.pc-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 6px;
+}
+.pc-stat {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bg);
+  min-width: 0;
+}
+.pc-stat span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.pc-stat b {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pc-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.pc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pc-actions .btn {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+.profile-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.profile-page .toolbar h2 {
+  margin: 0;
+}
+.rename {
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+}
+.rename-row {
+  display: flex;
+  gap: 8px;
+  max-width: 420px;
+}
+.rename-row .search {
+  flex: 1;
+}
+.rename .hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+.friend-avatar {
+  position: relative;
+  display: inline-flex;
+}
+.friend-avatar .dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  border: 2px solid var(--bg-2);
+  width: 11px;
+  height: 11px;
+}
+.friend-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+.friend-names .user-link {
+  font-weight: 700;
+}
+.friend-names > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.friend-actions .btn {
+  text-decoration: none;
+}

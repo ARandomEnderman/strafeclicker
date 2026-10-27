@@ -31,7 +31,7 @@ export class Trades {
     db.exec("CREATE INDEX IF NOT EXISTS trades_to ON trades(to_id, status)");
     this.q = {
       user: db.prepare("SELECT id, username FROM users WHERE username = ?"),
-      name: db.prepare("SELECT username FROM users WHERE id = ?"),
+      name: db.prepare("SELECT username, display_name FROM users WHERE id = ?"),
       items: db.prepare("SELECT * FROM items WHERE user_id = ? ORDER BY obtained_at DESC, rowid DESC"),
       add: db.prepare("INSERT INTO trades (from_id, to_id, give, get, give_cents, get_cents, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'open', ?, ?)"),
       get: db.prepare("SELECT * FROM trades WHERE id = ?"),
@@ -139,6 +139,8 @@ export class Trades {
         incoming: t.to_id === userId,
         from: this.q.name.get(t.from_id)?.username ?? "?",
         to: this.q.name.get(t.to_id)?.username ?? "?",
+        fromName: displayOf(this.q.name.get(t.from_id)),
+        toName: displayOf(this.q.name.get(t.to_id)),
         give: JSON.parse(t.give).map((uid) => owner(uid) ?? { uid, missing: true }),
         get: JSON.parse(t.get).map((uid) => owner(uid) ?? { uid, missing: true }),
         giveCash: t.give_cents / 100,
@@ -159,6 +161,7 @@ export class Trades {
   }
 }
 
+const displayOf = (r) => r?.display_name || r?.username || "?";
 const uniqueIds = (x) => [...new Set((Array.isArray(x) ? x : []).map(String))];
 
 function cashCents(x) {

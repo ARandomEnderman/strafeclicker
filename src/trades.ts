@@ -11,6 +11,8 @@ export interface Trade {
   incoming: boolean;
   from: string;
   to: string;
+  fromName: string;
+  toName: string;
   /** What the sender gives and asks for. */
   give: TradeItem[];
   get: TradeItem[];

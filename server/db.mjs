@@ -64,6 +64,7 @@ export function openDb(file) {
   // Columns added after the first release.
   const userCols = new Set(db.prepare("PRAGMA table_info(users)").all().map((c) => c.name));
   if (!userCols.has("last_active")) db.exec("ALTER TABLE users ADD COLUMN last_active INTEGER");
+  if (!userCols.has("display_name")) db.exec("ALTER TABLE users ADD COLUMN display_name TEXT");
   return db;
 }
 

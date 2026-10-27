@@ -149,7 +149,7 @@ export class Flashbang {
       a.balanceCents -= stake;
       const round = target === this.bets ? this.round : this.round + 1;
       const { lastInsertRowid } = this.q.add.run(round, userId, stake, auto, Date.now());
-      bet = { id: Number(lastInsertRowid), round, userId, user: a.username, stakeCents: stake, auto, status: "queued", mult: null, payoutCents: 0 };
+      bet = { id: Number(lastInsertRowid), round, userId, user: a.username, name: a.displayName, stakeCents: stake, auto, status: "queued", mult: null, payoutCents: 0 };
       return { round };
     });
     target.push(bet);
@@ -202,4 +202,4 @@ export class Flashbang {
   }
 }
 
-const publicBet = (b) => ({ user: b.user, stake: b.stakeCents / 100, status: b.status, mult: b.mult, payout: b.payoutCents / 100 });
+const publicBet = (b) => ({ user: b.user, name: b.name ?? b.user, stake: b.stakeCents / 100, status: b.status, mult: b.mult, payout: b.payoutCents / 100 });
