@@ -36,6 +36,7 @@ import { Defuse } from "./games/defuse.mjs";
 import { Roulette } from "./games/roulette.mjs";
 import { Coinflip } from "./games/coinflip.mjs";
 import { Jackpot } from "./games/jackpot.mjs";
+import { keno } from "./games/keno.mjs";
 import { Battles } from "./games/battles.mjs";
 import { Friends } from "./friends.mjs";
 import { Trades } from "./trades.mjs";
@@ -493,6 +494,7 @@ const actions = {
   },
   roulette: (userId, body) => roulette.bet(userId, body),
   spin: (userId) => game.dailySpin(userId),
+  keno: (userId, body) => keno(game, userId, body),
   jackpot: (userId, body) => (body.action === "withdraw" ? jackpot.withdraw(userId) : jackpot.deposit(userId, body)),
   coinflip: (userId, body) => {
     if (body.action === "create") return coinflip.create(userId, body);

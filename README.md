@@ -21,6 +21,7 @@ A CS2 case-opening simulator. Play money only: no deposits, no withdrawals, noth
 - **Friends**: add people by username from the friends button in the top bar; they accept or decline. Friends see your friends-only battles and show as online when they have the site open.
 - **Profiles**: click any player's name (live wins, flashbang, battles, friends, trades) for a mini profile: display name, @username, join date, cases opened, battles won, achievements and best item, with Add friend / Trade / Profile buttons. Friends (and you) also see online status, balance and inventory worth, and the profile page (`#/u/<username>`) shows their whole inventory. Your own profile is where you set a display name (up to 24 characters); the username stays your login and what friends add you by. Friends' online status updates live.
 - **Trade**: swap items and cash with friends. Pick from both inventories, add cash on either side, send the offer; they accept or decline, you can cancel. Nothing is held while an offer is open: on accept the server checks both sides still have everything and moves it all in one transaction, or the offer fails. The Trade tab shows a red count of offers waiting for you.
+- **Keno**: a 7×7 grid. Pick 1–10 tiles, the server draws 10 of the 49, and you're paid by how many of yours were hit (`KENO_TABLES` in `shared/game.js`; each row pays back about 99%).
 - **Daily spin**: a free wheel once every 24 hours paying $0.25 to $100 into your balance (about $2.27 a day on average; prizes in `DAILY_PRIZES` in `shared/game.js`). A red dot in the sidebar shows when it's ready.
 - **Live wins**: the sidebar shows notable items people unbox, upgrade into or win in battles (only items; casino payouts aren't posted). Knives, gloves and Covert items always show; otherwise an item needs to be worth $25+, or 10x what its case cost and $2+. A multi-open posts only its best item. Flood control: one entry per player per 15 s, and once 8 went out in a minute only $50+ items get through (knives, gloves and $100+ items skip both limits). The rules are at the top of `server/feed.mjs`. Entries wait until the reel has landed so they never spoil your own roll.
 - **Upgrader**: stake up to 10 items for one pricier skin or sticker. Chance = your value ÷ target price × 90%, between 1% and 80%.
@@ -135,6 +136,7 @@ No `git` on the box? Download the code instead:
 | `POST /api/jackpot` `{uids}` / `{action: "withdraw"}` | Deposit items into the pot, or take them back before anyone else joins; round state comes over SSE as `jackpot` events |
 | `POST /api/admin` `{action, ...}` | Admin panel (account `admin` only) |
 | `POST /api/spin` | The daily spin |
+| `POST /api/keno` `{bet, picks}` | A keno round (picks are tile numbers 0–48) |
 | `POST /api/reset` | Wipe your balance, items and upgrades (keeps the login) |
 
 POST bodies must be `application/json`, which also stops other sites from posting forms to it.

@@ -381,3 +381,14 @@ export const DAILY_PRIZES = [
   { usd: 25, weight: 1.5 },
   { usd: 100, weight: 0.5 },
 ];
+
+// ---------- keno ----------
+// A 7×7 grid. Pick 1–10 tiles; the server draws KENO_DRAWS. KENO_TABLES[picks][hits] is
+// the multiplier; each row pays back about 99% (hypergeometric odds).
+
+export const KENO_TILES = 49;
+export const KENO_DRAWS = 10;
+export const KENO_MAX_PICKS = 10;
+export const KENO_TABLES = {"1":[0,4.85],"2":[0,1.39,13.8],"3":[0,0.83,4.44,35.9],"4":[0,0.63,2.24,11.6,110],"5":[0,0,1.4,8.15,52.4,621],"6":[0,0,1,4.35,21.5,157,2341],"7":[0,0,0.79,2.68,11,60.9,553,10000],"8":[0,0,0,1.76,8.98,45,311,3648,10000],"9":[0,0,0,1.31,5.46,23.5,133,1156,10000,10000],"10":[0,0,0,1.02,3.58,13.6,65.7,461,5337,10000,10000]};
+/** How long the browser takes to reveal the draw (ms). */
+export const KENO_REVEAL_MS = 1600;

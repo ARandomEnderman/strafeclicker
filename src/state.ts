@@ -282,6 +282,20 @@ export async function dailySpin() {
   return { ...r, reveal: hidePayout(r.prize) };
 }
 
+export interface KenoResult {
+  drawn: number[];
+  hits: number;
+  mult: number;
+  payout: number;
+  stake: number;
+  reveal: () => void;
+}
+export async function playKeno(bet: number, picks: number[]): Promise<KenoResult> {
+  await flushClicks();
+  const r = await post<Omit<KenoResult, "reveal">>("keno", { bet, picks });
+  return { ...r, reveal: hidePayout(r.payout) };
+}
+
 export async function rouletteBet(color: string, bet: number) {
   await flushClicks();
   return post("roulette", { color, bet });

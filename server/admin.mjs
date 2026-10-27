@@ -47,7 +47,7 @@ export function rigReport(settings) {
     { game: "defuse", rig: r("defuse"), rtp: pct(0.99 * (1 - r("defuse")) ** 5), note: `Shown for 5 tiles; ${pct(r("defuse"))}% of safe picks get a bomb moved under them.` },
     { game: "coinflipBot", rig: r("coinflipBot"), rtp: pct(1 - r("coinflipBot") / 2), note: `Against a bot you win ${pct(0.5 - r("coinflipBot") / 2)}% of flips. Player-vs-player flips are always 50/50.` },
     { game: "towers", rig: r("towers"), rtp: null, note: "Applies once Towers is built." },
-    { game: "keno", rig: r("keno"), rtp: null, note: "Applies once Keno is built." },
+    { game: "keno", rig: r("keno"), rtp: r("keno") ? null : 99, note: `${pct(r("keno"))}% of rounds are drawn twice and the draw with fewer hits counts. 99% with no rig.` },
     { game: "race", rig: r("race"), rtp: null, note: "Applies once the bot race is built." },
     { game: "blackjack", rig: r("blackjack"), rtp: null, note: "Applies once Blackjack is built." },
     { game: "dailySpin", rig: r("dailySpin"), rtp: null, note: `Free, so no payback: worth ${money(dailyEv(r("dailySpin")))} a day on average (${money(dailyEv(0))} with no rig). The rig makes the top four prizes rarer.` },

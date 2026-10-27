@@ -84,3 +84,8 @@ export const JP_MIN_DEPOSIT: number;
 export const DAILY_SPIN_EVERY_MS: number;
 export const DAILY_SPIN_MS: number;
 export const DAILY_PRIZES: { usd: number; weight: number }[];
+export const KENO_TILES: number;
+export const KENO_DRAWS: number;
+export const KENO_MAX_PICKS: number;
+export const KENO_TABLES: Record<number, number[]>;
+export const KENO_REVEAL_MS: number;
