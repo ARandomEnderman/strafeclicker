@@ -2,6 +2,7 @@ import type { PerkId } from "../../shared/game.js";
 import { OFFLINE_CAP_HOURS, PERKS, perkValue } from "../odds";
 import { buyPerk, displayBalance, getState, InsufficientFunds, ServerError, subscribe } from "../state";
 import { h, money, toast } from "./dom";
+import { icon } from "./icons";
 import { onLeave } from "./page";
 
 // An Obsidian-style graph: "Start" in the middle, each branch spiralling outward one
@@ -9,10 +10,10 @@ import { onLeave } from "./page";
 // background pans and the wheel zooms. Buying happens in the card below the graph.
 
 // Three branches 120° apart around the centre.
-const BRANCHES: { id: PerkId; icon: string; angle: number; format: (v: number) => string; effect: (v: number) => string }[] = [
-  { id: "multiOpen", icon: "📦", angle: Math.PI * (5 / 6), format: (v) => `×${v}`, effect: (v) => `Open ${v} case${v === 1 ? "" : "s"} at once` },
-  { id: "clickPower", icon: "👆", angle: Math.PI / 6, format: (v) => money(v), effect: (v) => `${money(v)} per click` },
-  { id: "offlineIncome", icon: "🌙", angle: -Math.PI / 2, format: (v) => `${money(v)}/h`, effect: (v) => `${money(v)} per hour while away` },
+const BRANCHES: { id: PerkId; angle: number; format: (v: number) => string; effect: (v: number) => string }[] = [
+  { id: "multiOpen", angle: Math.PI * (5 / 6), format: (v) => `×${v}`, effect: (v) => `Open ${v} case${v === 1 ? "" : "s"} at once` },
+  { id: "clickPower", angle: Math.PI / 6, format: (v) => money(v), effect: (v) => `${money(v)} per click` },
+  { id: "offlineIncome", angle: -Math.PI / 2, format: (v) => `${money(v)}/h`, effect: (v) => `${money(v)} per hour while away` },
 ];
 
 const RING = 64; // distance between levels
@@ -110,9 +111,6 @@ export function treePage() {
     const label = svg("text", { class: "graph-label", y: n.r + 15, "text-anchor": "middle" });
     const sub = svg("text", { class: "graph-sub", y: n.r + 28, "text-anchor": "middle" });
     if (!n.branch) {
-      const icon = svg("text", { class: "graph-icon", y: 6, "text-anchor": "middle" });
-      icon.textContent = "🌱";
-      g.append(icon);
     }
     g.append(label, sub);
     g.addEventListener("pointerenter", () => (hovered = n));
@@ -136,7 +134,7 @@ export function treePage() {
       }
       const b = BRANCHES.find((x) => x.id === n.branch)!;
       const lvl = PERKS[n.branch].levels[n.level];
-      label.textContent = n.level === 1 ? `${b.icon} ${b.format(lvl.value)}` : b.format(lvl.value);
+      label.textContent = b.format(lvl.value);
       sub.textContent = st === "owned" ? "owned" : money(lvl.cost);
       g.setAttribute("aria-label", `${PERKS[n.branch].name} level ${n.level}: ${b.effect(lvl.value)}, ${st === "owned" ? "owned" : money(lvl.cost)}`);
     }
@@ -290,13 +288,13 @@ export function treePage() {
         h("div", { class: "graph-card-hint" }, "Click a node in the graph for details. Drag nodes, drag the background to pan, scroll to zoom."),
         ...BRANCHES.map((b) => {
           const next = byKey.get(`${b.id}:${getState().perks[b.id] + 1}`);
-          return next ? nodeRow(next) : h("div", { class: "graph-row" }, h("b", null, `${b.icon} ${PERKS[b.id].name}`), h("span", null, "Maxed"));
+          return next ? nodeRow(next) : h("div", { class: "graph-row" }, h("b", null, PERKS[b.id].name), h("span", null, "Maxed"));
         }),
       );
       return;
     }
     card.replaceChildren(
-      h("div", { class: "graph-card-title" }, `${BRANCHES.find((b) => b.id === n.branch)!.icon} ${PERKS[n.branch].name} · level ${n.level}`),
+      h("div", { class: "graph-card-title" }, `${PERKS[n.branch].name} · level ${n.level}`),
       nodeRow(n),
       h("button", { class: "linklike", onclick: () => ((selected = null), paintNodes(), drawCard()) }, "Show next upgrades"),
     );
@@ -312,7 +310,7 @@ export function treePage() {
       { class: `graph-row ${st}` },
       h("div", null, h("b", null, b.effect(lvl.value)), h("div", { class: "graph-card-hint" }, `${PERKS[n.branch!].name} level ${n.level}`)),
       st === "owned"
-        ? h("span", { class: "tree-owned" }, "✓ Owned")
+        ? h("span", { class: "tree-owned" }, "Owned")
         : st === "next"
           ? h(
               "button",
@@ -324,7 +322,7 @@ export function treePage() {
               },
               `Buy ${money(lvl.cost)}`,
             )
-          : h("span", { class: "tree-cost" }, `🔒 ${money(lvl.cost)} · unlock level ${n.level - 1} first`),
+          : h("span", { class: "tree-cost" }, icon("lock", 12), ` ${money(lvl.cost)} · unlock level ${n.level - 1} first`),
     );
   };
 
@@ -360,12 +358,12 @@ export function treePage() {
   const summary = h(
     "div",
     { class: "case-stats" },
-    ...BRANCHES.map((b) => h("div", { class: "stat" }, h("span", null, `${b.icon} ${PERKS[b.id].name}`), h("b", null, b.effect(perkValue(getState().perks, b.id))))),
+    ...BRANCHES.map((b) => h("div", { class: "stat" }, h("span", null, PERKS[b.id].name), h("b", null, b.effect(perkValue(getState().perks, b.id))))),
   );
   onLeave(
     subscribe(() =>
       summary.replaceChildren(
-        ...BRANCHES.map((b) => h("div", { class: "stat" }, h("span", null, `${b.icon} ${PERKS[b.id].name}`), h("b", null, b.effect(perkValue(getState().perks, b.id))))),
+        ...BRANCHES.map((b) => h("div", { class: "stat" }, h("span", null, PERKS[b.id].name), h("b", null, b.effect(perkValue(getState().perks, b.id))))),
       ),
     ),
   );

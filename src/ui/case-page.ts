@@ -5,6 +5,7 @@ import { PERKS, TIER_INFO, needsKey, perkValue, pickWeighted, tierLabel, tierOdd
 import { renderSkin } from "../skin-renderer";
 import { getState, InsufficientFunds, openCases, sell, ServerError } from "../state";
 import { h, money, toast } from "./dom";
+import { icon } from "./icons";
 import { displayName, dropCard, itemPreviewCard } from "./item-card";
 import { playTick, playReveal } from "./sound";
 
@@ -21,12 +22,6 @@ const WIN_INDEX = PAD + (CS2_TILES - 1 - 3);
 const START_INDEX = PAD + (CS2_TILES - 1 - 35);
 const SPIN_MS = 6000;
 const SPIN_EASING = "cubic-bezier(0.075, 0.82, 0.165, 1)";
-/** CS2's tick-sound timetable in seconds, exactly as shipped (including its out-of-order 1.351). */
-const TICK_TIMES = [
-  0.0, 0.063, 0.125, 0.188, 0.25, 0.313, 0.375, 0.438, 0.5, 0.563, 0.625, 0.688, 0.75, 0.813, 0.875, 0.938, 1.0, 1.063, 1.125, 1.188,
-  1.25, 1.313, 1.375, 1.483, 1.351, 1.62, 1.701, 1.786, 1.872, 2.003, 2.154, 2.313, 2.466, 2.615, 2.773, 2.941, 3.104, 3.339, 3.63,
-  3.953, 4.385, 5.004,
-];
 /** CS2's per-item display weights for filler tiles, by rarity (Mil-Spec / High Grade first). */
 const FILLER_WEIGHT = { milspec: 1250, restricted: 250, classified: 50, covert: 10, gold: 0 } as const;
 
@@ -91,7 +86,7 @@ export function casePage(c: Case) {
               },
               `×${value}`,
             )
-          : h("a", { class: "chip locked", href: "#/tree", title: "Unlock in the upgrade tree" }, `🔒 ×${value}`),
+          : h("a", { class: "chip locked", href: "#/tree", title: "Unlock in the upgrade tree" }, icon("lock", 12), ` ×${value}`),
       ),
     );
   };
@@ -301,18 +296,34 @@ async function animate(reel: HTMLElement, sound = true): Promise<void> {
   // CS2: Math.floor(Math.random() * 81 + 10) / 100, i.e. 10%–90% across the tile.
   const slack = Math.floor(Math.random() * 81 + 10) / 100;
   const target = xFor(reel, WIN_INDEX, slack);
+  // Measured with the reel at 0: where the marker sits along the strip, and the tile pitch.
+  const first = (reel.children[0] as HTMLElement).getBoundingClientRect();
+  const pitch = (reel.children[1] as HTMLElement).getBoundingClientRect().left - first.left;
+  const markerInReel = markerCentre(reel.parentElement as HTMLElement) - first.left;
 
   const anim = reel.animate([{ transform: `translateX(${start}px)` }, { transform: `translateX(${target}px)` }], {
     duration: SPIN_MS,
     easing: SPIN_EASING,
     fill: "forwards",
   });
-  const ticks = sound ? TICK_TIMES.map((t) => setTimeout(playTick, t * 1000)) : [];
+  // Tick each time a new tile passes the marker (CS2's own fixed tick timetable doesn't
+  // line up with our narrower tiles).
+  let lastTile = Math.floor((markerInReel - start) / pitch);
+  let raf = 0;
+  const tick = () => {
+    const tile = Math.floor((markerInReel - currentX(reel)) / pitch);
+    if (tile !== lastTile) {
+      if (sound) playTick();
+      lastTile = tile;
+    }
+    raf = requestAnimationFrame(tick);
+  };
+  raf = requestAnimationFrame(tick);
   // If the tab is hidden the animation can stall; finish it rather than hang.
   const guard = setTimeout(() => anim.finish(), SPIN_MS + 2000);
   await anim.finished.catch(() => undefined);
   clearTimeout(guard);
-  ticks.forEach(clearTimeout);
+  cancelAnimationFrame(raf);
 
   reel.style.transform = `translateX(${target}px)`;
   anim.cancel();

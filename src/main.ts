@@ -1,9 +1,10 @@
 import "./style.css";
-import { getCase, getCatalog, loadCatalog } from "./catalog";
+import { getCase, getCatalog, loadCatalog, priceOf, round2 } from "./catalog";
 import type { Case } from "./types";
 import type { Account } from "./types";
 import { displayBalance, getState, initState, logout, resetAll, setLoggedOutHandler, setOfflineHandler, subscribe } from "./state";
 import { openModal } from "./ui/modal";
+import { icon } from "./ui/icons";
 import { authPage } from "./ui/auth-page";
 import { h, money } from "./ui/dom";
 import { casesPage } from "./ui/cases-page";
@@ -23,17 +24,20 @@ const app = document.getElementById("app")!;
 function header() {
   const balance = h("b", { class: "balance-amount" });
   const invCount = h("span", { class: "badge" });
+  const invValue = h("b");
   const sync = () => {
     balance.textContent = money(displayBalance());
     invCount.textContent = String(getState().inventory.length);
+    invValue.textContent = money(round2(getState().inventory.reduce((s, it) => s + priceOf(it), 0)));
   };
   subscribe(sync);
+  onPrices(sync);
   sync();
 
-  const soundBtn = h("button", { class: "btn btn-ghost btn-sm", title: "Sound" }, soundEnabled() ? "🔊" : "🔇");
+  const soundBtn = h("button", { class: "btn btn-ghost btn-sm", title: "Sound", "aria-label": "Toggle sound" }, icon(soundEnabled() ? "sound" : "mute"));
   soundBtn.addEventListener("click", () => {
     setSound(!soundEnabled());
-    soundBtn.textContent = soundEnabled() ? "🔊" : "🔇";
+    soundBtn.replaceChildren(icon(soundEnabled() ? "sound" : "mute"));
   });
 
   return h(
@@ -56,6 +60,7 @@ function header() {
       soundBtn,
       h("span", { class: "balance-label" }, "Balance"),
       balance,
+      h("a", { class: "inv-value", href: "#/inventory", title: "Current market value of your inventory" }, h("span", null, "Inventory"), invValue),
       h(
         "div",
         { class: "user" },

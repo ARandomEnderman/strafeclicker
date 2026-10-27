@@ -114,6 +114,23 @@ nav a.active {
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
+.inv-value {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  text-decoration: none;
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
+}
+.inv-value span {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.inv-value b {
+  font-variant-numeric: tabular-nums;
+}
 .balance-amount {
   font-size: 18px;
   color: var(--up);
@@ -986,7 +1003,13 @@ nav a {
   gap: 4px;
   margin-bottom: 16px;
   border-bottom: 1px solid var(--line);
+  /* Scroll sideways on narrow screens, never vertically, and without a visible bar. */
   overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar {
+  display: none;
 }
 .tab {
   padding: 10px 14px;
