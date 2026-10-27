@@ -1,5 +1,5 @@
 import { PLINKO_DROP_MS, PLINKO_RISKS, PLINKO_ROWS, PLINKO_TABLES } from "../odds";
-import { dropPlinko, InsufficientFunds, ServerError } from "../state";
+import { displayBalance, dropPlinko, InsufficientFunds, ServerError } from "../state";
 import { betInput, segmented } from "./bet-input";
 import { h, money, toast } from "./dom";
 import { onLeave } from "./page";
@@ -134,6 +134,8 @@ export function plinkoPage() {
   const bet = betInput();
   const go = async () => {
     const stake = bet.value();
+    // Balls still falling don't count: their winnings aren't yours until they land.
+    if (stake > displayBalance() + 1e-9) return toast("Not enough balance", "error");
     const r0 = rows;
     let res;
     try {

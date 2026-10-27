@@ -11,7 +11,7 @@ import { randomInt } from "node:crypto";
 import { BATTLE_MAX_ROUNDS, BATTLE_REEL_LEN, BATTLE_ROUND_MS, BATTLE_SIZES, battleReel } from "../../shared/game.js";
 import { isBigWin } from "../feed.mjs";
 import { PERKS, perkValue } from "../../shared/game.js";
-import { GameError, randomFloats } from "../game.mjs";
+import { GameError, randomFloats, spendable } from "../game.mjs";
 
 const BOT_NAMES = ["Bot Alpha", "Bot Bravo", "Bot Charlie"];
 /** public: listed for everyone. friends: listed for the creator's friends. private: join by code only. */
@@ -110,7 +110,7 @@ export class Battles {
         const more = PERKS.battleRounds.levels[a.perks.battleRounds + 1];
         throw new GameError("bad_input", `You can put up to ${max} cases in a battle${more ? `; Battle size in the upgrade tree raises that` : ""}`);
       }
-      if (a.balanceCents < costCents) throw new GameError("insufficient", "Not enough balance");
+      if (spendable(a) < costCents) throw new GameError("insufficient", "Not enough balance");
       a.balanceCents -= costCents;
       battle = {
         status: "waiting",
@@ -144,7 +144,7 @@ export class Battles {
     const seat = b.slots.indexOf(null);
     if (seat < 0) throw new GameError("closed", "This battle is full");
     const out = this.game.act(userId, (a) => {
-      if (a.balanceCents < b.costCents) throw new GameError("insufficient", "Not enough balance");
+      if (spendable(a) < b.costCents) throw new GameError("insufficient", "Not enough balance");
       a.balanceCents -= b.costCents;
       b.slots[seat] = { userId, user: a.username, bot: false };
       this.#save(b);

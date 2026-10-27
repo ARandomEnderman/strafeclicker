@@ -21,6 +21,9 @@ export function plinko(game, userId, body) {
     const mult = table[slot];
     const payout = Math.floor(stake * mult);
     a.balanceCents += payout - stake;
+    // The winnings are only spendable once the ball has landed on screen.
+    // (A little longer than the animation, to cover the response's trip to the browser.)
+    game.lock(a, payout, PLINKO_DROP_MS(rows) + 250);
     game.noteGame(a, "plinko", { stakeCents: stake, payoutCents: payout });
     game.announce(changes, a, "plinko", payout / 100, stake / 100, { label: `${mult}x`, source: `${rows} rows, ${risk}` }, PLINKO_DROP_MS(rows));
     return { path, slot, mult, payout: payout / 100, stake: stake / 100 };

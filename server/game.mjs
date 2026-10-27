@@ -35,6 +35,12 @@ const CLICK_CLOCK_SLACK = 300;
 /** Money is kept in integer cents so thousands of $0.05 clicks never drift. */
 export const cents = (usd) => Math.round(usd * 100);
 
+/**
+ * What an account can spend right now: its balance minus winnings that are credited but
+ * still being revealed (a plinko ball in the air), so bets can't run ahead of the ball.
+ */
+export const spendable = (a) => a.balanceCents - (a.lockedCents ?? 0);
+
 const freshStats = () => ({
   opened: 0,
   spentCents: 0,
@@ -92,6 +98,8 @@ export class Game {
     this.feed = feed;
     /** userId -> click rate-limit bucket (in memory; resets harmlessly on restart) */
     this.clickBuckets = new Map();
+    /** userId -> [{ cents, until }]: credited winnings not spendable until `until` (see spendable). */
+    this.locks = new Map();
     this.q = {
       user: db.prepare("SELECT id, username, balance_cents, perks, stats, last_active FROM users WHERE id = ?"),
       items: db.prepare("SELECT * FROM items WHERE user_id = ? ORDER BY obtained_at DESC, rowid DESC"),
@@ -165,10 +173,28 @@ export class Game {
       username: r.username,
       lastActive: r.last_active,
       balanceCents: r.balance_cents,
+      lockedCents: this.#lockedCents(r.id),
       perks: { ...NO_PERKS, ...JSON.parse(r.perks) },
       stats: { ...freshStats(), ...JSON.parse(r.stats) },
       inventory: this.q.items.all(r.id).map(rowToItem),
     };
+  }
+
+  #lockedCents(userId) {
+    const now = Date.now();
+    const live = (this.locks.get(userId) ?? []).filter((l) => l.until > now);
+    if (live.length) this.locks.set(userId, live);
+    else this.locks.delete(userId);
+    return live.reduce((s, l) => s + l.cents, 0);
+  }
+
+  /** Hold back `amountCents` of an account's balance from spending for `ms`. */
+  lock(a, amountCents, ms) {
+    if (amountCents <= 0) return;
+    const list = this.locks.get(a.id) ?? [];
+    list.push({ cents: amountCents, until: Date.now() + ms });
+    this.locks.set(a.id, list);
+    a.lockedCents = (a.lockedCents ?? 0) + amountCents;
   }
 
   #save(a, { added = [], removed = [] } = {}) {
@@ -391,7 +417,7 @@ export class Game {
       const casePrice = this.market.prices()[`case|${c.id}`];
       if (casePrice == null) throw new GameError("unavailable", "This container isn't on the market right now");
       const cost = (cents(casePrice) + (needsKey(c) ? cents(keyPrice) : 0)) * n;
-      if (a.balanceCents < cost) throw new GameError("insufficient", "Not enough balance");
+      if (spendable(a) < cost) throw new GameError("insufficient", "Not enough balance");
 
       const items = Array.from({ length: n }, () => this.#newOwned(resolveDrop(c, (id) => this.#item(id), randomFloats(7)), c.id));
       a.balanceCents -= cost;
@@ -418,7 +444,7 @@ export class Game {
       if (!perk) throw new GameError("unknown_perk", "No such upgrade", 404);
       const next = perk.levels[a.perks[id] + 1];
       if (!next) throw new GameError("maxed", `${perk.name} is already maxed`);
-      if (a.balanceCents < cents(next.cost)) throw new GameError("insufficient", "Not enough balance");
+      if (spendable(a) < cents(next.cost)) throw new GameError("insufficient", "Not enough balance");
       a.balanceCents -= cents(next.cost);
       a.perks[id]++;
       return { level: a.perks[id] };
