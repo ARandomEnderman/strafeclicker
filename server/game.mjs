@@ -23,7 +23,6 @@ import {
   upgradeChance,
 } from "../shared/game.js";
 import { tx } from "./db.mjs";
-import { isBigWin } from "./feed.mjs";
 import { ACHIEVEMENTS, newlyMet } from "../shared/achievements.js";
 
 export const STARTING_BALANCE = 0;
@@ -293,10 +292,13 @@ export class Game {
     return this.#act(userId, fn);
   }
 
-  /** Queue a feed entry if the payout is big enough. Values in USD. */
-  announce(changes, a, game, value, stake, extra = {}, delayMs = 0) {
-    if (!isBigWin(value, stake)) return;
-    (changes.wins ??= []).push({ win: { user: a.username, game, value, stake, ...extra }, delayMs });
+  /**
+   * Offer an item win to the live feed once the transaction commits (the feed decides
+   * whether it's worth showing). `stake` is what the case or upgrade cost, USD.
+   */
+  announce(changes, a, game, owned, stake, extra = {}, delayMs = 0) {
+    const win = { user: a.username, game, value: this.#price(owned), stake, tier: this.#item(owned.itemId).tier, drop: dropOf(owned), ...extra };
+    (changes.wins ??= []).push({ win, delayMs });
   }
 
   item(id) {
@@ -453,9 +455,10 @@ export class Game {
         a.stats.tiers[tier] = (a.stats.tiers[tier] ?? 0) + 1;
         a.stats.unboxedCents += cents(this.#price(owned));
         this.#noteBest(a, owned);
-        // Held back until the reel has landed (6 s spin).
-        this.announce(changes, a, "case", this.#price(owned), cost / n / 100, { drop: dropOf(owned), source: c.name }, 6500);
       }
+      // Only the best of a multi-open goes to the feed, held back until the reel lands (6 s).
+      const best = items.reduce((x, y) => (this.#price(y) > this.#price(x) ? y : x));
+      this.announce(changes, a, "case", best, cost / n / 100, { source: c.name }, 6500);
       return { items };
     });
   }
@@ -531,7 +534,7 @@ export class Game {
         changes.added = [owned];
         a.stats.upgradesWon++;
         this.#noteBest(a, owned);
-        this.announce(changes, a, "upgrader", targetCents / 100, inputCents / 100, { drop: dropOf(owned) }, 4400);
+        this.announce(changes, a, "upgrader", owned, inputCents / 100, {}, 4400);
       }
       a.stats.upgrades++;
       return { won, chance, item: owned };

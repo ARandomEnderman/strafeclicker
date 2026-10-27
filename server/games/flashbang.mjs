@@ -118,10 +118,9 @@ export class Flashbang {
   #settle(b, mult) {
     if (b.status !== "open") return;
     const payout = mult == null ? 0 : Math.floor(b.stakeCents * mult);
-    const { account } = this.game.act(b.userId, (a, changes) => {
+    const { account } = this.game.act(b.userId, (a) => {
       a.balanceCents += payout;
       this.game.noteGame(a, "flashbang", { stakeCents: b.stakeCents, payoutCents: payout });
-      if (mult != null) this.game.announce(changes, a, "flashbang", payout / 100, b.stakeCents / 100);
       this.q.status.run(mult == null ? "lost" : "won", mult, payout, b.id);
       return {};
     });

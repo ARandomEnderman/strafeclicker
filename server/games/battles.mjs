@@ -9,7 +9,6 @@
 
 import { randomInt } from "node:crypto";
 import { BATTLE_MAX_ROUNDS, BATTLE_REEL_LEN, BATTLE_ROUND_MS, BATTLE_SIZES, battleReel } from "../../shared/game.js";
-import { isBigWin } from "../feed.mjs";
 import { PERKS, perkValue } from "../../shared/game.js";
 import { GameError, randomFloats, spendable } from "../game.mjs";
 
@@ -120,6 +119,7 @@ export class Battles {
         cases: ids,
         size,
         costCents,
+        caseCosts: ids.map((id) => this.game.caseCost(id).costCents),
         visibility,
         code: visibility === "private" ? this.#newCode() : null,
         slots: Array.from({ length: size }, (_, i) => (i === 0 ? { userId, user: a.username, bot: false } : null)),
@@ -228,8 +228,12 @@ export class Battles {
       // Fresh account, plus any achievements the result unlocked.
       for (const [uid, account] of accounts) this.io.toUser(uid, "account", { ...this.game.view(uid), ...(account.unlocked ? { unlocked: account.unlocked } : {}) });
       const w = b.slots[b.winner];
-      if (!w.bot && isBigWin(potCents / 100, b.costCents / 100)) {
-        this.game.feed?.push({ user: w.user, game: "battle", value: potCents / 100, stake: b.costCents / 100, label: `${b.size}-player battle` });
+      if (!w.bot) {
+        // The best item the winner takes home, against what its round's case cost.
+        let best = null;
+        b.rounds.forEach((r, ri) => r.forEach((x) => (!best || x.value > best.value) && (best = { ...x, ri })));
+        const stake = (b.caseCosts?.[best.ri] ?? b.costCents / b.cases.length) / 100;
+        this.game.feed?.push({ user: w.user, game: "battle", value: best.value, stake, tier: this.game.item(best.drop.itemId).tier, drop: best.drop, source: `${b.size}-player battle` });
       }
       this.#trim();
       this.#publish();

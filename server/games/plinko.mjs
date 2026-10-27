@@ -12,7 +12,7 @@ export function plinko(game, userId, body) {
   const risk = String(body.risk ?? "");
   const table = PLINKO_TABLES[rows]?.[risk];
   if (!table || !Object.hasOwn(PLINKO_TABLES[rows], risk)) throw new GameError("bad_input", "Pick 8, 12 or 16 rows and a risk level");
-  return game.act(userId, (a, changes) => {
+  return game.act(userId, (a) => {
     const stake = stakeCents(a, body.bet);
     const bits = randomBytes(rows);
     // 0 = left, 1 = right at each row; the slot is the number of right bounces.
@@ -25,7 +25,6 @@ export function plinko(game, userId, body) {
     // (A little longer than the animation, to cover the response's trip to the browser.)
     game.lock(a, payout, PLINKO_DROP_MS(rows) + 250);
     game.noteGame(a, "plinko", { stakeCents: stake, payoutCents: payout });
-    game.announce(changes, a, "plinko", payout / 100, stake / 100, { label: `${mult}x`, source: `${rows} rows, ${risk}` }, PLINKO_DROP_MS(rows));
     return { path, slot, mult, payout: payout / 100, stake: stake / 100 };
   });
 }
