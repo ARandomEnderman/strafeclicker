@@ -27,12 +27,13 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 export const money = (n: number) => usd.format(n);
 
-export function toast(text: string, kind: "info" | "error" = "info") {
-  const host = document.getElementById("toasts")!;
+export function toast(text: string, kind: "info" | "error" | "achievement" = "info", ms = 3000) {
+  const host = document.getElementById("toasts");
+  if (!host) return;
   const el = h("div", { class: `toast toast-${kind}` }, text);
   host.append(el);
-  setTimeout(() => el.classList.add("out"), 2600);
-  setTimeout(() => el.remove(), 3000);
+  setTimeout(() => el.classList.add("out"), ms - 400);
+  setTimeout(() => el.remove(), ms);
 }
 
 /** Signed change with an arrow, so direction never relies on color alone. */

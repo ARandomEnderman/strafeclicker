@@ -24,6 +24,7 @@ import {
 } from "../shared/game.js";
 import { tx } from "./db.mjs";
 import { isBigWin } from "./feed.mjs";
+import { ACHIEVEMENTS, newlyMet } from "../shared/achievements.js";
 
 export const STARTING_BALANCE = 0;
 /** Most clicks one request can carry. */
@@ -34,7 +35,21 @@ const CLICK_CLOCK_SLACK = 300;
 /** Money is kept in integer cents so thousands of $0.05 clicks never drift. */
 export const cents = (usd) => Math.round(usd * 100);
 
-const freshStats = () => ({ opened: 0, spentCents: 0, unboxedCents: 0, best: null, clicks: 0, upgrades: 0, upgradesWon: 0 });
+const freshStats = () => ({
+  opened: 0,
+  spentCents: 0,
+  unboxedCents: 0,
+  best: null,
+  clicks: 0,
+  upgrades: 0,
+  upgradesWon: 0,
+  /** Unboxed items per rarity tier. */
+  tiers: {},
+  /** Per game: { played, wageredCents, wonCents, bestMult, ... } */
+  games: {},
+  /** Achievement id -> time unlocked. */
+  achievements: {},
+});
 
 export class GameError extends Error {
   constructor(code, message, status = 400) {
@@ -189,11 +204,40 @@ export class Game {
       const a = this.#load(userId);
       const offline = this.#payOffline(a);
       const result = fn(a, changes);
+      const unlocked = this.#unlockAchievements(a);
       this.#save(a, changes);
-      return { ...result, account: { ...this.#view(a), ...(offline ? { offline } : {}) } };
+      return { ...result, account: { ...this.#view(a), ...(offline ? { offline } : {}), ...(unlocked.length ? { unlocked } : {}) } };
     });
     for (const { win, delayMs } of changes.wins ?? []) this.feed?.push(win, delayMs);
     return out;
+  }
+
+  /** Record newly met achievements and pay their rewards. Returns the new ids. */
+  #unlockAchievements(a) {
+    const view = this.#view(a);
+    const subject = { ...view, inventoryValue: a.inventory.reduce((sum, it) => sum + this.#price(it), 0) };
+    const ids = newlyMet(subject, a.stats.achievements);
+    const now = Date.now();
+    for (const id of ids) {
+      a.stats.achievements[id] = now;
+      a.balanceCents += cents(ACHIEVEMENTS.find((x) => x.id === id).reward);
+    }
+    return ids;
+  }
+
+  /**
+   * Book one round of a game in the account's stats.
+   * @param {{ stakeCents: number, payoutCents: number, max?: Record<string, number>, add?: Record<string, number> }} r
+   *   `max` fields keep the highest value seen (e.g. bestJumps), `add` fields are summed.
+   */
+  noteGame(a, game, { stakeCents, payoutCents, max = {}, add = {} }) {
+    const st = (a.stats.games[game] ??= { played: 0, wageredCents: 0, wonCents: 0, bestMult: 0 });
+    st.played++;
+    st.wageredCents += stakeCents;
+    st.wonCents += payoutCents;
+    if (stakeCents > 0) st.bestMult = Math.max(st.bestMult, Math.round((payoutCents / stakeCents) * 100) / 100);
+    for (const [k, v] of Object.entries(max)) st[k] = Math.max(st[k] ?? 0, v);
+    for (const [k, v] of Object.entries(add)) st[k] = (st[k] ?? 0) + v;
   }
 
   /** For the other games (server/games/*): the same transaction wrapper. */
@@ -205,6 +249,10 @@ export class Game {
   announce(changes, a, game, value, stake, extra = {}, delayMs = 0) {
     if (!isBigWin(value, stake)) return;
     (changes.wins ??= []).push({ win: { user: a.username, game, value, stake, ...extra }, delayMs });
+  }
+
+  item(id) {
+    return this.#item(id);
   }
 
   /** Current price of an owned item or variant (USD, 0 if unpriced). */
@@ -228,7 +276,16 @@ export class Game {
         clicks: s.clicks,
         upgrades: s.upgrades,
         upgradesWon: s.upgradesWon,
+        tiers: s.tiers,
+        games: Object.fromEntries(
+          Object.entries(s.games).map(([k, v]) => {
+            const { wageredCents, wonCents, ...rest } = v;
+            return [k, { ...rest, wagered: wageredCents / 100, won: wonCents / 100 }];
+          }),
+        ),
+        offlineEarned: (s.offlineCents ?? 0) / 100,
       },
+      achievements: s.achievements,
     };
   }
 
@@ -315,6 +372,8 @@ export class Game {
       a.stats.opened += n;
       a.stats.spentCents += cost;
       for (const owned of items) {
+        const tier = this.#item(owned.itemId).tier;
+        a.stats.tiers[tier] = (a.stats.tiers[tier] ?? 0) + 1;
         a.stats.unboxedCents += cents(this.#price(owned));
         this.#noteBest(a, owned);
         // Held back until the reel has landed (6 s spin).
@@ -408,7 +467,8 @@ export class Game {
       this.q.dropItems.run(a.id);
       a.inventory = [];
       a.balanceCents = cents(STARTING_BALANCE);
-      a.stats = freshStats();
+      // Achievements stay unlocked so their rewards can't be farmed by resetting.
+      a.stats = { ...freshStats(), achievements: a.stats.achievements };
       a.perks = { ...NO_PERKS };
       return {};
     });

@@ -3,7 +3,7 @@ import { casePrice, getItem, keyCost, openCost, priceOf, priceRange } from "../c
 import { onPricesForPage } from "../live";
 import { PERKS, TIER_INFO, needsKey, perkValue, pickWeighted, tierLabel, tierOdds } from "../odds";
 import { renderSkin } from "../skin-renderer";
-import { getState, InsufficientFunds, openCases, sell, ServerError } from "../state";
+import { getState, holdToastsFor, InsufficientFunds, openCases, sell, ServerError } from "../state";
 import { h, money, toast } from "./dom";
 import { icon } from "./icons";
 import { displayName, dropCard, itemPreviewCard } from "./item-card";
@@ -101,6 +101,7 @@ export function casePage(c: Case) {
     try {
       let won: OwnedItem[];
       try {
+        holdToastsFor(SPIN_MS + 800);
         won = await openCases(c, count);
       } catch (e) {
         if (e instanceof InsufficientFunds) return toast("Not enough balance. Earn some on the Clicker page or sell items.", "error");

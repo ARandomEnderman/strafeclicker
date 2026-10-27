@@ -12,7 +12,7 @@ import {
 } from "../odds";
 import { renderSkin } from "../skin-renderer";
 import type { Account } from "../types";
-import { applyAccount, getState, ServerError, subscribe, upgrade } from "../state";
+import { applyAccount, getState, holdToastsFor, ServerError, subscribe, upgrade } from "../state";
 import { h, money, toast } from "./dom";
 import { displayName, dropCard, fullName } from "./item-card";
 import { onLeave } from "./page";
@@ -205,6 +205,7 @@ export function upgraderPage() {
     const t = target;
     let result: { won: boolean; chance: number; item: OwnedItem | null; account: Account };
     try {
+      holdToastsFor(SPIN_MS + 600);
       result = await upgrade([...selected], t);
     } catch (e) {
       spinning = false;

@@ -16,11 +16,21 @@ export function subscribe(fn: () => void) {
 }
 
 function set(next: Account) {
-  const { offline, ...rest } = next;
+  const { offline, unlocked, ...rest } = next;
   account = rest;
   listeners.forEach((fn) => fn());
   if (offline && offline.earned > 0) onOffline(offline);
+  if (unlocked?.length) setTimeout(() => onUnlocked(unlocked), Math.max(0, quietUntil - Date.now()));
 }
+
+// Pages with a reveal animation hold achievement toasts back until it's done, so a
+// "Rare special" toast can't give away what the reel is about to land on.
+let quietUntil = 0;
+export const holdToastsFor = (ms: number) => (quietUntil = Date.now() + ms);
+
+/** Called when the server just unlocked achievements. */
+let onUnlocked: (ids: string[]) => void = () => {};
+export const setUnlockedHandler = (fn: typeof onUnlocked) => (onUnlocked = fn);
 
 /** Called when the server just paid offline income. */
 let onOffline: (o: NonNullable<Account["offline"]>) => void = () => {};

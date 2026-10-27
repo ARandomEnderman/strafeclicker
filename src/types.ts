@@ -94,7 +94,14 @@ export interface Account {
     clicks: number;
     upgrades: number;
     upgradesWon: number;
+    tiers: Partial<Record<Tier, number>>;
+    games: Record<string, { played: number; wagered: number; won: number; bestMult: number; [k: string]: number }>;
+    offlineEarned: number;
   };
+  /** Achievement id -> time unlocked (ms). */
+  achievements: Record<string, number>;
+  /** Present once, right after achievements were unlocked. */
+  unlocked?: string[];
 }
 
 /** An entry in the live big-wins feed. */

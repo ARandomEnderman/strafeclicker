@@ -9,6 +9,7 @@ A CS2 case-opening simulator. Play money only: no deposits, no withdrawals, noth
 - **Price history graphs** for every item variant (click any item), recorded by the server.
 - **Accounts**: sign up with a username and password (no guest accounts). Balance, inventory and every roll live on the server in SQLite; the browser only ever sees outcomes.
 - **Clicker**: click to earn money ($0.05 per click to start). Up to 10 clicks per second pay in full; faster than that, each click is worth exponentially less (12 cps pays 50%, 15 cps 18%, 20 cps 3%). The server works this out from the click timings, and won't accept a timeline that runs ahead of real time.
+- **Achievements**: 23 goals (clicks, cases opened, rare drops, upgrades, each game, net worth), each with a one-off cash reward. Checked by the server after every action; they stay unlocked through "Reset everything" so rewards can't be farmed.
 - **Live wins**: the sidebar shows everyone's big wins as they happen ($5+ or 10x+ the stake), held back until the reel or animation has finished so it never spoils your own roll.
 - **Upgrader**: stake up to 10 items for one pricier skin or sticker. Chance = your value ÷ target price × 90%, between 1% and 80%.
 - **Upgrade tree**: an Obsidian-style graph (drag nodes, pan, zoom). Each node shows its icon and price; hover for details, click to pin and buy. Spend balance to open up to 5 cases at once, raise click value up to $1.00, and raise offline income from $0.25 to $4.00 per hour. Levels and costs are in `PERKS` in `shared/game.js`.
@@ -116,6 +117,7 @@ The returned element is placed in a fixed 4:3 box and should fill it.
 | `server/auth.mjs` | Sign-up, login, sessions |
 | `server/db.mjs` | SQLite schema |
 | `server/feed.mjs` | Live big-wins feed |
+| `shared/achievements.js` | Achievement list, goals and rewards |
 | `shared/game.js` | Odds, float generation, upgrade chance, perk table (server rolls with it, browser displays it) |
 | `server/data.mjs` | Case contents + Skinport prices |
 | `server/history.mjs` | Price history log |

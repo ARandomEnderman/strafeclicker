@@ -2,18 +2,20 @@ import "./style.css";
 import { getCase, getCatalog, loadCatalog, priceOf, round2 } from "./catalog";
 import type { Case } from "./types";
 import type { Account } from "./types";
-import { displayBalance, getState, initState, logout, resetAll, setLoggedOutHandler, setOfflineHandler, subscribe } from "./state";
+import { displayBalance, getState, initState, logout, resetAll, setLoggedOutHandler, setOfflineHandler, setUnlockedHandler, subscribe } from "./state";
 import { openModal } from "./ui/modal";
 import { icon, type IconName } from "./ui/icons";
 import { feedPanel } from "./ui/feed";
 import { authPage } from "./ui/auth-page";
-import { h, money } from "./ui/dom";
+import { h, money, toast } from "./ui/dom";
 import { casesPage } from "./ui/cases-page";
 import { casePage } from "./ui/case-page";
 import { inventoryPage } from "./ui/inventory-page";
 import { clickerPage } from "./ui/clicker-page";
 import { upgraderPage } from "./ui/upgrader-page";
 import { treePage } from "./ui/tree-page";
+import { achievementsPage } from "./ui/achievements-page";
+import { ACHIEVEMENTS } from "../shared/achievements.js";
 import { leavePage } from "./ui/page";
 import { setSound, soundEnabled } from "./ui/sound";
 import { clearPageListeners, onPrices, startLive } from "./live";
@@ -133,7 +135,6 @@ const SOON: Record<string, string> = {
   plinko: "Drop a ball through the pegs.",
   flashbang: "A flashbang rises with the multiplier. Cash out before it pops.",
   bhop: "Jump from tile to tile. Every jump raises the multiplier, one wrong tile loses it.",
-  achievements: "Goals to unlock as you play.",
 };
 
 function soonPage(page: string) {
@@ -162,6 +163,7 @@ function route() {
   else if (page === "clicker") view = clickerPage();
   else if (page === "upgrader") view = upgraderPage();
   else if (page === "tree") view = treePage();
+  else if (page === "achievements") view = achievementsPage();
   else if (SOON[page]) view = soonPage(page);
   else {
     const kind = new URLSearchParams(query).get("kind") as Case["kind"];
@@ -187,6 +189,7 @@ function startApp() {
   startLive();
   if (pendingOffline) showOffline(pendingOffline);
   pendingOffline = null;
+  showUnlocked(pendingUnlocked.splice(0));
 }
 
 function duration(seconds: number) {
@@ -218,8 +221,22 @@ function showOffline(o: NonNullable<Account["offline"]>) {
   );
 }
 
+/** Achievement toasts (queued if they arrive before the app is on screen, e.g. at login). */
+let pendingUnlocked: string[] = [];
+function showUnlocked(ids: string[]) {
+  if (!document.getElementById("toasts")) {
+    pendingUnlocked.push(...ids);
+    return;
+  }
+  for (const id of ids) {
+    const a = ACHIEVEMENTS.find((x) => x.id === id);
+    if (a) toast(`Achievement unlocked: ${a.name} (+${money(a.reward)})`, "achievement", 5000);
+  }
+}
+
 async function boot() {
   setOfflineHandler(showOffline);
+  setUnlockedHandler(showUnlocked);
   let loggedIn: boolean;
   try {
     [, loggedIn] = await Promise.all([loadCatalog(), initState()]);

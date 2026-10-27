@@ -864,6 +864,9 @@ a.wallet-item:hover {
 .toast-error {
   border-left-color: var(--down);
 }
+.toast-achievement {
+  border-left-color: var(--accent);
+}
 .toast.out {
   opacity: 0;
   transform: translateY(6px);
@@ -1876,4 +1879,79 @@ a.wallet-item:hover {
 .soon-icon {
   color: var(--accent);
   margin-bottom: 12px;
+}
+
+/* ---------- achievements ---------- */
+
+.ach-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+.ach {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+}
+.ach-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--bg-3);
+  color: var(--muted);
+}
+.ach.done {
+  border-color: rgba(245, 165, 36, 0.45);
+}
+.ach.done .ach-icon {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.ach-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+}
+.ach-name .icon {
+  color: var(--up);
+}
+.ach-desc,
+.ach-when {
+  color: var(--muted);
+  font-size: 12px;
+}
+.ach-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.ach-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-3);
+  overflow: hidden;
+}
+.ach-bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+.ach-reward {
+  color: var(--up);
+  font-weight: 700;
+  font-size: 13px;
 }
