@@ -27,11 +27,13 @@ import { openDb } from "./db.mjs";
 import { Feed } from "./feed.mjs";
 import { Game, GameError } from "./game.mjs";
 import { History } from "./history.mjs";
+import { SteamMarket } from "./steam.mjs";
 import { plinko } from "./games/plinko.mjs";
 import { Flashbang } from "./games/flashbang.mjs";
 import { Bhop } from "./games/bhop.mjs";
 import { Battles } from "./games/battles.mjs";
 import { Friends } from "./friends.mjs";
+import { Trades } from "./trades.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = join(ROOT, "dist");
@@ -91,6 +93,8 @@ let version = 0;
 /** Recent per-version changes so clients can catch up without a full download. */
 const diffs = [];
 let tradableListing = null;
+/** Skinport's main listing from the last tick that got one (reused when a request is skipped). */
+let mainListing = null;
 const status = { lastUpdateAt: null, nextUpdateAt: null, changed: 0, error: null };
 const history = new History(DATA_DIR);
 const db = openDb(join(DATA_DIR, "strafeclicker.db"));
@@ -144,8 +148,20 @@ async function boot() {
   log(`history: ${history.series.size} series, live since ${history.liveSince ? new Date(history.liveSince).toISOString() : "never"}`);
 
   setInterval(() => history.compact().catch((e) => log("history compaction failed", e.message)), COMPACT_EVERY_MS).unref();
+  await steam.load();
+  steam.run();
   schedule();
 }
+
+// Steam prices, kept fresh for what people own and can open.
+const ownedItems = db.prepare("SELECT DISTINCT item_id FROM items");
+const steam = new SteamMarket(DATA_DIR, {
+  log,
+  hot: () => [
+    ...ownedItems.all().map((r) => contents.items[r.item_id]?.name).filter(Boolean),
+    ...contents.cases.map((c) => c.marketName).filter(Boolean),
+  ],
+});
 
 // ---------- price ticks ----------
 
@@ -158,15 +174,25 @@ function schedule() {
 async function tick(scheduledAt) {
   const n = Math.round(scheduledAt / TICK_MS);
   try {
-    if (!skinportBudget.take()) throw new Error("skipped to stay under Skinport's rate limit");
-    const main = await fetchJson(PRICE_URLS.main);
+    // Skinport: a missed request just means reusing its last listing; Steam carries on.
+    if (skinportBudget.take()) {
+      mainListing = await fetchJson(PRICE_URLS.main).catch((err) => {
+        log(`skinport: ${err.message}`);
+        return mainListing;
+      });
+    }
+    if (!mainListing && !steam.prices.size) throw new Error("no prices from Skinport or Steam yet");
     if ((!tradableListing || n % TRADABLE_EVERY === 0) && skinportBudget.take()) {
       tradableListing = await fetchJson(PRICE_URLS.tradable).catch((err) => {
         log(`tradable listing: ${err.message}`);
         return tradableListing;
       });
     }
-    const { prices: next, filled, unpriced } = priceCatalog(contents, indexListings([main, tradableListing ?? []]), prices);
+    // Steam's lowest listing wins wherever Steam has the item. Doppler phases share one
+    // Steam listing, so those (and anything Steam hasn't reached yet) use Skinport.
+    const index = indexListings([mainListing ?? [], tradableListing ?? []]);
+    for (const [name, usd] of steam.snapshot()) index.set(`${name}|`, usd);
+    const { prices: next, filled, unpriced } = priceCatalog(contents, index, prices);
 
     const changes = {};
     for (const [k, v] of Object.entries(next)) if (prices[k] !== v) changes[k] = v;
@@ -222,6 +248,7 @@ const isOnline = (userId) => [...clients].some((res) => res.userId === userId);
 const friends = new Friends(db);
 const battles = new Battles(game, db, friends, { broadcastPer, toUser });
 battles.start();
+const trades = new Trades(game, db, friends, { toUser });
 
 /** After a friendship change: both sides' lists, and battles they can now (not) see. */
 function friendsChanged(...userIds) {
@@ -348,6 +375,15 @@ const actions = {
     if (body.action === "join") return battles.join(userId, body);
     if (body.action === "bots") return battles.bots(userId, body);
     if (body.action === "cancel") return battles.cancel(userId, body);
+    throw new GameError("bad_input", "Unknown action");
+  },
+  trade: (userId, body) => {
+    const withAccount = (r) => ({ ...r, account: r.account ?? game.view(userId) });
+    if (body.action === "list") return withAccount(trades.list(userId));
+    if (body.action === "inventory") return withAccount(trades.inventory(userId, body.username));
+    if (body.action === "offer") return withAccount(trades.offer(userId, body));
+    if (body.action === "accept") return trades.accept(userId, body.id);
+    if (body.action === "decline" || body.action === "cancel") return withAccount(trades.close(userId, body.id));
     throw new GameError("bad_input", "Unknown action");
   },
   friends: (userId, body) => {
@@ -493,8 +529,10 @@ async function main() {
 for (const sig of ["SIGINT", "SIGTERM"]) {
   process.on(sig, () => {
     flashbang.stop();
-    db.close();
-    process.exit(0);
+    void steam.stop().finally(() => {
+      db.close();
+      process.exit(0);
+    });
   });
 }
 

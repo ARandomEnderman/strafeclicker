@@ -3075,3 +3075,216 @@ a.wallet-item:hover {
   color: var(--muted);
   font-weight: 600;
 }
+
+/* ---------- trade ---------- */
+
+.trade-tabs .tab {
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.trade-tabs .tab.active {
+  border-bottom-color: var(--accent);
+}
+.trade-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.trade-partner {
+  max-width: 320px;
+}
+.trade-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+}
+.trade-summary b.up {
+  color: var(--up);
+}
+.trade-summary b.down {
+  color: var(--down);
+}
+.trade-summary .btn {
+  margin-left: auto;
+}
+.trade-panes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.trade-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  min-width: 0;
+}
+.trade-side-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+.trade-side-head span {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.trade-cash-input {
+  max-width: 200px;
+}
+.trade-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 6px;
+  max-height: 520px;
+  overflow-y: auto;
+  align-content: start;
+}
+.trade-item {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1px;
+  min-width: 0;
+  padding: 6px 8px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  border-bottom: 3px solid var(--rarity, var(--line));
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+  text-align: left;
+}
+button.trade-item {
+  cursor: pointer;
+}
+button.trade-item:hover {
+  border-color: var(--muted);
+}
+.trade-item.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(245, 165, 36, 0.3);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg));
+}
+.trade-item img {
+  height: 60px;
+  object-fit: contain;
+  margin-bottom: 4px;
+}
+.trade-item-name,
+.trade-item-finish {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trade-item-finish {
+  color: var(--muted);
+}
+.trade-item b {
+  color: var(--up);
+  font-variant-numeric: tabular-nums;
+}
+.trade-item.missing {
+  color: var(--muted);
+  justify-content: center;
+  min-height: 60px;
+}
+.trade-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+}
+.trade-card.incoming {
+  border-color: var(--accent);
+}
+.trade-card:not(.open) {
+  opacity: 0.8;
+}
+.trade-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.trade-card-head .icon {
+  color: var(--accent);
+}
+.trade-status {
+  color: var(--muted);
+}
+.trade-card.accepted .trade-status {
+  color: var(--up);
+}
+.trade-card.failed .trade-status,
+.trade-card.declined .trade-status {
+  color: var(--down);
+}
+.trade-when {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+}
+.trade-sides {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.trade-arrow {
+  align-self: center;
+  color: var(--muted);
+}
+.trade-side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.trade-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 6px;
+}
+.trade-cash {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 60px;
+  border-radius: 8px;
+  border: 1px dashed var(--line);
+  color: var(--accent);
+  font-weight: 700;
+}
+.trade-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+@media (max-width: 720px) {
+  .trade-panes,
+  .trade-sides {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .trade-arrow {
+    justify-self: center;
+    transform: rotate(90deg);
+  }
+}

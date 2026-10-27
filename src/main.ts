@@ -22,6 +22,8 @@ import { battlesPage } from "./ui/battles-page";
 import { battlePage } from "./ui/battle-page";
 import "./battles";
 import { friendsPage } from "./ui/friends-page";
+import { tradePage } from "./ui/trade-page";
+import { loadTrades, onTrades, tradeLists } from "./trades";
 import { friendLists, loadFriends, onFriends } from "./friends";
 import "./flashbang";
 import { ACHIEVEMENTS } from "../shared/achievements.js";
@@ -45,6 +47,7 @@ const MAIN_NAV: NavItem[] = [
 ];
 const BOTTOM_NAV: NavItem[] = [
   { route: "inventory", href: "#/inventory", label: "Inventory", icon: "inventory" },
+  { route: "trade", href: "#/trade", label: "Trade", icon: "trade" },
   { route: "tree", href: "#/tree", label: "Upgrades", icon: "upgrades" },
   { route: "achievements", href: "#/achievements", label: "Achievements", icon: "achievements" },
 ];
@@ -67,6 +70,14 @@ function sidebar() {
   };
   subscribe(sync);
   sync();
+  // Trade offers waiting for an answer.
+  const offers = h("span", { class: "badge ping", hidden: true });
+  onTrades(() => {
+    const n = tradeLists().open.filter((t) => t.incoming).length;
+    offers.hidden = !n;
+    offers.textContent = String(n);
+  });
+  void loadTrades();
   return h(
     "aside",
     { class: "sidebar", id: "sidebar" },
@@ -76,7 +87,7 @@ function sidebar() {
     h(
       "nav",
       { class: "side-nav bottom" },
-      ...BOTTOM_NAV.map((n) => navLink(n, n.route === "inventory" ? invCount : n.route === "achievements" ? toClaim : undefined)),
+      ...BOTTOM_NAV.map((n) => navLink(n, { inventory: invCount, achievements: toClaim, trade: offers }[n.route])),
     ),
   );
 }
@@ -181,6 +192,7 @@ function route() {
   else if (page === "bhop") view = bhopPage();
   else if (page === "battles") view = arg ? battlePage(Number(arg)) : battlesPage(new URLSearchParams(query).get("code"));
   else if (page === "friends") view = friendsPage();
+  else if (page === "trade") view = tradePage();
   else {
     const kind = new URLSearchParams(query).get("kind") as Case["kind"];
     view = casesPage(KINDS.includes(kind) ? kind : "case");

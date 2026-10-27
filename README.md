@@ -15,6 +15,7 @@ A CS2 case-opening simulator. Play money only: no deposits, no withdrawals, noth
 - **B-hop**: jump along a lane of bhop blocks and cash out before one gives way. Pick a difficulty: each jump lands safely 90% (Easy, 24 blocks), 80% (Medium, 20), 60% (Hard, 15) or 40% (Expert, 10) of the time, and the multiplier after k jumps is 0.99 / p^k. The breaking block is decided when the run starts and kept on the server; the browser only learns it by landing on it or when the run ends. Runs survive reloads. The jumper is `src/assets/ct-agent.webp`, keyed from a green-screen capture. Replace it with another picture of the same name (a green-screen `.png`/`.jpg` works too: it's keyed and cropped to the biggest figure in the browser).
 - **Case battles**: 2, 3 or 4 players open the same cases, one per round (up to 3 per battle to start, raised to 20 by the Battle size upgrade); the highest total value takes every item (a tie is settled at random). Battles are public, friends only, or private (joined with a 6-character code or invite link). Each player pays when they take a seat, the creator can fill empty seats with bots, and cancelling refunds everyone. When the last seat fills the server rolls everything and hands the items over; every browser then plays the rounds back on the same clock.
 - **Friends**: add people by username from the friends button in the top bar; they accept or decline. Friends see your friends-only battles and show as online when they have the site open.
+- **Trade**: swap items and cash with friends. Pick from both inventories, add cash on either side, send the offer; they accept or decline, you can cancel. Nothing is held while an offer is open: on accept the server checks both sides still have everything and moves it all in one transaction, or the offer fails. The Trade tab shows a red count of offers waiting for you.
 - **Live wins**: the sidebar shows notable items people unbox, upgrade into or win in battles (only items; casino payouts aren't posted). Knives, gloves and Covert items always show; otherwise an item needs to be worth $25+, or 10x what its case cost and $2+. A multi-open posts only its best item. Flood control: one entry per player per 15 s, and once 8 went out in a minute only $50+ items get through (knives, gloves and $100+ items skip both limits). The rules are at the top of `server/feed.mjs`. Entries wait until the reel has landed so they never spoil your own roll.
 - **Upgrader**: stake up to 10 items for one pricier skin or sticker. Chance = your value ÷ target price × 90%, between 1% and 80%.
 - **Upgrade tree**: an Obsidian-style graph (drag nodes, pan, zoom). Each node shows its icon and price; hover for details, click to pin and buy. Spend balance to open up to 5 cases at once, raise click value up to $1.00, raise offline income from $0.25 to $4.00 per hour, and raise how many cases you can put in a case battle from 3 to 20. Levels and costs are in `PERKS` in `shared/game.js`.
@@ -68,9 +69,13 @@ No `git` on the box? Download the code instead:
 
 ## How prices work
 
-- `server/index.mjs` ticks at every wall-clock minute. Each tick fetches Skinport's main listing; every 5th tick also fetches the tradable-only listing that fills gaps. That's 6 requests per 5 minutes, under Skinport's limit of 8.
-- Skinport refreshes its listings about every 5 minutes, so most ticks find nothing new, and real skin prices move slowly: roughly 1–2% of items change per half hour. The countdown still resets every minute.
-- The price is the lowest current listing. Skinport's "suggested price" is only a fallback for items with nothing listed, because it barely changes during the day.
+- **Steam Community Market** is the main source: the lowest current listing of each item (what a buyer pays, Steam's fee included). Steam has no bulk price API and its market search returns 10 items per request, so `server/steam.mjs` collects prices continuously, one request every `STEAM_INTERVAL_MS` (default 3000 ms):
+  - two requests in three walk the whole market (~35,000 items) in name order, so every item is refreshed every few hours;
+  - one in three looks up a "hot" item (anything someone owns, then cases and capsules), so those stay minutes fresh.
+  - If Steam rate-limits (HTTP 429) it pauses for 1 minute, doubling up to 15. What it has collected is saved to `data/steam-prices.json`, so a restart picks up where it left off.
+- **Skinport** (lowest listing) fills what Steam can't: Doppler and Gamma Doppler phases (Steam lists all phases of a knife under one name) and items Steam hasn't reached yet. Skinport allows 8 requests per 5 minutes and refreshes about every 5 minutes; the server uses 6.
+- `server/index.mjs` ticks at every wall-clock minute and builds the price list from whatever both sources have at that moment, so each tick carries the Steam prices collected during the last minute. The countdown resets every minute.
+- When the server first switches to Steam, prices move from Skinport's to Steam's as the sweep reaches each item (Steam is usually higher), so expect one bigger jump in the graphs and the inventory-change popup.
 - Price history is stored brotli-compressed in `data/history.br` (about 10× smaller than plain JSON), with changes since the last hourly repack in `data/history.ndjson`. Set `DATA_DIR` to move it. Points older than 48 hours are thinned to one per hour.
 - On first start the history is backfilled with Skinport's 90/30/7-day and 24-hour sale medians, so graphs aren't empty. They're drawn dashed and left out of the change/high/low stats, since sale medians aren't the same measure as the live listing price.
 - Browsers subscribe to `/api/events` (Server-Sent Events). On each tick they fetch only the prices that changed (`/api/prices?since=<version>`).
@@ -97,6 +102,7 @@ No `git` on the box? Download the code instead:
 | `POST /api/battle` `{action: "create", cases, size, visibility}` / `join` `{id}` or `{code}` / `bots` / `cancel` | Case battles; the list (filtered per user) comes over SSE as `battles` events |
 | `POST /api/friends` `{action: "list" \| "request" \| "accept" \| "remove", username}` | Friends and requests |
 | `POST /api/claim` `{id?}` | Collect an unlocked achievement's reward (all of them without `id`) |
+| `POST /api/trade` `{action: "list" \| "inventory" \| "offer" \| "accept" \| "decline" \| "cancel", ...}` | Trade offers with friends (`inventory` shows a friend's items) |
 | `POST /api/reset` | Wipe your balance, items and upgrades (keeps the login) |
 
 POST bodies must be `application/json`, which also stops other sites from posting forms to it.
@@ -130,6 +136,8 @@ The returned element is placed in a fixed 4:3 box and should fill it.
 | `server/feed.mjs` | Live big-wins feed |
 | `server/games/` | Plinko, flashbang, b-hop, case battles |
 | `server/friends.mjs` | Friend requests and lists |
+| `server/trades.mjs` | Trade offers |
+| `server/steam.mjs` | Steam Market price collector |
 | `shared/achievements.js` | Achievement list, goals and rewards |
 | `shared/game.js` | Odds, float generation, upgrade chance, perk table (server rolls with it, browser displays it) |
 | `server/data.mjs` | Case contents + Skinport prices |

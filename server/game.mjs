@@ -117,6 +117,7 @@ export class Game {
         "INSERT INTO items (uid, user_id, item_id, phase, float, wear, stattrak, seed, source, obtained_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       ),
       dropItem: db.prepare("DELETE FROM items WHERE uid = ? AND user_id = ?"),
+      itemByUid: db.prepare("SELECT * FROM items WHERE uid = ?"),
       dropItems: db.prepare("DELETE FROM items WHERE user_id = ?"),
       legacy: db.prepare("SELECT data FROM legacy_accounts WHERE id = ?"),
       dropLegacy: db.prepare("DELETE FROM legacy_accounts WHERE id = ?"),
@@ -246,6 +247,28 @@ export class Game {
     return out;
   }
 
+  /**
+   * Like #act, for two accounts in one transaction (a trade): fn(a, b, changesA,
+   * changesB). Returns fn's result plus both account views.
+   */
+  actPair(idA, idB, fn) {
+    return tx(this.db, () => {
+      const a = this.#load(idA);
+      const b = this.#load(idB);
+      const ca = {};
+      const cb = {};
+      const result = fn(a, b, ca, cb);
+      this.#unlockAchievements(a);
+      this.#unlockAchievements(b);
+      // Items keep their uid when they change hands, so both sides' outgoing rows go
+      // before anything is inserted.
+      for (const [acc, ch] of [[a, ca], [b, cb]]) for (const uid of ch.removed ?? []) this.q.dropItem.run(uid, acc.id);
+      this.#save(a, { added: ca.added });
+      this.#save(b, { added: cb.added });
+      return { ...result, accounts: [this.#view(a), this.#view(b)] };
+    });
+  }
+
   /** Record newly met achievements (their rewards wait to be claimed). Returns the new ids. */
   #unlockAchievements(a) {
     const view = this.#view(a);
@@ -303,6 +326,12 @@ export class Game {
 
   item(id) {
     return this.#item(id);
+  }
+
+  /** An owned item by uid, whoever has it (null if it's gone). */
+  findItem(uid) {
+    const r = this.q.itemByUid.get(uid);
+    return r ? rowToItem(r) : null;
   }
 
   /** A case and what one opening costs (case + key), in cents; throws if it can't be opened. */

@@ -23,7 +23,7 @@ const SALES_URL = "https://api.skinport.com/v1/sales/history?app_id=730&currency
 
 // Price of a CS2 case key on the Steam store.
 export const KEY_PRICE = 2.49;
-export const SOURCES = { contents: "ByMykel/CSGO-API", prices: "Skinport lowest listing (USD)" };
+export const SOURCES = { contents: "ByMykel/CSGO-API", prices: "Steam Market lowest listing (USD); Skinport for Doppler phases" };
 
 const WEARS = [
   { key: "FN", name: "Factory New", min: 0.0, max: 0.07 },

@@ -210,6 +210,11 @@ export async function claimAchievement(id?: string) {
   return post<{ claimed: string[]; reward: number }>("claim", { id });
 }
 
+export async function tradeAction<T>(action: "list" | "inventory" | "offer" | "accept" | "decline" | "cancel", body: object = {}) {
+  await flushClicks();
+  return post<T>("trade", { action, ...body });
+}
+
 export async function friendsAction(action: "list" | "request" | "accept" | "remove", username?: string) {
   return post<{
     friends: { user: string; online: boolean }[];
