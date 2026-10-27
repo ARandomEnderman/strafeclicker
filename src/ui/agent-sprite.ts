@@ -1,7 +1,7 @@
-// The b-hop jumper. Drop a side-on green-screen picture of a CT agent at
-// src/assets/ct-agent.png (or .jpg/.webp) and it's used automatically: the green is
-// keyed out in the browser and the picture is cropped to the biggest figure in it.
-// Without one, a simple silhouette stands in.
+// The b-hop jumper: src/assets/ct-agent.webp, keyed from a side-on green-screen
+// capture. Swap in another picture with the same name (or .png/.jpg): one that already
+// has transparency is used as-is; a green-screen one is keyed in the browser and
+// cropped to the biggest figure in it. Without any, a simple silhouette stands in.
 
 const found = import.meta.glob("../assets/ct-agent.{png,jpg,jpeg,webp}", { eager: true, query: "?url", import: "default" }) as Record<string, string>;
 const SOURCE = Object.values(found)[0] ?? null;
@@ -37,6 +37,8 @@ async function keyOut(src: string): Promise<string> {
   canvas.height = hgt;
   const c = canvas.getContext("2d", { willReadFrequently: true })!;
   c.drawImage(img, 0, 0);
+  // Already transparent (keyed beforehand): use it as it is.
+  if (c.getImageData(0, 0, 1, 1).data[3] < 255) return src;
   const data = c.getImageData(0, 0, w, hgt);
   const px = data.data;
 
