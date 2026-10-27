@@ -259,9 +259,21 @@ function cookie(req, name, value, maxAgeSec) {
 
 const sessionUser = (req) => auth.userForToken(cookieValue(req, SESSION_COOKIE));
 
-/** Behind a reverse proxy set TRUST_PROXY=1 so login rate limits see the real client IP. */
-const clientIp = (req) =>
-  (process.env.TRUST_PROXY ? req.headers["x-forwarded-for"]?.split(",")[0].trim() : null) ?? req.socket.remoteAddress ?? "?";
+/**
+ * Behind a reverse proxy or tunnel set TRUST_PROXY=1 so login rate limits see the real
+ * client IP. Cloudflare's CF-Connecting-IP comes first since Cloudflare always overwrites
+ * it. Otherwise the last X-Forwarded-For entry is used: that's the one our proxy added.
+ * Earlier entries can be anything the client sent.
+ */
+function clientIp(req) {
+  if (process.env.TRUST_PROXY) {
+    const cf = req.headers["cf-connecting-ip"];
+    if (typeof cf === "string" && cf.trim()) return cf.trim();
+    const xff = req.headers["x-forwarded-for"];
+    if (typeof xff === "string" && xff.trim()) return xff.split(",").at(-1).trim();
+  }
+  return req.socket.remoteAddress ?? "?";
+}
 
 async function readJson(req) {
   // Requiring a JSON content type also means other sites can't post here with a plain form.

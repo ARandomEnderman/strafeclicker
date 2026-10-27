@@ -32,7 +32,7 @@ Needs **Node 22.13 or newer** (it uses Node's built-in SQLite, so there's nothin
 
 - Everything is stored in `data/strafeclicker.db` (SQLite): users, inventories and login sessions. Back up that file to back up everyone's stuff.
 - Passwords are hashed with scrypt. Sessions are random tokens in an HttpOnly cookie, valid for 30 days; only their hash is stored.
-- Failed logins are limited to 15 per IP every 10 minutes (per IP, not per username, so nobody can lock someone else's account). Behind a reverse proxy, set `TRUST_PROXY=1` so the real client IP is used.
+- Failed logins are limited to 15 per IP every 10 minutes (per IP, not per username, so nobody can lock someone else's account). Behind a reverse proxy or Cloudflare Tunnel, set `TRUST_PROXY=1` so the real client IP is used (it reads Cloudflare's `CF-Connecting-IP`, otherwise the last `X-Forwarded-For` entry).
 - Everyone starts at $0 (`STARTING_BALANCE` in `server/game.mjs`).
 - Anonymous accounts from older versions (`data/accounts.json`) are imported on first start. Signing up from the same browser carries that account's balance and items over.
 
