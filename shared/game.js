@@ -251,3 +251,20 @@ export const PLINKO_TABLES = {
 };
 /** How long the browser's ball takes to fall (ms), so the live feed can wait for it. */
 export const PLINKO_DROP_MS = (rows) => 400 + rows * 190;
+
+// ---------- flashbang (crash) ----------
+// One global round at a time. The multiplier grows as e^(FB_GROWTH × ms) from 1.00x
+// (2x after ~11.6 s, 10x after ~38 s) until the flashbang pops at the crash point.
+// P(crash point >= x) = 0.99 / x, and cashing out at x wins when the crash point is at least
+// x, so every target pays back 99% on average.
+
+export const FB_GROWTH = 0.00006;
+/** Time between a pop and the next round's start; bets are open throughout. */
+export const FB_INTERMISSION_MS = 10_000;
+export const FB_MAX = 1000;
+export const FB_AUTO_MIN = 1.01;
+
+/** Multiplier `ms` into a round, floored to cents. */
+export const fbMultiplierAt = (ms) => Math.floor(Math.exp(FB_GROWTH * Math.max(0, ms)) * 100 + 1e-9) / 100;
+/** Milliseconds into a round at which the multiplier reaches `x`. */
+export const fbTimeFor = (x) => Math.log(x) / FB_GROWTH;

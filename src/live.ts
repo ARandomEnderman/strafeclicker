@@ -1,6 +1,6 @@
 import type { OwnedItem, ServerStatus } from "./types";
 import { priceOf, refreshPrices } from "./catalog";
-import { getState, subscribe } from "./state";
+import { applyAccount, getState, subscribe } from "./state";
 
 // The server decides when prices change; this module only listens.
 
@@ -87,6 +87,9 @@ export function onServerEvent<T>(name: string, fn: (data: T) => void) {
   set.add(fn);
   return () => void set.delete(fn);
 }
+
+// Results the server settles on its own (a flashbang auto cash-out or pop).
+onServerEvent<Parameters<typeof applyAccount>[0]>("account", applyAccount);
 
 export function startLive() {
   const seen = loadSeen();

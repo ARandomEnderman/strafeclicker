@@ -28,6 +28,7 @@ import { Feed } from "./feed.mjs";
 import { Game, GameError } from "./game.mjs";
 import { History } from "./history.mjs";
 import { plinko } from "./games/plinko.mjs";
+import { Flashbang } from "./games/flashbang.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = join(ROOT, "dist");
@@ -200,6 +201,15 @@ function broadcast(event, data) {
 
 feed.onWin((win) => broadcast("win", win));
 
+/** Send an event to every open connection of one logged-in user. */
+function toUser(userId, event, data) {
+  const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const res of clients) if (res.userId === userId) res.write(msg);
+}
+
+const flashbang = new Flashbang(game, db, { broadcast, toUser });
+flashbang.start();
+
 setInterval(() => {
   for (const res of clients) res.write(": ping\n\n");
 }, 25_000).unref();
@@ -213,6 +223,9 @@ function events(req, res) {
   });
   res.write(`retry: 3000\nevent: status\ndata: ${JSON.stringify(statusBody())}\n\n`);
   res.write(`event: wins\ndata: ${JSON.stringify(feed.recent())}\n\n`);
+  res.write(`event: fb\ndata: ${JSON.stringify(flashbang.state())}\n\n`);
+  // Server-settled results (a flashbang auto cash-out, a pop) reach the player this way.
+  res.userId = sessionUser(req);
   clients.add(res);
   req.on("close", () => clients.delete(res));
 }
@@ -303,6 +316,12 @@ async function readJson(req) {
 const actions = {
   click: (userId, body) => game.click(userId, body.clicks, body.times),
   plinko: (userId, body) => plinko(game, userId, body),
+  flashbang: (userId, body) => {
+    if (body.action === "bet") return flashbang.bet(userId, body);
+    if (body.action === "cancel") return flashbang.cancel(userId);
+    if (body.action === "cashout") return flashbang.cashout(userId);
+    throw new GameError("bad_input", "Unknown action");
+  },
   open: (userId, body) => game.open(userId, String(body.caseId ?? ""), body.count ?? 1),
   perk: (userId, body) => game.buyPerk(userId, String(body.perk ?? "")),
   sell: (userId, body) => game.sell(userId, body.uids),
@@ -427,6 +446,7 @@ async function main() {
 // Close the database cleanly so the WAL is checkpointed.
 for (const sig of ["SIGINT", "SIGTERM"]) {
   process.on(sig, () => {
+    flashbang.stop();
     db.close();
     process.exit(0);
   });

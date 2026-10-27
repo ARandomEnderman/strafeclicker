@@ -176,6 +176,11 @@ export interface PlinkoResult {
   reveal: () => void;
 }
 
+export async function flashbangAction<T = object>(action: "bet" | "cancel" | "cashout", body: object = {}) {
+  await flushClicks();
+  return post<T>("flashbang", { action, ...body });
+}
+
 export async function dropPlinko(bet: number, rows: number, risk: string): Promise<PlinkoResult> {
   await flushClicks();
   const r = await post<Omit<PlinkoResult, "reveal">>("plinko", { bet, rows, risk });

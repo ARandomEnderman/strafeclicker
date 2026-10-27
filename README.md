@@ -11,6 +11,7 @@ A CS2 case-opening simulator. Play money only: no deposits, no withdrawals, noth
 - **Clicker**: click to earn money ($0.05 per click to start). Up to 10 clicks per second pay in full; faster than that, each click is worth exponentially less (12 cps pays 50%, 15 cps 18%, 20 cps 3%). The server works this out from the click timings, and won't accept a timeline that runs ahead of real time.
 - **Achievements**: 23 goals named in tiers (Clicker I to IV, Unboxer I to III, ...) (clicks, cases opened, rare drops, upgrades, each game, net worth), each with a one-off cash reward. Checked by the server after every action; they stay unlocked through "Reset everything" so rewards can't be farmed.
 - **Plinko**: 8, 12 or 16 rows at low, medium or high risk, with Stake's multiplier tables (each pays back about 99% on average). The server picks the path; several balls can be in the air at once.
+- **Flashbang**: a crash game with one round for everyone. A flashbang rides the multiplier curve (e^(0.00006 × ms): 2x after about 12 s, 10x after 38 s) until it pops; cash out before then, by hand or with an auto target. The crash point has a 1% edge (P(at least x) = 0.99 / x, capped at 1000x) and stays on the server until the pop. Rounds are 10 s apart; bets placed while a round runs (if you're not riding it) go into the next one. Everyone on the page, and anyone still riding the round wherever they are on the site, is flashed at the same moment: full white for 1.2 s, fading over 3.3 s, with a bang and ear ringing. Stakes are held in the database, so a restart refunds whatever was riding.
 - **Live wins**: the sidebar shows everyone's big wins as they happen (at least 2x the stake, and $5+ or 10x+), held back until the reel or animation has finished so it never spoils your own roll.
 - **Upgrader**: stake up to 10 items for one pricier skin or sticker. Chance = your value ÷ target price × 90%, between 1% and 80%.
 - **Upgrade tree**: an Obsidian-style graph (drag nodes, pan, zoom). Each node shows its icon and price; hover for details, click to pin and buy. Spend balance to open up to 5 cases at once, raise click value up to $1.00, and raise offline income from $0.25 to $4.00 per hour. Levels and costs are in `PERKS` in `shared/game.js`.
@@ -76,7 +77,7 @@ No `git` on the box? Download the code instead:
 | `GET /api/catalog` | Cases and items (no prices) |
 | `GET /api/prices?since=v` | Flat price map, or just the changes since version `v` |
 | `GET /api/status` | Last / next update time, version, last error |
-| `GET /api/events` | SSE stream: `status`, `wins` (recent list on connect) and `win` events |
+| `GET /api/events` | SSE stream: `status`, `wins` (recent list on connect), `win`, `fb` (flashbang round) and, for your own session, `account` |
 | `GET /api/history/:itemId` | Price history for every variant of an item |
 | `POST /api/register` `{username, password}` | Create an account and log in |
 | `POST /api/login` `{username, password}` | Log in |
@@ -88,6 +89,7 @@ No `git` on the box? Download the code instead:
 | `POST /api/upgrade` `{uids, target}` | Stake items on a target variant |
 | `POST /api/perk` `{perk}` | Buy the next level of `multiOpen`, `clickPower` or `offlineIncome` |
 | `POST /api/plinko` `{bet, rows, risk}` | Drop a plinko ball; returns its path and payout |
+| `POST /api/flashbang` `{action: "bet", bet, auto?}` / `{action: "cancel"}` / `{action: "cashout"}` | Flashbang bets; round state comes over SSE as `fb` events |
 | `POST /api/reset` | Wipe your balance, items and upgrades (keeps the login) |
 
 POST bodies must be `application/json`, which also stops other sites from posting forms to it.
