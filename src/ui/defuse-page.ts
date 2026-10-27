@@ -11,6 +11,13 @@ import { playBoom, playSafe } from "./sound";
 const PRESETS = [1, 3, 5, 10, 24];
 const BOMBS_KEY = "strafeclicker:defuse-bombs";
 
+/** "4%" or "1 in 3,268,760": the chance of picking every safe tile before any bomb. */
+function clearOdds(bombs: number) {
+  let p = 1;
+  for (let i = 0; i < DEFUSE_TILES - bombs; i++) p *= (DEFUSE_TILES - bombs - i) / (DEFUSE_TILES - i);
+  return p >= 0.01 ? `${Math.round(p * 100)}%` : `1 in ${Math.round(1 / p).toLocaleString("en-US")}`;
+}
+
 export function defusePage() {
   let bombs = 3;
   try {
@@ -65,10 +72,12 @@ export function defusePage() {
   const drawInfo = () => {
     const b = run?.bombs ?? bombs;
     const k = run?.revealed.length ?? 0;
+    const safe = DEFUSE_TILES - b;
     info.replaceChildren(
       h("div", { class: "tip-row" }, h("span", null, "Next tile is safe"), h("b", null, `${Math.round(((DEFUSE_TILES - b - k) / (DEFUSE_TILES - k)) * 100)}%`)),
       h("div", { class: "tip-row" }, h("span", null, "Next tile pays"), h("b", null, `${defuseMultiplier(b, k + 1).toFixed(2)}x`)),
-      h("div", { class: "tip-row" }, h("span", null, "Clearing the board pays"), h("b", null, `${defuseMultiplier(b, DEFUSE_TILES - b).toLocaleString("en-US")}x`)),
+      h("div", { class: "tip-row" }, h("span", null, safe === 1 ? "Finding the 1 safe tile pays" : `Finding all ${safe} safe tiles pays`), h("b", null, `${defuseMultiplier(b, safe).toLocaleString("en-US")}x`)),
+      h("div", { class: "tip-row" }, h("span", null, "Chance of finding them all"), h("b", null, clearOdds(b))),
     );
   };
 
