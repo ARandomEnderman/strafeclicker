@@ -65,6 +65,7 @@ export function openDb(file) {
   const userCols = new Set(db.prepare("PRAGMA table_info(users)").all().map((c) => c.name));
   if (!userCols.has("last_active")) db.exec("ALTER TABLE users ADD COLUMN last_active INTEGER");
   if (!userCols.has("display_name")) db.exec("ALTER TABLE users ADD COLUMN display_name TEXT");
+  if (!userCols.has("banned")) db.exec("ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0");
   return db;
 }
 

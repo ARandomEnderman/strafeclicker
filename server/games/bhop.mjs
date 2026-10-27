@@ -55,7 +55,8 @@ export class Bhop {
       // The first tile that gives way (1-based), or null if the whole lane holds.
       let breaksAt = null;
       for (let i = 1; i <= d.steps; i++) {
-        if (uniform() >= d.p) {
+        // The rig makes each jump a little less safe than the odds shown.
+        if (uniform() >= d.p * (1 - this.game.rig("bhop"))) {
           breaksAt = i;
           break;
         }

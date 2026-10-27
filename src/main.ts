@@ -23,6 +23,8 @@ import { roulettePage } from "./ui/roulette-page";
 import { coinflipPage, coinflipView } from "./ui/coinflip-page";
 import "./flips";
 import { jackpotPage } from "./ui/jackpot-page";
+import { siteBanner } from "./site";
+import { adminPage } from "./ui/admin-page";
 import "./jackpot";
 import "./roulette";
 import { battlesPage } from "./ui/battles-page";
@@ -101,6 +103,7 @@ function sidebar() {
       "nav",
       { class: "side-nav bottom" },
       ...BOTTOM_NAV.map((n) => navLink(n, { inventory: invCount, achievements: toClaim, trade: offers }[n.route])),
+      ...(getState().isAdmin ? [navLink({ route: "admin", href: "#/admin", label: "Admin", icon: "admin" })] : []),
     ),
   );
 }
@@ -212,6 +215,7 @@ function route() {
   else if (page === "defuse") view = defusePage();
   else if (page === "roulette") view = roulettePage();
   else if (page === "jackpot") view = jackpotPage();
+  else if (page === "admin" && getState().isAdmin) view = adminPage();
   else if (page === "coinflip") view = arg ? coinflipView(Number(arg)) : coinflipPage(new URLSearchParams(query).get("code"));
   else if (page === "battles") view = arg ? battlePage(Number(arg)) : battlesPage(new URLSearchParams(query).get("code"));
   else if (page === "friends") view = friendsPage();
@@ -231,7 +235,7 @@ function route() {
 
 function startApp() {
   app.replaceChildren(
-    h("div", { class: "shell" }, sidebar(), h("div", { class: "content" }, topbar(), main, footer())),
+    h("div", { class: "shell" }, sidebar(), h("div", { class: "content" }, topbar(), siteBanner(), main, footer())),
     h("div", { class: "nav-scrim", onclick: () => document.body.classList.remove("nav-open") }),
     h("div", { id: "toasts" }),
   );

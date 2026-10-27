@@ -15,10 +15,14 @@ import { stakeCents } from "./bets.mjs";
 
 const HISTORY = 24;
 
-/** Crash point with a 1% edge: P(>= x) = 0.99 / x, floored to cents, capped at FB_MAX. */
-function drawCrash() {
+/**
+ * Crash point: P(>= x) = (0.99 - rig) / x, floored to cents, capped at FB_MAX. With no
+ * rig that's a 1% edge; the rig adds to it (and to the share of instant pops).
+ */
+function drawCrash(rig = 0) {
   const r = randomBytes(6).readUIntBE(0, 6) / 2 ** 48; // uniform [0, 1)
-  return Math.min(FB_MAX, Math.max(1, Math.floor((99 / (1 - r)) + 1e-9) / 100));
+  const keep = Math.max(0.01, 0.99 - rig);
+  return Math.min(FB_MAX, Math.max(1, Math.floor((keep * 100) / (1 - r) + 1e-9) / 100));
 }
 
 export class Flashbang {
@@ -73,6 +77,15 @@ export class Flashbang {
     this.timers.forEach(clearTimeout);
   }
 
+  /** Admin: pop the running round now (at whatever it shows). Returns false if none. */
+  popNow() {
+    if (this.phase !== "running") return false;
+    this.timers.forEach(clearTimeout);
+    this.crash = Math.max(1, fbMultiplierAt(Date.now() - this.startAt));
+    this.#pop();
+    return true;
+  }
+
   // ---------- round loop ----------
 
   #wait() {
@@ -84,7 +97,7 @@ export class Flashbang {
 
   #run() {
     this.phase = "running";
-    this.crash = drawCrash();
+    this.crash = drawCrash(this.game.rig("flashbang"));
     this.startAt = Date.now();
     this.q.open.run(this.round);
     for (const b of this.bets) b.status = "open";

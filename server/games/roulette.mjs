@@ -72,6 +72,14 @@ export class Roulette {
   #spin() {
     this.phase = "spinning";
     this.number = randomInt(15);
+    // The rig: that share of spins land on the number that pays the players least.
+    if (this.bets.length && Math.random() < this.game.rig("roulette")) {
+      const paid = (n) => this.bets.filter((b) => b.color === rouletteColor(n)).reduce((s, b) => s + b.stakeCents * ROULETTE_PAYOUT[b.color], 0);
+      const nums = [...Array(15).keys()];
+      const least = Math.min(...nums.map(paid));
+      const pick = nums.filter((n) => paid(n) === least);
+      this.number = pick[randomInt(pick.length)];
+    }
     // Where on the winning tile the marker stops (0–1), the same for everyone.
     this.stopAt = Math.round((0.1 + Math.random() * 0.8) * 1000) / 1000;
     this.spinAt = Date.now();

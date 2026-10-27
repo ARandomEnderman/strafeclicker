@@ -50,8 +50,10 @@ export class Auth {
     this.db = db;
     this.game = game;
     this.q = {
-      byName: db.prepare("SELECT id, pass_hash FROM users WHERE username = ?"),
-      session: db.prepare("SELECT user_id FROM sessions WHERE token_hash = ? AND expires_at > ?"),
+      byName: db.prepare("SELECT id, pass_hash, banned FROM users WHERE username = ?"),
+      nameOf: db.prepare("SELECT username FROM users WHERE id = ?"),
+      // Banned accounts' sessions stop working at once.
+      session: db.prepare("SELECT s.user_id FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > ? AND u.banned = 0"),
       addSession: db.prepare("INSERT INTO sessions (token_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)"),
       dropSession: db.prepare("DELETE FROM sessions WHERE token_hash = ?"),
       expire: db.prepare("DELETE FROM sessions WHERE expires_at <= ?"),
@@ -70,6 +72,10 @@ export class Auth {
   userForToken(token) {
     if (!token) return null;
     return this.q.session.get(sha256(token), Date.now())?.user_id ?? null;
+  }
+
+  usernameOf(userId) {
+    return this.q.nameOf.get(userId)?.username ?? null;
   }
 
   logout(token) {
@@ -101,6 +107,7 @@ export class Auth {
       failures.set(ip, [...recentFailures(ip), Date.now()]);
       throw new GameError("bad_login", "Wrong username or password", 401);
     }
+    if (row.banned) throw new GameError("banned", "This account has been banned", 403);
     return { userId: row.id, token: this.#newSession(row.id) };
   }
 }

@@ -76,6 +76,14 @@ export class Defuse {
       const mines = JSON.parse(r.mines);
       const revealed = JSON.parse(r.revealed);
       if (revealed.includes(tile)) throw new GameError("bad_input", "Already revealed");
+      // The rig: with that probability a safe pick gets a bomb moved under it (from
+      // another hidden tile, so the count stays the same).
+      const rig = this.game.rig("defuse");
+      if (!mines.includes(tile) && rig > 0 && Math.random() < rig) {
+        const from = mines[Math.floor(Math.random() * mines.length)];
+        mines.splice(mines.indexOf(from), 1, tile);
+        mines.sort((x, y) => x - y);
+      }
       if (mines.includes(tile)) {
         this.q.end.run(userId);
         this.game.noteGame(a, "defuse", { stakeCents: r.stake_cents, payoutCents: 0, max: { bestTiles: revealed.length } });

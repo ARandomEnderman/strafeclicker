@@ -11,6 +11,7 @@ import { GameError, spendable } from "../game.mjs";
 import { stakeCents } from "./bets.mjs";
 
 const SIDES = ["t", "ct"];
+const other = (s) => (s === "t" ? "ct" : "t");
 const VISIBILITIES = ["public", "friends", "private"];
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const MAX_OPEN_PER_USER = 5;
@@ -159,6 +160,8 @@ export class Coinflip {
   /** Both seats taken: flip, settle now, and reveal when the coin lands. */
   #flip(f) {
     f.result = SIDES[randomInt(2)];
+    // Against a bot the rig tilts the coin toward the bot's side.
+    if (f.joiner.bot && Math.random() < this.game.rig("coinflipBot")) f.result = other(f.side);
     f.status = "flipping";
     f.startAt = Date.now() + FLIP_LEAD_MS;
     const winner = f.result === f.side ? f.creator : f.joiner;

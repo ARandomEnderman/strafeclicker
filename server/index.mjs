@@ -25,6 +25,7 @@ import {
 import { Auth } from "./auth.mjs";
 import { openDb } from "./db.mjs";
 import { Feed } from "./feed.mjs";
+import { Settings } from "./settings.mjs";
 import { Game, GameError } from "./game.mjs";
 import { History } from "./history.mjs";
 import { SteamMarket } from "./steam.mjs";
@@ -38,6 +39,7 @@ import { Jackpot } from "./games/jackpot.mjs";
 import { Battles } from "./games/battles.mjs";
 import { Friends } from "./friends.mjs";
 import { Trades } from "./trades.mjs";
+import { Admin, ADMIN_USERNAME } from "./admin.mjs";
 import { Profiles } from "./profiles.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -104,7 +106,8 @@ const status = { lastUpdateAt: null, nextUpdateAt: null, changed: 0, error: null
 const history = new History(DATA_DIR);
 const db = openDb(join(DATA_DIR, "strafeclicker.db"));
 const feed = new Feed(db);
-const game = new Game(db, { contents: () => contents, prices: () => prices }, feed);
+const settings = new Settings(db);
+const game = new Game(db, { contents: () => contents, prices: () => prices }, feed, settings);
 const auth = new Auth(db, game);
 
 async function boot() {
@@ -262,6 +265,17 @@ const trades = new Trades(game, db, friends, { toUser });
 const coinflip = new Coinflip(game, db, friends, { broadcastPer, toUser });
 coinflip.start();
 const profiles = new Profiles(game, db, friends, isOnline);
+const admin = new Admin({
+  db,
+  game,
+  settings,
+  isOnline,
+  onlineCount: () => new Set([...clients].map((r) => r.userId).filter((id) => id != null)).size,
+  steam,
+  broadcast,
+  toUser,
+  flashbang,
+});
 
 /** Someone came online or went offline: refresh their friends' lists. */
 function presenceChanged(userId) {
@@ -288,6 +302,7 @@ function events(req, res) {
   });
   res.write(`retry: 3000\nevent: status\ndata: ${JSON.stringify(statusBody())}\n\n`);
   res.write(`event: wins\ndata: ${JSON.stringify(feed.recent())}\n\n`);
+  res.write(`event: site\ndata: ${JSON.stringify(settings.public())}\n\n`);
   res.write(`event: fb\ndata: ${JSON.stringify(flashbang.state())}\n\n`);
   res.write(`event: roulette\ndata: ${JSON.stringify(roulette.state())}\n\n`);
   res.write(`event: jackpot\ndata: ${JSON.stringify(jackpot.state())}\n\n`);
@@ -386,6 +401,35 @@ async function readJson(req) {
   }
 }
 
+/**
+ * Maintenance mode refuses anything that starts a bet or opens something; finishing
+ * what's running (cash-outs), selling, trading and clicking still work.
+ */
+const STARTS = {
+  open: true,
+  upgrade: true,
+  plinko: true,
+  roulette: true,
+  jackpot: (b) => b.action !== "withdraw",
+  flashbang: (b) => b.action === "bet",
+  coinflip: (b) => ["create", "join", "bot"].includes(b.action),
+  battle: (b) => ["create", "join", "bots"].includes(b.action),
+  bhop: (b) => b.action === "start",
+  defuse: (b) => b.action === "start",
+  towers: (b) => b.action === "start",
+  keno: true,
+  race: true,
+  blackjack: (b) => b.action === "bet",
+  spin: true,
+};
+function checkMaintenance(userId, action, body) {
+  if (!settings.get("maintenance")) return;
+  const rule = STARTS[action];
+  if (!rule || (typeof rule === "function" && !rule(body))) return;
+  if (auth.usernameOf(userId) === ADMIN_USERNAME) return;
+  throw new GameError("maintenance", "The site is paused for maintenance. Try again in a bit.", 503);
+}
+
 /** POST /api/<action> handlers for logged-in users. Each returns its result plus the account view. */
 const actions = {
   click: (userId, body) => game.click(userId, body.clicks, body.times),
@@ -412,6 +456,23 @@ const actions = {
       return out;
     }
     return { profile: profiles.get(userId, body.username), account: game.view(userId) };
+  },
+  admin: (userId, body) => {
+    admin.check(userId);
+    const a = body.action;
+    const r =
+      a === "overview" ? admin.overview()
+      : a === "users" ? { users: admin.users(body.query) }
+      : a === "money" ? admin.money(body.username, body.amount)
+      : a === "item" ? admin.giveItem(body.username, body)
+      : a === "ban" ? admin.ban(body.username, true)
+      : a === "unban" ? admin.ban(body.username, false)
+      : a === "reset" ? admin.reset(body.username)
+      : a === "settings" ? admin.setSettings(body)
+      : a === "pop" ? admin.popFlashbang()
+      : null;
+    if (!r) throw new GameError("bad_input", "Unknown action");
+    return { ...r, account: game.view(userId) };
   },
   trade: (userId, body) => {
     const withAccount = (r) => ({ ...r, account: r.account ?? game.view(userId) });
@@ -511,6 +572,7 @@ async function api(req, res, url) {
       if (isAuth) return send(req, res, 200, await authActions[action](req, body, headers), undefined, headers);
       const userId = sessionUser(req);
       if (!userId) throw new GameError("auth", "Please log in", 401);
+      checkMaintenance(userId, action, body);
       return send(req, res, 200, actions[action](userId, body));
     } catch (err) {
       if (!(err instanceof GameError)) throw err;

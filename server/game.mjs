@@ -91,6 +91,8 @@ function loadStats(json) {
   return { ...freshStats(), ...raw };
 }
 
+const RARE_TIERS = new Set(["classified", "covert", "gold"]);
+
 /** The parts of an owned item the feed needs to draw it. */
 const dropOf = (it) => ({ itemId: it.itemId, phase: it.phase, wear: it.wear, stattrak: it.stattrak });
 
@@ -99,11 +101,13 @@ export class Game {
    * @param {import("node:sqlite").DatabaseSync} db
    * @param {{ contents: () => any, prices: () => Record<string, number> }} market
    * @param {import("./feed.mjs").Feed} [feed] where big wins are announced
+   * @param {import("./settings.mjs").Settings} [settings] the admin's rig setting
    */
-  constructor(db, market, feed) {
+  constructor(db, market, feed, settings) {
     this.db = db;
     this.market = market;
     this.feed = feed;
+    this.settings = settings;
     /** userId -> click rate-limit bucket (in memory; resets harmlessly on restart) */
     this.clickBuckets = new Map();
     /** userId -> [{ cents, until }]: credited winnings not spendable until `until` (see spendable). */
@@ -345,6 +349,11 @@ export class Game {
     };
   }
 
+  /** How much the house tilts `game` (0–1), set in the admin panel. */
+  rig(game) {
+    return this.settings?.rig(game) ?? 0;
+  }
+
   /** For the other games (server/games/*): the same transaction wrapper. */
   act(userId, fn) {
     return this.#act(userId, fn);
@@ -408,6 +417,8 @@ export class Game {
     return {
       username: a.username,
       displayName: a.displayName,
+      // The admin panel is only for the account named exactly "admin".
+      ...(a.username === "admin" ? { isAdmin: true } : {}),
       balance: a.balanceCents / 100,
       perks: a.perks,
       inventory: a.inventory,
@@ -509,7 +520,14 @@ export class Game {
       const cost = (cents(casePrice) + (needsKey(c) ? cents(keyPrice) : 0)) * n;
       if (spendable(a) < cost) throw new GameError("insufficient", "Not enough balance");
 
-      const items = Array.from({ length: n }, () => this.#newOwned(resolveDrop(c, (id) => this.#item(id), randomFloats(7)), c.id));
+      const rig = this.rig("cases");
+      const roll = () => resolveDrop(c, (id) => this.#item(id), randomFloats(7));
+      const items = Array.from({ length: n }, () => {
+        let drop = roll();
+        // The rig re-rolls that share of Classified-and-up drops.
+        if (rig > 0 && RARE_TIERS.has(this.#item(drop.itemId).tier) && randomFloats(1)[0] < rig) drop = roll();
+        return this.#newOwned(drop, c.id);
+      });
       a.balanceCents -= cost;
       a.inventory.unshift(...items);
       changes.added = items;
@@ -585,7 +603,8 @@ export class Game {
       }
 
       const [roll, floatR] = randomFloats(2);
-      const won = roll < chance;
+      // The rig shrinks the real chance below the one shown.
+      const won = roll < chance * (1 - this.rig("upgrader"));
       const gone = new Set(picked);
       a.inventory = a.inventory.filter((it) => !gone.has(it.uid));
       changes.removed = picked;

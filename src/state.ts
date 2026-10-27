@@ -272,6 +272,10 @@ export async function jackpotAction(body: { uids?: string[]; action?: "withdraw"
   return post("jackpot", body);
 }
 
+export async function adminAction<T = Record<string, unknown>>(action: string, body: object = {}) {
+  return post<T>("admin", { action, ...body });
+}
+
 export async function rouletteBet(color: string, bet: number) {
   await flushClicks();
   return post("roulette", { color, bet });

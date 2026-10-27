@@ -26,6 +26,25 @@ A CS2 case-opening simulator. Play money only: no deposits, no withdrawals, noth
 - **Upgrade tree**: an Obsidian-style graph (drag nodes, pan, zoom). Each node shows its icon and price; hover for details, click to pin and buy. Spend balance to open up to 5 cases at once, raise click value up to $1.00, raise offline income from $0.25 to $4.00 per hour, and raise how many cases you can put in a case battle from 3 to 20. Levels and costs are in `PERKS` in `shared/game.js`.
 - **Offline income**: time away (gaps of 5+ minutes, up to 12 hours) is paid out when you come back, with a welcome-back popup.
 
+## Admin panel
+
+Log in as the account named exactly `admin` (same case) and an **Admin** link appears in the sidebar. Everyone else gets a 404 from `/api/admin`.
+
+- **Rig**: a global slider plus per-game overrides for how much the house tilts each game, on top of its normal odds. 0% (the default) is fair: the odds shown are the real ones. The panel lists what each game pays back at the current setting. How it works per game:
+  - cases: re-rolls that share of Classified-or-better drops;
+  - upgrader: the real chance is (1 − rig) × the chance shown;
+  - plinko: bounces lean rig/2 toward the low-paying middle;
+  - flashbang: crash odds become (0.99 − rig) / x;
+  - roulette: that share of spins land on the number paying the table least;
+  - b-hop: each jump's real safety is (1 − rig) × what's shown;
+  - defuse: that share of safe picks get a bomb moved under them;
+  - coinflip against a bot: the bot wins 50% + rig/2.
+
+  Player-vs-player games (battles, jackpot, coinflip between players) have no house and aren't affected.
+- **Site**: maintenance mode (no new bets or openings; cash-outs, selling and trading still work), a site-wide announcement banner, and popping the current flashbang round.
+- **Economy**: players online, total balances and item value, and per game the rounds played, amount wagered and paid out, the house's result and the actual payback; Steam price-collector status.
+- **Players**: search, give or take money, give any item (pick wear / StatTrak), reset an account, ban / unban (a ban logs them out at once).
+
 ## Run
 
 ```sh
@@ -113,6 +132,7 @@ No `git` on the box? Download the code instead:
 | `POST /api/roulette` `{color, bet}` | Bet on `t`, `ct` or `green` this round; round state comes over SSE as `roulette` events |
 | `POST /api/coinflip` `{action: "create", bet, side, visibility}` / `join` `{id}` or `{code}` / `bot` / `cancel` | Coinflips; the list comes over SSE as `flips` events |
 | `POST /api/jackpot` `{uids}` / `{action: "withdraw"}` | Deposit items into the pot, or take them back before anyone else joins; round state comes over SSE as `jackpot` events |
+| `POST /api/admin` `{action, ...}` | Admin panel (account `admin` only) |
 | `POST /api/reset` | Wipe your balance, items and upgrades (keeps the login) |
 
 POST bodies must be `application/json`, which also stops other sites from posting forms to it.
@@ -148,6 +168,7 @@ The returned element is placed in a fixed 4:3 box and should fill it.
 | `server/friends.mjs` | Friend requests and lists |
 | `server/trades.mjs` | Trade offers |
 | `server/profiles.mjs` | Player profiles |
+| `server/admin.mjs`, `server/settings.mjs` | Admin panel and its settings (rig, maintenance, announcement) |
 | `server/steam.mjs` | Steam Market price collector |
 | `shared/achievements.js` | Achievement list, goals and rewards |
 | `shared/game.js` | Odds, float generation, upgrade chance, perk table (server rolls with it, browser displays it) |

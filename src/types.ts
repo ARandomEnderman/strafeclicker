@@ -82,6 +82,8 @@ export interface Account {
   username: string;
   /** The name other players see (defaults to the username). */
   displayName: string;
+  /** Only on the "admin" account. */
+  isAdmin?: boolean;
   balance: number;
   /** Upgrade-tree levels, see PERKS in shared/game.js. */
   perks: { multiOpen: number; clickPower: number; offlineIncome: number; battleRounds: number };
