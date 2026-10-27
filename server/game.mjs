@@ -419,6 +419,25 @@ export class Game {
     return resolveDrop(c, (id) => this.#item(id), randomFloats(7));
   }
 
+  /** Put already-owned items (from a pot or escrow) into an account, keeping their uids. */
+  receive(a, changes, items, source) {
+    const fresh = items.map((it) => ({ ...it, ...(source ? { source } : {}), obtainedAt: Date.now() }));
+    a.inventory.unshift(...fresh);
+    (changes.added ??= []).push(...fresh);
+    return fresh;
+  }
+
+  /** Take items out of an account (they must all be there). Returns them. */
+  takeItems(a, changes, uids, max) {
+    const ids = [...new Set((Array.isArray(uids) ? uids : []).map(String))];
+    if (!ids.length || ids.length > max) throw new GameError("bad_input", `Pick 1 to ${max} items`);
+    const items = ids.map((uid) => a.inventory.find((it) => it.uid === uid));
+    if (items.some((it) => !it)) throw new GameError("bad_input", "You don't own one of those items");
+    a.inventory = a.inventory.filter((it) => !ids.includes(it.uid));
+    (changes.removed ??= []).push(...ids);
+    return items;
+  }
+
   /** Give drops to an account as new items, counting them like unboxed ones. */
   grant(a, changes, drops, source) {
     const items = drops.map((d) => this.#newOwned(d, source));

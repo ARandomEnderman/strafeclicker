@@ -1,22 +1,25 @@
-import { flipById, flips, onFlips, type Flip, type FlipPlayer } from "../flips";
+import { getItem, imageOf } from "../catalog";
+import { flipById, flips, onFlips, type Flip, type FlipItem, type FlipPlayer } from "../flips";
 import { serverNow } from "../live";
 import { FLIP_MS } from "../odds";
 import { coinflipAction, getState, InsufficientFunds, ServerError } from "../state";
-import { betInput, segmented } from "./bet-input";
+import { segmented } from "./bet-input";
 import { h, money, toast } from "./dom";
 import { icon } from "./icons";
+import { itemPicker } from "./item-picker";
 import { onLeave } from "./page";
 import { avatar, userLink } from "./profile-card";
 import { playReveal, playTick } from "./sound";
 
-// Coinflip lobby (#/coinflip) and one flip (#/coinflip/<id>). The coin follows the
-// server's clock, so both players see it land at the same moment.
+// Coinflip with skins: the lobby (#/coinflip) and one flip (#/coinflip/<id>). The coin
+// follows the server's clock, so both players see it land at the same moment.
 
 type Side = "t" | "ct";
 type Visibility = Flip["visibility"];
 const SIDE_NAME: Record<Side, string> = { t: "T", ct: "CT" };
 const other = (s: Side): Side => (s === "t" ? "ct" : "t");
 const SPINS = 8;
+const MAX_ITEMS = 10;
 
 const act = async (action: "create" | "join" | "bot" | "cancel", body: object) => {
   try {
@@ -30,29 +33,45 @@ const act = async (action: "create" | "join" | "bot" | "cancel", body: object) =
 };
 
 function coin(size: number) {
-  return h(
-    "div",
-    { class: "coin", style: `--size:${size}px` },
-    h("div", { class: "coin-face t" }, "T"),
-    h("div", { class: "coin-face ct" }, "CT"),
-  );
+  return h("div", { class: "coin", style: `--size:${size}px` }, h("div", { class: "coin-face t" }, "T"), h("div", { class: "coin-face ct" }, "CT"));
 }
 
-const playerEl = (p: FlipPlayer | null, side: Side) =>
+const thumbs = (items: FlipItem[], max = 6) =>
+  h(
+    "div",
+    { class: "jp-items cf-thumbs" },
+    ...items.slice(0, max).map((it) => h("img", { src: imageOf(it), alt: "", title: `${getItem(it.itemId).name} · ${money(it.value)}`, style: `--rarity:${getItem(it.itemId).color}` })),
+    ...(items.length > max ? [h("span", { class: "bt-more" }, `+${items.length - max}`)] : []),
+  );
+
+const playerEl = (p: FlipPlayer | null, side: Side, withItems = false) =>
   h(
     "div",
     { class: `cf-player ${side}` },
     p ? avatar(p.user, p.name, 36) : h("span", { class: "avatar cf-empty" }, "?"),
-    h("div", { class: "cf-player-names" }, p ? (p.bot ? h("b", null, p.name) : userLink(p.user, p.name)) : h("b", { class: "cf-waiting" }, "Waiting..."), h("span", { class: `cf-side ${side}` }, SIDE_NAME[side])),
+    h(
+      "div",
+      { class: "cf-player-names" },
+      p ? (p.bot ? h("b", null, p.name) : userLink(p.user, p.name)) : h("b", { class: "cf-waiting" }, "Waiting..."),
+      h("span", { class: `cf-side ${side}` }, `${SIDE_NAME[side]}${p ? ` · ${money(p.value)}` : ""}`),
+    ),
+    ...(withItems && p ? [p.bot ? h("span", { class: "cf-bot-note" }, "Matches in cash") : thumbs(p.items, 10)] : []),
   );
 
 // ---------- lobby ----------
 
 export function coinflipPage(code: string | null = null) {
   const list = h("div", { class: "cf-list" });
-  const bet = betInput();
   let side: Side = "t";
   let visibility: Visibility = "public";
+  const createBtn = h("button", { class: "btn btn-primary", onclick: () => void create() });
+  const picker = itemPicker({ max: MAX_ITEMS, onChange: () => drawCreate() });
+  onLeave(picker.destroy);
+  const drawCreate = () => {
+    createBtn.textContent = picker.count() ? `Create with ${picker.count()} item${picker.count() === 1 ? "" : "s"} (${money(picker.value())})` : "Pick items to put up";
+    createBtn.disabled = !picker.count();
+  };
+  drawCreate();
   const sideSeg = segmented<Side>("Your side", [{ value: "t", label: "T" }, { value: "ct", label: "CT" }], side, (v) => (side = v));
   const visSeg = segmented<Visibility>(
     "Who can join",
@@ -65,7 +84,7 @@ export function coinflipPage(code: string | null = null) {
     (v) => (visibility = v),
   );
   const create = async () => {
-    const r = await act("create", { bet: bet.value(), side, visibility });
+    const r = await act("create", { uids: picker.uids(), side, visibility });
     if (r) location.hash = `#/coinflip/${r.id}`;
   };
 
@@ -83,25 +102,26 @@ export function coinflipPage(code: string | null = null) {
     },
     h("span", { class: "field-label" }, "Got a code for a private coinflip?"),
     codeInput,
-    h("button", { class: "btn", type: "submit" }, "Join"),
+    h("button", { class: "btn", type: "submit" }, "Find it"),
   );
 
   const card = (f: Flip) => {
     const me = getState().username;
-    const mine = f.creator.user === me;
-    const inIt = mine || f.joiner?.user === me;
+    const inIt = f.creator.user === me || f.joiner?.user === me;
     const won = f.status === "done" ? (f.winner === "creator" ? f.creator : f.joiner) : null;
-    let action: HTMLElement;
-    if (f.status === "waiting" && mine) action = h("a", { class: "btn btn-sm", href: `#/coinflip/${f.id}` }, "Open");
-    else if (f.status === "waiting") action = h("button", { class: "btn btn-primary btn-sm", onclick: async () => (await act("join", { id: f.id })) && (location.hash = `#/coinflip/${f.id}`) }, `Join as ${SIDE_NAME[other(f.side)]}`);
-    else action = h("a", { class: "btn btn-sm", href: `#/coinflip/${f.id}` }, f.status === "flipping" ? "Watch" : "View");
+    const label = f.status === "waiting" && f.creator.user !== me ? `Join (${money(f.range[0])}–${money(f.range[1])})` : f.status === "flipping" ? "Watch" : "Open";
     return h(
       "div",
       { class: `cf-card ${f.status}${inIt ? " mine" : ""}` },
-      playerEl(f.creator, f.side),
-      h("div", { class: "cf-mid" }, h("b", { class: "cf-stake" }, money(f.stake * 2)), h("span", null, won ? `${won.name} won` : f.status === "flipping" ? "Flipping..." : f.visibility !== "public" ? (f.visibility === "friends" ? "Friends only" : "Private") : "Open")),
-      playerEl(f.joiner, other(f.side)),
-      action,
+      h("div", { class: "cf-card-side" }, playerEl(f.creator, f.side), thumbs(f.creator.items)),
+      h(
+        "div",
+        { class: "cf-mid" },
+        h("b", { class: "cf-stake" }, money(f.value + (f.joiner?.value ?? f.value))),
+        h("span", null, won ? `${won.name} won` : f.status === "flipping" ? "Flipping..." : f.visibility !== "public" ? (f.visibility === "friends" ? "Friends only" : "Private") : "Open"),
+      ),
+      h("div", { class: "cf-card-side" }, playerEl(f.joiner, other(f.side)), f.joiner && !f.joiner.bot ? thumbs(f.joiner.items) : ""),
+      h("a", { class: `btn btn-sm${f.status === "waiting" && f.creator.user !== me ? " btn-primary" : ""}`, href: `#/coinflip/${f.id}` }, label),
     );
   };
 
@@ -122,13 +142,14 @@ export function coinflipPage(code: string | null = null) {
     "section",
     { class: "page" },
     h("h1", null, "Coinflip"),
-    h("p", { class: "hint" }, "Stake an amount on T or CT. Whoever joins matches it and gets the other side; the winner takes both. No house cut."),
+    h("p", { class: "hint" }, "Put up skins on T or CT. Whoever joins puts up skins worth 90–110% as much and gets the other side; the winner takes every item. No house cut."),
     codeForm,
     h(
       "div",
       { class: "bt-create" },
-      h("div", { class: "bt-create-head" }, icon("coins", 18), h("b", null, "New coinflip")),
-      h("div", { class: "bt-create-row" }, h("div", { class: "cf-bet" }, bet.el), sideSeg.el, visSeg.el, h("button", { class: "btn btn-primary", onclick: () => void create() }, "Create")),
+      h("div", { class: "bt-create-head" }, icon("coins", 18), h("b", null, "New coinflip"), h("span", { class: "bt-limit" }, `Up to ${MAX_ITEMS} items`)),
+      h("div", { class: "bt-create-row" }, sideSeg.el, visSeg.el, createBtn),
+      picker.el,
     ),
     list,
   );
@@ -141,6 +162,8 @@ export function coinflipView(id: number) {
   let builtFor = "";
   let raf = 0;
   onLeave(() => cancelAnimationFrame(raf));
+  let picker: ReturnType<typeof itemPicker> | null = null;
+  onLeave(() => picker?.destroy());
 
   const draw = () => {
     const f = flipById(id);
@@ -155,26 +178,45 @@ export function coinflipView(id: number) {
     const mine = f.creator.user === me;
     const c = coin(160);
     const banner = h("div", { class: "cf-banner" });
-    const actions =
-      f.status === "waiting"
-        ? mine
-          ? [
-              h("button", { class: "btn", onclick: () => void act("bot", { id }) }, icon("box", 14), " Call a bot"),
-              h("button", { class: "btn btn-ghost", onclick: () => confirm("Cancel this coinflip? You get your stake back.") && void act("cancel", { id }).then((r) => r && (location.hash = "#/coinflip")) }, "Cancel"),
-            ]
-          : [h("button", { class: "btn btn-primary", onclick: () => void act("join", { id }) }, `Join as ${SIDE_NAME[other(f.side)]} for ${money(f.stake)}`)]
-        : [];
+
+    // Waiting: the creator can call a bot or cancel; anyone else picks items to join.
+    const extra: HTMLElement[] = [];
+    if (f.status === "waiting" && mine) {
+      extra.push(
+        h(
+          "div",
+          { class: "bt-actions cf-actions" },
+          h("button", { class: "btn", onclick: () => void act("bot", { id }) }, icon("box", 14), " Call a bot"),
+          h("button", { class: "btn btn-ghost", onclick: () => confirm("Cancel this coinflip? You get your items back.") && void act("cancel", { id }).then((r) => r && (location.hash = "#/coinflip")) }, "Cancel"),
+        ),
+      );
+    } else if (f.status === "waiting") {
+      picker?.destroy();
+      const joinBtn = h("button", { class: "btn btn-primary" });
+      const p = itemPicker({ max: MAX_ITEMS, onChange: () => sync() });
+      picker = p;
+      const sync = () => {
+        const v = p.value();
+        const ok = v >= f.range[0] && v <= f.range[1];
+        joinBtn.disabled = !ok;
+        joinBtn.textContent = !p.count() ? `Pick ${money(f.range[0])}–${money(f.range[1])} of items` : ok ? `Join as ${SIDE_NAME[other(f.side)]} with ${money(v)}` : `${money(v)}: needs ${money(f.range[0])}–${money(f.range[1])}`;
+      };
+      joinBtn.addEventListener("click", () => void act("join", { id, uids: p.uids() }));
+      sync();
+      extra.push(h("div", { class: "bt-create cf-join" }, h("div", { class: "bt-create-head" }, h("b", null, "Your items"), h("span", { class: "bt-limit" }, `Worth ${money(f.range[0])}–${money(f.range[1])}`)), h("div", { class: "trade-actions" }, joinBtn), p.el));
+    }
+
     root.replaceChildren(
       h("a", { class: "back", href: "#/coinflip" }, "Coinflips"),
       h(
         "div",
         { class: "cf-stage" },
-        playerEl(f.creator, f.side),
-        h("div", { class: "cf-center" }, c, h("div", { class: "cf-pot" }, money(f.stake * 2)), banner),
-        playerEl(f.joiner, other(f.side)),
+        playerEl(f.creator, f.side, true),
+        h("div", { class: "cf-center" }, c, h("div", { class: "cf-pot" }, money(f.value + (f.joiner?.value ?? 0))), banner),
+        playerEl(f.joiner, other(f.side), true),
       ),
       ...(f.code && f.status === "waiting" ? [h("div", { class: "bt-meta bt-codebox cf-code" }, h("span", null, "Private, code"), h("b", { class: "mono" }, f.code))] : []),
-      ...(actions.length ? [h("div", { class: "bt-actions cf-actions" }, ...actions)] : []),
+      ...extra,
     );
     if (f.status === "waiting") {
       banner.textContent = mine ? "Waiting for someone to join..." : "";
@@ -194,6 +236,7 @@ export function coinflipView(id: number) {
     anim.pause();
     let lastHalf = -1;
     const winner = f.winner === "creator" ? f.creator : f.joiner!;
+    const pot = f.value + f.joiner!.value;
     const loop = () => {
       const t = serverNow() - f.startAt!;
       if (t < 0) {
@@ -208,9 +251,9 @@ export function coinflipView(id: number) {
         }
       } else {
         anim.currentTime = FLIP_MS;
-        banner.textContent = `${SIDE_NAME[f.result!]} · ${winner.name} wins ${money(f.stake * 2)}`;
+        banner.textContent = `${SIDE_NAME[f.result!]} · ${winner.name} wins ${money(pot)}`;
         banner.className = `cf-banner done ${f.result}`;
-        root.querySelectorAll(".cf-player").forEach((el, i) => el.classList.toggle("winner", (i === 0) === (f.winner === "creator")));
+        root.querySelectorAll(".cf-stage .cf-player").forEach((el, i) => el.classList.toggle("winner", (i === 0) === (f.winner === "creator")));
         if (t < FLIP_MS + 2000) playReveal(winner.user === me ? "covert" : "milspec");
         return;
       }

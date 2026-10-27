@@ -4297,3 +4297,30 @@ a.user-name:hover {
 .sp-btn {
   min-width: 260px;
 }
+.cf-card-side {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.cf-card-side:nth-of-type(3) {
+  align-items: flex-end;
+}
+.cf-thumbs img {
+  width: 40px;
+  height: 30px;
+}
+.cf-stage .cf-thumbs {
+  justify-content: center;
+  max-width: 260px;
+}
+.cf-bot-note {
+  color: var(--muted);
+  font-size: 12px;
+}
+.cf-join {
+  margin-top: 16px;
+}
+.picker-grid {
+  max-height: 340px;
+}

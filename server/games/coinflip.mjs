@@ -1,19 +1,26 @@
-// Coinflip: 1v1 for cash. The creator stakes an amount on T or CT; whoever joins
-// matches it and takes the other side (or the creator calls a bot). The server flips
-// as soon as both are in and pays the winner both stakes; browsers play the flip back
-// on the same clock and balances update when the coin lands.
+// Coinflip: 1v1 with skins. The creator puts up items and picks T or CT; whoever joins
+// puts up items worth 90–110% as much and gets the other side. The server flips as
+// soon as both are in and the winner takes every item; browsers play the flip back on
+// the same clock and inventories update when the coin lands.
 //
-// Visibility works like case battles: public, friends only, or private (join code).
+// Against a bot (the creator can call one): win and you get your items back plus their
+// value in cash; lose and the bot keeps them.
+//
+// Staked items leave the inventory at once and are kept with the flip, so a restart
+// returns them. Visibility works like case battles: public, friends, or private (code).
 
 import { randomInt } from "node:crypto";
 import { FLIP_LEAD_MS, FLIP_MS } from "../../shared/game.js";
-import { GameError, spendable } from "../game.mjs";
-import { stakeCents } from "./bets.mjs";
+import { GameError, cents } from "../game.mjs";
 
 const SIDES = ["t", "ct"];
 const other = (s) => (s === "t" ? "ct" : "t");
 const VISIBILITIES = ["public", "friends", "private"];
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const MAX_ITEMS = 10;
+const MATCH_MIN = 0.9;
+const MATCH_MAX = 1.1;
+const MIN_VALUE_CENTS = 10;
 const MAX_OPEN_PER_USER = 5;
 const KEEP_DONE = 15;
 const BOT = { userId: null, user: "Bot", name: "Bot", bot: true };
@@ -40,26 +47,45 @@ export class Coinflip {
     this.flips = new Map();
   }
 
-  /** Refund flips a restart left waiting; ones mid-flip were already settled. */
+  /** Give back what a restart left staked; flips already flipping were settled. */
   start() {
     for (const r of this.q.live.all()) {
       const f = { ...JSON.parse(r.data), id: r.id };
       if (f.status === "waiting") {
-        const { account } = this.game.act(f.creator.userId, (a) => {
-          a.balanceCents += f.stakeCents;
-          return {};
-        });
-        this.io.toUser(f.creator.userId, "account", account);
+        // Flips from before skins were cash; refund either.
+        if (f.creator.items) this.#give(f.creator.userId, f.creator.items);
+        else if (f.stakeCents) this.#refundCash(f.creator.userId, f.stakeCents);
         f.status = "cancelled";
       } else f.status = "done";
       this.#save(f);
     }
-    for (const r of this.q.done.all(KEEP_DONE).reverse()) this.flips.set(r.id, { ...JSON.parse(r.data), id: r.id });
+    for (const r of this.q.done.all(KEEP_DONE).reverse()) {
+      const f = { ...JSON.parse(r.data), id: r.id };
+      if (f.creator.items) this.flips.set(r.id, f);
+    }
   }
 
   #save(f) {
     const { id, ...data } = f;
     this.q.save.run(f.status, JSON.stringify(data), id);
+  }
+
+  #give(userId, items, extraCents = 0) {
+    const { account } = this.game.act(userId, (a, changes) => {
+      this.game.receive(a, changes, items);
+      a.balanceCents += extraCents;
+      return {};
+    });
+    this.io.toUser(userId, "account", account);
+    return account;
+  }
+
+  #refundCash(userId, c) {
+    const { account } = this.game.act(userId, (a) => {
+      a.balanceCents += c;
+      return {};
+    });
+    this.io.toUser(userId, "account", account);
   }
 
   #get(id) {
@@ -85,6 +111,13 @@ export class Coinflip {
     }
   }
 
+  /** Take items for a stake, valued at current prices. */
+  #stake(a, changes, uids) {
+    const items = this.game.takeItems(a, changes, uids, MAX_ITEMS);
+    const valued = items.map((it) => ({ ...it, valueCents: cents(this.game.priceOf(it)) }));
+    return { items: valued, valueCents: valued.reduce((s, it) => s + it.valueCents, 0) };
+  }
+
   create(userId, body) {
     const side = SIDES.includes(body.side) ? body.side : null;
     if (!side) throw new GameError("bad_input", "Pick T or CT");
@@ -92,15 +125,14 @@ export class Coinflip {
     const open = [...this.flips.values()].filter((f) => f.status === "waiting" && f.creator.userId === userId).length;
     if (open >= MAX_OPEN_PER_USER) throw new GameError("busy", `You can have ${MAX_OPEN_PER_USER} open coinflips at a time`);
     let flip;
-    const out = this.game.act(userId, (a) => {
-      const stake = stakeCents(a, body.bet);
-      a.balanceCents -= stake;
+    const out = this.game.act(userId, (a, changes) => {
+      const stake = this.#stake(a, changes, body.uids);
+      if (stake.valueCents < MIN_VALUE_CENTS) throw new GameError("bad_input", "Put up at least $0.10 worth");
       flip = {
         status: "waiting",
         createdAt: Date.now(),
-        creator: { userId, user: a.username, name: a.displayName, bot: false },
+        creator: { userId, user: a.username, name: a.displayName, bot: false, ...stake },
         side,
-        stakeCents: stake,
         visibility,
         code: visibility === "private" ? this.#newCode() : null,
         joiner: null,
@@ -114,7 +146,7 @@ export class Coinflip {
     return out;
   }
 
-  /** By id (public / friends flips) or by code (any, including private). */
+  /** By id (public / friends flips) or by code (any, including private), with matching items. */
   join(userId, body) {
     const code = body.code ? String(body.code).trim().toUpperCase() : null;
     const f = code ? [...this.flips.values()].find((x) => x.code === code && x.status === "waiting") : this.#get(body.id);
@@ -122,10 +154,14 @@ export class Coinflip {
     if (!this.#canSee(f, userId, code)) throw new GameError("forbidden", f.visibility === "friends" ? `Only ${f.creator.name}'s friends can join` : "You need the code to join", 403);
     if (f.status !== "waiting") throw new GameError("closed", "Someone already joined");
     if (f.creator.userId === userId) throw new GameError("busy", "That's your own coinflip. Call a bot to play it.");
-    const out = this.game.act(userId, (a) => {
-      if (spendable(a) < f.stakeCents) throw new GameError("insufficient", "Not enough balance");
-      a.balanceCents -= f.stakeCents;
-      f.joiner = { userId, user: a.username, name: a.displayName, bot: false };
+    // Joining by code without items just finds the flip, so the page can pick items.
+    if (code && !body.uids) return { id: f.id, account: this.game.view(userId) };
+    const lo = Math.ceil(f.creator.valueCents * MATCH_MIN);
+    const hi = Math.floor(f.creator.valueCents * MATCH_MAX);
+    const out = this.game.act(userId, (a, changes) => {
+      const stake = this.#stake(a, changes, body.uids);
+      if (stake.valueCents < lo || stake.valueCents > hi) throw new GameError("bad_input", `Put up between $${(lo / 100).toFixed(2)} and $${(hi / 100).toFixed(2)} (yours: $${(stake.valueCents / 100).toFixed(2)})`);
+      f.joiner = { userId, user: a.username, name: a.displayName, bot: false, ...stake };
       return { id: f.id };
     });
     this.#flip(f);
@@ -137,7 +173,7 @@ export class Coinflip {
     const f = this.#get(body.id);
     if (f.creator.userId !== userId) throw new GameError("forbidden", "Only the creator can call a bot", 403);
     if (f.status !== "waiting") throw new GameError("closed", "Someone already joined");
-    f.joiner = BOT;
+    f.joiner = { ...BOT, items: [], valueCents: f.creator.valueCents };
     this.#flip(f);
     return { id: f.id, account: this.game.view(userId) };
   }
@@ -149,15 +185,12 @@ export class Coinflip {
     f.status = "cancelled";
     this.#save(f);
     this.flips.delete(f.id);
-    const out = this.game.act(userId, (a) => {
-      a.balanceCents += f.stakeCents;
-      return {};
-    });
+    const account = this.#give(userId, strip(f.creator.items));
     this.publish();
-    return out;
+    return { account };
   }
 
-  /** Both seats taken: flip, settle now, and reveal when the coin lands. */
+  /** Both seats taken: flip now, hand the items over when the coin lands. */
   #flip(f) {
     f.result = SIDES[randomInt(2)];
     // Against a bot the rig tilts the coin toward the bot's side.
@@ -166,23 +199,28 @@ export class Coinflip {
     f.startAt = Date.now() + FLIP_LEAD_MS;
     const winner = f.result === f.side ? f.creator : f.joiner;
     f.winner = winner === f.creator ? "creator" : "joiner";
-    const accounts = new Map();
-    for (const p of [f.creator, f.joiner]) {
-      if (!p.userId) continue;
-      const won = p === winner;
-      const { account } = this.game.act(p.userId, (a) => {
-        if (won) a.balanceCents += 2 * f.stakeCents;
-        this.game.noteGame(a, "coinflip", { stakeCents: f.stakeCents, payoutCents: won ? 2 * f.stakeCents : 0, add: { won: won ? 1 : 0 } });
-        return {};
-      });
-      accounts.set(p.userId, account);
-    }
     this.#save(f);
     this.publish();
     setTimeout(() => {
+      const pot = [...strip(f.creator.items), ...strip(f.joiner.items)];
+      const total = f.creator.valueCents + f.joiner.valueCents;
+      for (const p of [f.creator, f.joiner]) {
+        if (!p.userId) continue;
+        const won = p === winner;
+        // A win against a bot pays the bot's half in cash.
+        if (won) this.#give(p.userId, pot, f.joiner.bot ? f.joiner.valueCents : 0);
+        const { account } = this.game.act(p.userId, (a) => {
+          this.game.noteGame(a, "coinflip", { stakeCents: p.valueCents, payoutCents: won ? total : 0, add: { won: won ? 1 : 0 } });
+          return {};
+        });
+        if (!won) this.io.toUser(p.userId, "account", account);
+      }
+      if (!winner.bot && pot.length) {
+        const best = pot.reduce((x, y) => (this.game.priceOf(y) > this.game.priceOf(x) ? y : x));
+        this.game.feed?.push({ user: winner.user, name: winner.name, game: "coinflip", value: this.game.priceOf(best), stake: winner.valueCents / 100, tier: this.game.item(best.itemId).tier, drop: { itemId: best.itemId, phase: best.phase, wear: best.wear, stattrak: best.stattrak }, source: "Coinflip" });
+      }
       f.status = "done";
       this.#save(f);
-      for (const [uid, account] of accounts) this.io.toUser(uid, "account", { ...this.game.view(uid), ...(account.unlocked ? { unlocked: account.unlocked } : {}) });
       const done = [...this.flips.values()].filter((x) => x.status === "done").sort((x, y) => y.id - x.id);
       for (const x of done.slice(KEEP_DONE)) this.flips.delete(x.id);
       this.publish();
@@ -201,7 +239,19 @@ export class Coinflip {
   }
 }
 
-const who = (p) => (p ? { user: p.user, name: p.name, bot: p.bot } : null);
+/** Items as owned objects again (without the value they were staked at). */
+const strip = (items = []) => items.map(({ valueCents, ...it }) => it);
+
+const who = (p) =>
+  p
+    ? {
+        user: p.user,
+        name: p.name,
+        bot: p.bot,
+        value: p.valueCents / 100,
+        items: (p.items ?? []).map(({ uid, itemId, phase, wear, stattrak, valueCents }) => ({ uid, itemId, phase, wear, stattrak, value: valueCents / 100 })),
+      }
+    : null;
 const publicFlip = (f, inIt) => ({
   id: f.id,
   status: f.status,
@@ -210,7 +260,8 @@ const publicFlip = (f, inIt) => ({
   creator: who(f.creator),
   joiner: who(f.joiner),
   side: f.side,
-  stake: f.stakeCents / 100,
+  value: f.creator.valueCents / 100,
+  range: [Math.ceil(f.creator.valueCents * MATCH_MIN) / 100, Math.floor(f.creator.valueCents * MATCH_MAX) / 100],
   createdAt: f.createdAt,
   startAt: f.startAt ?? null,
   result: f.status === "waiting" ? null : f.result,

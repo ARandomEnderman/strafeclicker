@@ -2,10 +2,21 @@ import { onServerEvent } from "./live";
 
 // Coinflips you can see (filtered by the server), as last pushed.
 
+export interface FlipItem {
+  uid: string;
+  itemId: string;
+  phase: string | null;
+  wear: string | null;
+  stattrak: boolean;
+  value: number;
+}
 export interface FlipPlayer {
   user: string;
   name: string;
   bot: boolean;
+  /** What they put up (a bot puts up cash, so no items). */
+  value: number;
+  items: FlipItem[];
 }
 export interface Flip {
   id: number;
@@ -17,7 +28,9 @@ export interface Flip {
   joiner: FlipPlayer | null;
   /** The creator's side. */
   side: "t" | "ct";
-  stake: number;
+  /** The creator's stake, and the value range a joiner must put up. */
+  value: number;
+  range: [number, number];
   createdAt: number;
   startAt: number | null;
   result: "t" | "ct" | null;
