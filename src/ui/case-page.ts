@@ -7,6 +7,7 @@ import { getState, holdToastsFor, InsufficientFunds, openCases, sell, ServerErro
 import { h, money, toast } from "./dom";
 import { icon } from "./icons";
 import { displayName, dropCard, itemPreviewCard } from "./item-card";
+import { onLeave } from "./page";
 import { playTick, playReveal } from "./sound";
 
 // The reel copies CS2's own case-opening popup (panorama popup_capability_decodable.js/.css):
@@ -93,8 +94,11 @@ export function casePage(c: Case) {
   drawPrices();
   onPricesForPage(drawPrices);
 
+  let reveal: (() => void) | undefined;
+  onLeave(() => reveal?.());
   async function spin() {
     if (spinning) return;
+    reveal = undefined;
     spinning = true;
     openBtn.disabled = true;
     drawCount();
@@ -102,7 +106,9 @@ export function casePage(c: Case) {
       let won: OwnedItem[];
       try {
         holdToastsFor(SPIN_MS + 800);
-        won = await openCases(c, count);
+        const opened = await openCases(c, count);
+        won = opened.items;
+        reveal = opened.reveal;
       } catch (e) {
         if (e instanceof InsufficientFunds) return toast("Not enough balance. Earn some on the Clicker page or sell items.", "error");
         if (e instanceof ServerError) return toast(e.message, "error");
@@ -117,8 +123,11 @@ export function casePage(c: Case) {
       wraps.forEach((wrap) => ensureLanded(wrap.firstElementChild as HTMLElement, wrap));
       const best = won.map((w) => getItem(w.itemId)).sort((a, b) => TIER_RANK[b.tier] - TIER_RANK[a.tier])[0];
       playReveal(best.tier);
+      reveal();
       showResult(won);
     } finally {
+      // Leaving mid-spin (or an error) still puts the items in the inventory.
+      reveal?.();
       spinning = false;
       drawCount();
       drawPrices();

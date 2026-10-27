@@ -11,8 +11,7 @@ import {
   variants,
 } from "../odds";
 import { renderSkin } from "../skin-renderer";
-import type { Account } from "../types";
-import { applyAccount, getState, holdToastsFor, ServerError, subscribe, upgrade } from "../state";
+import { getState, holdToastsFor, ServerError, subscribe, upgrade } from "../state";
 import { h, money, toast } from "./dom";
 import { displayName, dropCard, fullName } from "./item-card";
 import { onLeave } from "./page";
@@ -203,10 +202,11 @@ export function upgraderPage() {
     drawDial();
     const staked = inputs();
     const t = target;
-    let result: { won: boolean; chance: number; item: OwnedItem | null; account: Account };
+    let result: Awaited<ReturnType<typeof upgrade>>;
     try {
       holdToastsFor(SPIN_MS + 600);
       result = await upgrade([...selected], t);
+      onLeave(result.reveal); // leaving mid-spin still puts a won item in the inventory
     } catch (e) {
       spinning = false;
       drawDial();
@@ -223,7 +223,7 @@ export function upgraderPage() {
 
     selected.clear();
     spinning = false;
-    applyAccount(result.account);
+    result.reveal();
     if (result.won && result.item) {
       playReveal(getItem(result.item.itemId).tier);
       showOutcome(true, result.item, staked);

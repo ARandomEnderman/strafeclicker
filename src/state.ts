@@ -15,12 +15,36 @@ export function subscribe(fn: () => void) {
   return () => listeners.delete(fn);
 }
 
+/** The account as the server last sent it, before hiding items still being revealed. */
+let latest: Account;
+
 function set(next: Account) {
   const { offline, unlocked, ...rest } = next;
-  account = rest;
+  latest = rest;
+  account = withoutHidden(rest);
   listeners.forEach((fn) => fn());
   if (offline && offline.earned > 0) onOffline(offline);
   if (unlocked?.length) setTimeout(() => onUnlocked(unlocked), Math.max(0, quietUntil - Date.now()));
+}
+
+// Items a page is still revealing (a case reel spinning) stay out of the inventory, its
+// count and its value until the page calls the returned reveal function, whatever the
+// server sends in the meantime.
+const hiddenItems = new Set<string>();
+const withoutHidden = (a: Account): Account =>
+  hiddenItems.size ? { ...a, inventory: a.inventory.filter((it) => !hiddenItems.has(it.uid)) } : a;
+
+export function hideItems(uids: string[]) {
+  uids.forEach((u) => hiddenItems.add(u));
+  if (latest) account = withoutHidden(latest);
+  let done = false;
+  return () => {
+    if (done) return;
+    done = true;
+    uids.forEach((u) => hiddenItems.delete(u));
+    account = withoutHidden(latest);
+    listeners.forEach((fn) => fn());
+  };
 }
 
 // Pages with a reveal animation hold achievement toasts back until it's done, so a
@@ -227,9 +251,16 @@ export async function dropPlinko(bet: number, rows: number, risk: string): Promi
 }
 
 /** Open `count` of a case at once (up to the multi-open perk). */
-export async function openCases(c: Case, count: number): Promise<OwnedItem[]> {
+/**
+ * Open `count` of a case. The new items stay hidden from the inventory (and its value)
+ * until `reveal` is called, when the reel has landed.
+ */
+export async function openCases(c: Case, count: number): Promise<{ items: OwnedItem[]; reveal: () => void }> {
   await flushClicks();
-  return (await post<{ items: OwnedItem[] }>("open", { caseId: c.id, count })).items;
+  const r = await post<{ items: OwnedItem[] }>("open", { caseId: c.id, count }, true);
+  const reveal = hideItems(r.items.map((it) => it.uid));
+  set(r.account);
+  return { items: r.items, reveal };
 }
 
 /** Buy the next level of a perk. */
@@ -243,8 +274,12 @@ export async function sell(uids: string[]): Promise<number> {
 }
 
 /** The returned account must be passed to applyAccount after the spin. */
+/** Stake items on a target. A won item stays hidden until `reveal`, when the dial stops. */
 export async function upgrade(uids: string[], target: Pick<Drop, "itemId" | "phase" | "wear" | "stattrak">) {
-  return post<{ won: boolean; chance: number; item: OwnedItem | null }>("upgrade", { uids, target }, true);
+  const r = await post<{ won: boolean; chance: number; item: OwnedItem | null }>("upgrade", { uids, target }, true);
+  const reveal = hideItems(r.item ? [r.item.uid] : []);
+  set(r.account);
+  return { ...r, reveal };
 }
 
 export async function resetAll() {
