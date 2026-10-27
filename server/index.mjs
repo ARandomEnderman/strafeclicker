@@ -30,6 +30,8 @@ import { History } from "./history.mjs";
 import { plinko } from "./games/plinko.mjs";
 import { Flashbang } from "./games/flashbang.mjs";
 import { Bhop } from "./games/bhop.mjs";
+import { Battles } from "./games/battles.mjs";
+import { Friends } from "./friends.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = join(ROOT, "dist");
@@ -211,6 +213,21 @@ function toUser(userId, event, data) {
 const flashbang = new Flashbang(game, db, { broadcast, toUser });
 flashbang.start();
 const bhop = new Bhop(game, db);
+/** Like broadcast, but each connection gets data made for its user. */
+function broadcastPer(event, data) {
+  for (const res of clients) res.write(`event: ${event}\ndata: ${JSON.stringify(data(res.userId))}\n\n`);
+}
+const isOnline = (userId) => [...clients].some((res) => res.userId === userId);
+
+const friends = new Friends(db);
+const battles = new Battles(game, db, friends, { broadcastPer, toUser });
+battles.start();
+
+/** After a friendship change: both sides' lists, and battles they can now (not) see. */
+function friendsChanged(...userIds) {
+  for (const id of userIds) toUser(id, "friends", friends.list(id, isOnline));
+  battles.publish();
+}
 
 setInterval(() => {
   for (const res of clients) res.write(": ping\n\n");
@@ -228,6 +245,7 @@ function events(req, res) {
   res.write(`event: fb\ndata: ${JSON.stringify(flashbang.state())}\n\n`);
   // Server-settled results (a flashbang auto cash-out, a pop) reach the player this way.
   res.userId = sessionUser(req);
+  res.write(`event: battles\ndata: ${JSON.stringify(battles.list(res.userId))}\n\n`);
   clients.add(res);
   req.on("close", () => clients.delete(res));
 }
@@ -323,6 +341,21 @@ const actions = {
     if (body.action === "cancel") return flashbang.cancel(userId);
     if (body.action === "cashout") return flashbang.cashout(userId);
     throw new GameError("bad_input", "Unknown action");
+  },
+  battle: (userId, body) => {
+    if (body.action === "create") return battles.create(userId, body);
+    if (body.action === "join") return battles.join(userId, body);
+    if (body.action === "bots") return battles.bots(userId, body);
+    if (body.action === "cancel") return battles.cancel(userId, body);
+    throw new GameError("bad_input", "Unknown action");
+  },
+  friends: (userId, body) => {
+    const name = body.username;
+    if (body.action === "request") friendsChanged(userId, friends.request(userId, name));
+    else if (body.action === "accept") friendsChanged(userId, friends.accept(userId, name));
+    else if (body.action === "remove") friendsChanged(userId, friends.remove(userId, name));
+    else if (body.action !== "list") throw new GameError("bad_input", "Unknown action");
+    return { ...friends.list(userId, isOnline), account: game.view(userId) };
   },
   bhop: (userId, body) => {
     if (body.action === "state") return bhop.state(userId);

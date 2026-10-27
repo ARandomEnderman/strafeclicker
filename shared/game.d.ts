@@ -56,3 +56,7 @@ export type BhopDifficulty = "easy" | "medium" | "hard" | "expert";
 export const BHOP_DIFFICULTIES: Record<BhopDifficulty, { name: string; p: number; steps: number }>;
 export const BHOP_RTP: number;
 export function bhopMultiplier(difficulty: BhopDifficulty, step: number): number;
+export const BATTLE_SIZES: number[];
+export const BATTLE_MAX_ROUNDS: number;
+export const BATTLE_SPIN_MS: number;
+export const BATTLE_ROUND_MS: number;

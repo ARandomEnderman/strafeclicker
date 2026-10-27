@@ -18,6 +18,11 @@ import { achievementsPage } from "./ui/achievements-page";
 import { plinkoPage } from "./ui/plinko-page";
 import { flashbangPage } from "./ui/flashbang-page";
 import { bhopPage } from "./ui/bhop-page";
+import { battlesPage } from "./ui/battles-page";
+import { battlePage } from "./ui/battle-page";
+import "./battles";
+import { friendsPage } from "./ui/friends-page";
+import { friendLists, loadFriends, onFriends } from "./friends";
 import "./flashbang";
 import { ACHIEVEMENTS } from "../shared/achievements.js";
 import { leavePage } from "./ui/page";
@@ -81,6 +86,16 @@ function topbar() {
     setSound(!soundEnabled());
     soundBtn.replaceChildren(icon(soundEnabled() ? "sound" : "mute"));
   });
+  // Friends, with a badge for pending requests.
+  const requests = h("span", { class: "dot-badge", hidden: true });
+  const friendsBtn = h("a", { class: "btn btn-ghost btn-sm icon-btn", href: "#/friends", title: "Friends", "aria-label": "Friends" }, icon("friends"), requests);
+  onFriends(() => {
+    const n = friendLists().incoming.length;
+    requests.hidden = !n;
+    requests.textContent = String(n);
+  });
+  void loadFriends();
+
   const menuBtn = h(
     "button",
     { class: "btn btn-ghost btn-sm icon-btn menu-btn", "aria-label": "Menu", onclick: () => document.body.classList.toggle("nav-open") },
@@ -101,6 +116,7 @@ function topbar() {
     h(
       "div",
       { class: "profile" },
+      friendsBtn,
       soundBtn,
       h("span", { class: "user-name", title: "Logged in" }, icon("user", 16), getState().username),
       h("button", { class: "btn btn-ghost btn-sm icon-btn", title: "Log out", "aria-label": "Log out", onclick: () => logout() }, icon("logout")),
@@ -133,23 +149,6 @@ const main = h("main");
 
 const KINDS: Case["kind"][] = ["case", "capsule", "autograph"];
 
-/** Pages that aren't built yet. */
-const SOON: Record<string, string> = {
-  battles: "Open cases against other players. Highest total value takes every item.",
-};
-
-function soonPage(page: string) {
-  const n = [...MAIN_NAV, ...BOTTOM_NAV].find((x) => x.route === page)!;
-  return h(
-    "section",
-    { class: "page narrow soon" },
-    h("div", { class: "soon-icon" }, icon(n.icon, 40)),
-    h("h1", null, n.label),
-    h("p", { class: "hint" }, SOON[page]),
-    h("p", { class: "empty" }, "Coming soon."),
-  );
-}
-
 function route() {
   const [path, query = ""] = location.hash.replace(/^#/, "").split("?");
   const [, page, arg] = path.split("/");
@@ -168,7 +167,8 @@ function route() {
   else if (page === "plinko") view = plinkoPage();
   else if (page === "flashbang") view = flashbangPage();
   else if (page === "bhop") view = bhopPage();
-  else if (SOON[page]) view = soonPage(page);
+  else if (page === "battles") view = arg ? battlePage(Number(arg)) : battlesPage(new URLSearchParams(query).get("code"));
+  else if (page === "friends") view = friendsPage();
   else {
     const kind = new URLSearchParams(query).get("kind") as Case["kind"];
     view = casesPage(KINDS.includes(kind) ? kind : "case");

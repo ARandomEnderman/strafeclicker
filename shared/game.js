@@ -283,3 +283,11 @@ export const BHOP_DIFFICULTIES = {
 export const BHOP_RTP = 0.99;
 export const bhopMultiplier = (difficulty, step) =>
   step <= 0 ? 1 : Math.floor((BHOP_RTP / Math.pow(BHOP_DIFFICULTIES[difficulty].p, step)) * 100 + 1e-9) / 100;
+
+// ---------- case battles ----------
+
+export const BATTLE_SIZES = [2, 3, 4];
+export const BATTLE_MAX_ROUNDS = 10;
+/** Each round: the reels spin for BATTLE_SPIN_MS, then a pause before the next. */
+export const BATTLE_SPIN_MS = 4000;
+export const BATTLE_ROUND_MS = 5500;

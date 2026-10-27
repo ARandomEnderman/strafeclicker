@@ -181,6 +181,19 @@ export async function flashbangAction<T = object>(action: "bet" | "cancel" | "ca
   return post<T>("flashbang", { action, ...body });
 }
 
+export async function friendsAction(action: "list" | "request" | "accept" | "remove", username?: string) {
+  return post<{
+    friends: { user: string; online: boolean }[];
+    incoming: { user: string; online: boolean }[];
+    outgoing: { user: string; online: boolean }[];
+  }>("friends", { action, username });
+}
+
+export async function battleAction(action: "create" | "join" | "bots" | "cancel", body: object) {
+  await flushClicks();
+  return post<{ id: number }>("battle", { action, ...body });
+}
+
 export interface BhopRun {
   difficulty: string;
   stake: number;

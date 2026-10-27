@@ -255,6 +255,34 @@ export class Game {
     return this.#item(id);
   }
 
+  /** A case and what one opening costs (case + key), in cents; throws if it can't be opened. */
+  caseCost(caseId) {
+    const { cases, keyPrice } = this.market.contents();
+    const c = cases.find((x) => x.id === caseId);
+    if (!c) throw new GameError("unknown_case", "No such case", 404);
+    const price = this.market.prices()[`case|${c.id}`];
+    if (price == null) throw new GameError("unavailable", `${c.name} isn't on the market right now`);
+    return { c, costCents: cents(price) + (needsKey(c) ? cents(keyPrice) : 0) };
+  }
+
+  /** Roll one drop from a case (not owned by anyone yet). */
+  rollDrop(c) {
+    return resolveDrop(c, (id) => this.#item(id), randomFloats(7));
+  }
+
+  /** Give drops to an account as new items, counting them like unboxed ones. */
+  grant(a, changes, drops, source) {
+    const items = drops.map((d) => this.#newOwned(d, source));
+    a.inventory.unshift(...items);
+    (changes.added ??= []).push(...items);
+    for (const owned of items) {
+      const tier = this.#item(owned.itemId).tier;
+      a.stats.tiers[tier] = (a.stats.tiers[tier] ?? 0) + 1;
+      this.#noteBest(a, owned);
+    }
+    return items;
+  }
+
   /** Current price of an owned item or variant (USD, 0 if unpriced). */
   priceOf(variant) {
     return this.#price(variant);

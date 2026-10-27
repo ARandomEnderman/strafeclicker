@@ -4,6 +4,10 @@ import { WEAR_BUCKETS } from "../shared/game.js";
 // The rules themselves live in shared/game.js so the server rolls with exactly
 // the odds the site shows.
 export {
+  BATTLE_MAX_ROUNDS,
+  BATTLE_ROUND_MS,
+  BATTLE_SIZES,
+  BATTLE_SPIN_MS,
   BHOP_DIFFICULTIES,
   BET_MAX,
   BET_MIN,
