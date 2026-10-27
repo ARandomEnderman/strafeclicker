@@ -4255,3 +4255,45 @@ a.user-name:hover {
   align-items: center;
   gap: 6px;
 }
+
+/* ---------- daily spin ---------- */
+
+.sp-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 24px 16px;
+}
+.sp-wheel {
+  width: min(100%, 420px);
+}
+.sp-svg g {
+  transform-origin: 0 0;
+}
+.sp-label {
+  fill: #fff;
+  font-size: 18px;
+  font-weight: 900;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.35);
+  stroke-width: 3px;
+}
+.sp-hub {
+  fill: var(--bg-2);
+  stroke: var(--line);
+  stroke-width: 3;
+}
+.sp-status {
+  color: var(--muted);
+  font-weight: 600;
+}
+.sp-status.won {
+  color: var(--up);
+  font-size: 22px;
+  font-weight: 900;
+}
+.sp-btn {
+  min-width: 260px;
+}

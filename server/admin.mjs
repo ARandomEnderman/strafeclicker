@@ -1,7 +1,7 @@
 // Admin panel backend. Only the account whose username is exactly "admin" (same
 // case) gets in; everyone else gets a 404 as if the endpoint didn't exist.
 
-import { BHOP_DIFFICULTIES, PLINKO_TABLES, UPGRADE_RTP, floatInWear, priceKey } from "../shared/game.js";
+import { BHOP_DIFFICULTIES, DAILY_PRIZES, PLINKO_TABLES, UPGRADE_RTP, floatInWear, priceKey } from "../shared/game.js";
 import { GameError, cents } from "./game.mjs";
 import { RIGGABLE } from "./settings.mjs";
 
@@ -24,6 +24,13 @@ function plinkoRtp(rows, risk, rig) {
 }
 
 const pct = (x) => Math.round(x * 1000) / 10;
+const money = (x) => `$${x.toFixed(2)}`;
+/** Average daily spin prize when the top half of the prizes are (1 - rig) as likely. */
+function dailyEv(rig) {
+  const w = DAILY_PRIZES.map((p, i) => p.weight * (i >= DAILY_PRIZES.length / 2 ? 1 - rig : 1));
+  const total = w.reduce((s, x) => s + x, 0);
+  return DAILY_PRIZES.reduce((s, p, i) => s + (p.usd * w[i]) / total, 0);
+}
 
 /** What each game pays back on average right now, and what the rig does to it. */
 export function rigReport(settings) {
@@ -43,7 +50,7 @@ export function rigReport(settings) {
     { game: "keno", rig: r("keno"), rtp: null, note: "Applies once Keno is built." },
     { game: "race", rig: r("race"), rtp: null, note: "Applies once the bot race is built." },
     { game: "blackjack", rig: r("blackjack"), rtp: null, note: "Applies once Blackjack is built." },
-    { game: "dailySpin", rig: r("dailySpin"), rtp: null, note: "Applies once the daily spin is built." },
+    { game: "dailySpin", rig: r("dailySpin"), rtp: null, note: `Free, so no payback: worth ${money(dailyEv(r("dailySpin")))} a day on average (${money(dailyEv(0))} with no rig). The rig makes the top four prizes rarer.` },
     { game: "battles / jackpot / coinflip (players)", rig: null, rtp: 100, note: "Player against player: nothing to rig, there's no house." },
   ];
 }

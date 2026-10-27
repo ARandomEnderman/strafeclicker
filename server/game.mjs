@@ -9,6 +9,9 @@ import {
   OFFLINE_CAP_HOURS,
   OFFLINE_MIN_GAP_MS,
   PERKS,
+  DAILY_PRIZES,
+  DAILY_SPIN_EVERY_MS,
+  DAILY_SPIN_MS,
   clickEfficiency,
   rateClicks,
   UPGRADE_MAX_CHANCE,
@@ -18,6 +21,7 @@ import {
   floatInWear,
   needsKey,
   perkValue,
+  pickWeighted,
   priceKey,
   resolveDrop,
   upgradeChance,
@@ -349,6 +353,28 @@ export class Game {
     };
   }
 
+  /**
+   * The free daily spin. Returns the prize slot; the winnings can't be spent until the
+   * wheel has stopped on screen.
+   */
+  dailySpin(userId) {
+    return this.#act(userId, (a) => {
+      const now = Date.now();
+      const next = (a.stats.lastSpin ?? 0) + DAILY_SPIN_EVERY_MS;
+      if (now < next) throw new GameError("not_yet", "Your next spin isn't ready yet");
+      // The rig makes the bigger prizes (the top half) rarer.
+      const rig = this.rig("dailySpin");
+      const weights = DAILY_PRIZES.map((p, i) => [i, p.weight * (i >= DAILY_PRIZES.length / 2 ? 1 - rig : 1)]);
+      const slot = pickWeighted(weights, randomFloats(1)[0]);
+      const prize = cents(DAILY_PRIZES[slot].usd);
+      a.balanceCents += prize;
+      a.stats.lastSpin = now;
+      a.stats.spinCents = (a.stats.spinCents ?? 0) + prize;
+      this.lock(a, prize, DAILY_SPIN_MS + 250);
+      return { slot, prize: prize / 100 };
+    });
+  }
+
   /** How much the house tilts `game` (0–1), set in the admin panel. */
   rig(game) {
     return this.settings?.rig(game) ?? 0;
@@ -439,6 +465,7 @@ export class Game {
         ),
         offlineEarned: (s.offlineCents ?? 0) / 100,
       },
+      nextSpinAt: (s.lastSpin ?? 0) + DAILY_SPIN_EVERY_MS,
       achievements: s.achievements,
       claimed: s.claimed,
     };

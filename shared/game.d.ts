@@ -81,3 +81,6 @@ export const JP_SPIN_MS: number;
 export const JP_RESULT_MS: number;
 export const JP_MAX_ITEMS: number;
 export const JP_MIN_DEPOSIT: number;
+export const DAILY_SPIN_EVERY_MS: number;
+export const DAILY_SPIN_MS: number;
+export const DAILY_PRIZES: { usd: number; weight: number }[];

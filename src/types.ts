@@ -84,6 +84,8 @@ export interface Account {
   displayName: string;
   /** Only on the "admin" account. */
   isAdmin?: boolean;
+  /** When the next free daily spin is available (ms). */
+  nextSpinAt: number;
   balance: number;
   /** Upgrade-tree levels, see PERKS in shared/game.js. */
   perks: { multiOpen: number; clickPower: number; offlineIncome: number; battleRounds: number };

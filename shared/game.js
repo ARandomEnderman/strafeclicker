@@ -364,3 +364,20 @@ export const JP_SPIN_MS = 7000;
 export const JP_RESULT_MS = 5000;
 export const JP_MAX_ITEMS = 10; // per deposit
 export const JP_MIN_DEPOSIT = 0.1; // USD
+
+// ---------- daily spin ----------
+// A free wheel once every DAILY_SPIN_EVERY_MS. Prizes are balance; weights set how
+// often each comes up (about $2.27 a day on average).
+
+export const DAILY_SPIN_EVERY_MS = 24 * 3_600_000;
+export const DAILY_SPIN_MS = 5500;
+export const DAILY_PRIZES = [
+  { usd: 0.25, weight: 30 },
+  { usd: 0.5, weight: 25 },
+  { usd: 1, weight: 20 },
+  { usd: 2, weight: 12 },
+  { usd: 5, weight: 7 },
+  { usd: 10, weight: 4 },
+  { usd: 25, weight: 1.5 },
+  { usd: 100, weight: 0.5 },
+];

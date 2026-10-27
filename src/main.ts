@@ -25,6 +25,7 @@ import "./flips";
 import { jackpotPage } from "./ui/jackpot-page";
 import { siteBanner } from "./site";
 import { adminPage } from "./ui/admin-page";
+import { spinPage } from "./ui/spin-page";
 import "./jackpot";
 import "./roulette";
 import { battlesPage } from "./ui/battles-page";
@@ -40,7 +41,7 @@ import "./flashbang";
 import { ACHIEVEMENTS } from "../shared/achievements.js";
 import { leavePage } from "./ui/page";
 import { setSound, soundEnabled } from "./ui/sound";
-import { clearPageListeners, onPrices, startLive } from "./live";
+import { clearPageListeners, onPrices, serverNow, startLive } from "./live";
 import { countdown } from "./ui/countdown";
 import { showInventoryChange } from "./ui/price-popup";
 
@@ -65,6 +66,7 @@ const BOTTOM_NAV: NavItem[] = [
   { route: "trade", href: "#/trade", label: "Trade", icon: "trade" },
   { route: "tree", href: "#/tree", label: "Upgrades", icon: "upgrades" },
   { route: "achievements", href: "#/achievements", label: "Achievements", icon: "achievements" },
+  { route: "spin", href: "#/spin", label: "Daily spin", icon: "gift" },
 ];
 
 function navLink(n: NavItem, extra?: Node) {
@@ -74,8 +76,13 @@ function navLink(n: NavItem, extra?: Node) {
 /** Left column: logo, games, the live big-wins feed, and account pages at the bottom. */
 function sidebar() {
   const invCount = h("span", { class: "badge" });
-  // Unclaimed achievement rewards.
+  // Unclaimed achievement rewards, and a ready daily spin.
   const toClaim = h("span", { class: "badge ping", hidden: true });
+  const spinReady = h("span", { class: "badge ping", hidden: true }, "1");
+  const syncSpin = () => (spinReady.hidden = getState().nextSpinAt > serverNow());
+  setInterval(syncSpin, 30_000);
+  subscribe(syncSpin);
+  syncSpin();
   const sync = () => {
     invCount.textContent = String(getState().inventory.length);
     const a = getState();
@@ -102,7 +109,7 @@ function sidebar() {
     h(
       "nav",
       { class: "side-nav bottom" },
-      ...BOTTOM_NAV.map((n) => navLink(n, { inventory: invCount, achievements: toClaim, trade: offers }[n.route])),
+      ...BOTTOM_NAV.map((n) => navLink(n, { inventory: invCount, achievements: toClaim, trade: offers, spin: spinReady }[n.route])),
       ...(getState().isAdmin ? [navLink({ route: "admin", href: "#/admin", label: "Admin", icon: "admin" })] : []),
     ),
   );
@@ -215,6 +222,7 @@ function route() {
   else if (page === "defuse") view = defusePage();
   else if (page === "roulette") view = roulettePage();
   else if (page === "jackpot") view = jackpotPage();
+  else if (page === "spin") view = spinPage();
   else if (page === "admin" && getState().isAdmin) view = adminPage();
   else if (page === "coinflip") view = arg ? coinflipView(Number(arg)) : coinflipPage(new URLSearchParams(query).get("code"));
   else if (page === "battles") view = arg ? battlePage(Number(arg)) : battlesPage(new URLSearchParams(query).get("code"));

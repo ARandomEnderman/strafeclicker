@@ -492,6 +492,7 @@ const actions = {
     return { ...friends.list(userId, isOnline), account: game.view(userId) };
   },
   roulette: (userId, body) => roulette.bet(userId, body),
+  spin: (userId) => game.dailySpin(userId),
   jackpot: (userId, body) => (body.action === "withdraw" ? jackpot.withdraw(userId) : jackpot.deposit(userId, body)),
   coinflip: (userId, body) => {
     if (body.action === "create") return coinflip.create(userId, body);

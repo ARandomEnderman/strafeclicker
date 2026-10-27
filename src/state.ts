@@ -276,6 +276,12 @@ export async function adminAction<T = Record<string, unknown>>(action: string, b
   return post<T>("admin", { action, ...body });
 }
 
+/** The free daily spin. The prize shows in the balance once `reveal` is called. */
+export async function dailySpin() {
+  const r = await post<{ slot: number; prize: number }>("spin", {});
+  return { ...r, reveal: hidePayout(r.prize) };
+}
+
 export async function rouletteBet(color: string, bet: number) {
   await flushClicks();
   return post("roulette", { color, bet });
