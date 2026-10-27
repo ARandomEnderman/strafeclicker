@@ -349,3 +349,9 @@ export const rouletteColor = (n) => (n === 0 ? "green" : n <= 7 ? "t" : "ct");
 export const ROULETTE_BET_MS = 20_000;
 export const ROULETTE_SPIN_MS = 6000;
 export const ROULETTE_RESULT_MS = 3000;
+
+// ---------- coinflip ----------
+
+/** How long the coin spins (ms), after a short lead-in once the second player joins. */
+export const FLIP_MS = 3500;
+export const FLIP_LEAD_MS = 1200;

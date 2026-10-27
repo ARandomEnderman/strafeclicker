@@ -262,6 +262,11 @@ export interface BhopResult {
   run: BhopRun | null;
 }
 
+export async function coinflipAction(action: "create" | "join" | "bot" | "cancel", body: object) {
+  await flushClicks();
+  return post<{ id: number }>("coinflip", { action, ...body });
+}
+
 export async function rouletteBet(color: string, bet: number) {
   await flushClicks();
   return post("roulette", { color, bet });

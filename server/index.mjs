@@ -33,6 +33,7 @@ import { Flashbang } from "./games/flashbang.mjs";
 import { Bhop } from "./games/bhop.mjs";
 import { Defuse } from "./games/defuse.mjs";
 import { Roulette } from "./games/roulette.mjs";
+import { Coinflip } from "./games/coinflip.mjs";
 import { Battles } from "./games/battles.mjs";
 import { Friends } from "./friends.mjs";
 import { Trades } from "./trades.mjs";
@@ -255,6 +256,8 @@ const friends = new Friends(db);
 const battles = new Battles(game, db, friends, { broadcastPer, toUser });
 battles.start();
 const trades = new Trades(game, db, friends, { toUser });
+const coinflip = new Coinflip(game, db, friends, { broadcastPer, toUser });
+coinflip.start();
 const profiles = new Profiles(game, db, friends, isOnline);
 
 /** Someone came online or went offline: refresh their friends' lists. */
@@ -266,6 +269,7 @@ function presenceChanged(userId) {
 function friendsChanged(...userIds) {
   for (const id of userIds) toUser(id, "friends", friends.list(id, isOnline));
   battles.publish();
+  coinflip.publish();
 }
 
 setInterval(() => {
@@ -286,6 +290,7 @@ function events(req, res) {
   // Server-settled results (a flashbang auto cash-out, a pop) reach the player this way.
   res.userId = sessionUser(req);
   res.write(`event: battles\ndata: ${JSON.stringify(battles.list(res.userId))}\n\n`);
+  res.write(`event: flips\ndata: ${JSON.stringify(coinflip.list(res.userId))}\n\n`);
   const wasOnline = res.userId != null && isOnline(res.userId);
   clients.add(res);
   if (res.userId != null && !wasOnline) presenceChanged(res.userId);
@@ -422,6 +427,13 @@ const actions = {
     return { ...friends.list(userId, isOnline), account: game.view(userId) };
   },
   roulette: (userId, body) => roulette.bet(userId, body),
+  coinflip: (userId, body) => {
+    if (body.action === "create") return coinflip.create(userId, body);
+    if (body.action === "join") return coinflip.join(userId, body);
+    if (body.action === "bot") return coinflip.bot(userId, body);
+    if (body.action === "cancel") return coinflip.cancel(userId, body);
+    throw new GameError("bad_input", "Unknown action");
+  },
   defuse: (userId, body) => {
     if (body.action === "state") return defuse.state(userId);
     if (body.action === "start") return defuse.start(userId, body);

@@ -74,3 +74,5 @@ export function rouletteColor(n: number): RouletteColor;
 export const ROULETTE_BET_MS: number;
 export const ROULETTE_SPIN_MS: number;
 export const ROULETTE_RESULT_MS: number;
+export const FLIP_MS: number;
+export const FLIP_LEAD_MS: number;
