@@ -82,13 +82,7 @@ export function casesPage(kind: Case["kind"] = "case") {
       }),
       h("div", { class: "sort" }, sortBtn("new", "Newest"), sortBtn("cheap", "Cheapest"), sortBtn("pricey", "Priciest")),
     ),
-    h(
-      "p",
-      { class: "hint" },
-      kind === "case"
-        ? `Cost = case price + ${money(getCatalog().keyPrice)} key. Odds are Valve's published drop rates.`
-        : "Capsules open without a key. Each rarity step is 1/5 as likely as the one below, like cases.",
-    ),
+    kind === "case" ? h("p", { class: "hint" }, `Opening a case also takes a ${money(getCatalog().keyPrice)} key.`) : "",
     grid,
   );
 }

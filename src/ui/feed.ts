@@ -1,7 +1,7 @@
 import { getItem, imageOf } from "../catalog";
 import { onServerEvent } from "../live";
 import type { Win } from "../types";
-import { h, money } from "./dom";
+import { h, money, mult } from "./dom";
 import { icon, type IconName } from "./icons";
 import { userLink } from "./profile-card";
 
@@ -33,8 +33,8 @@ function winRow(w: Win, fresh: boolean) {
     ? h("img", { src: imageOf(w.drop!), alt: "", loading: "lazy" })
     : icon(GAME_ICON[w.game] ?? "coins", 22);
   const name = item ? `${w.drop!.stattrak ? "StatTrak " : ""}${item.name}` : (GAME_NAME[w.game] ?? w.game);
-  const mult = w.mult != null ? `${+w.mult.toFixed(w.mult < 100 ? 2 : 0)}x` : null;
-  const how = (item ? [GAME_NAME[w.game], mult] : [mult]).filter(Boolean).join(" · ");
+  const times = w.mult != null ? mult(w.mult) : null;
+  const how = (item ? [GAME_NAME[w.game], times] : [times]).filter(Boolean).join(" · ");
   return h(
     "div",
     { class: `win${fresh ? " fresh" : ""}`, style: item ? `--rarity:${item.color}` : "", title: `${w.name ?? w.user} won ${money(w.value)}${w.source ? ` from ${w.source}` : ""}` },

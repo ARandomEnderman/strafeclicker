@@ -4,7 +4,7 @@ import { onPricesForPage } from "../live";
 import { WEAR_NAME } from "../odds";
 import { getState, InsufficientFunds, ServerError, subscribe, tradeAction } from "../state";
 import { loadTrades, onTrades, setTrades, tradeLists, type Trade, type TradeItem, type TradeLists } from "../trades";
-import { h, money, toast } from "./dom";
+import { decimalInput, h, money, parseDecimal, toast } from "./dom";
 import { icon } from "./icons";
 import { displayName } from "./item-card";
 import { onLeave } from "./page";
@@ -136,9 +136,9 @@ export function tradePage(withUser: string | null = null) {
   };
 
   const cashInput = (v: number, onChange: (n: number) => void) => {
-    const el = h("input", { class: "bet-field", type: "number", min: "0", step: "0.01", placeholder: "0.00", value: v ? v.toFixed(2) : "" }) as HTMLInputElement;
+    const el = decimalInput({ class: "bet-field", placeholder: "0.00", value: v ? v.toFixed(2) : "" });
     el.addEventListener("change", () => {
-      onChange(Math.max(0, Math.round((Number(el.value) || 0) * 100) / 100));
+      onChange(Math.max(0, Math.round((parseDecimal(el.value) || 0) * 100) / 100));
       draw();
     });
     return h("div", { class: "bet-row trade-cash-input" }, h("span", { class: "bet-cur" }, icon("coins", 14)), el);

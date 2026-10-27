@@ -2,7 +2,7 @@ import type { TowerDifficulty } from "../../shared/game.js";
 import { TOWER_DIFFICULTIES, towerMultiplier } from "../odds";
 import { InsufficientFunds, ServerError, towersAction, type TowerFloor, type TowerRun } from "../state";
 import { betInput, segmented } from "./bet-input";
-import { h, money, toast } from "./dom";
+import { h, money, mult, toast } from "./dom";
 import { icon } from "./icons";
 import { playBoom, playSafe } from "./sound";
 
@@ -49,7 +49,7 @@ export function towersPage() {
     return h(
       "div",
       { class: `tw-floor ${state}`, "data-floor": n },
-      h("div", { class: "tw-label" }, h("span", null, `Floor ${n}`), h("b", null, `${towerMultiplier(diff(), n).toLocaleString("en-US")}x`)),
+      h("div", { class: "tw-label" }, h("span", null, `Floor ${n}`), h("b", null, mult(towerMultiplier(diff(), n)))),
       h("div", { class: "tw-doors", style: `--doors:${d.doors}` }, ...doors),
     );
   };
@@ -91,12 +91,9 @@ export function towersPage() {
   );
   const info = h("div", { class: "bh-info" });
   const drawInfo = () => {
-    const d = TOWER_DIFFICULTIES[diff()];
     const k = run?.floors.length ?? 0;
     info.replaceChildren(
-      h("div", { class: "tip-row" }, h("span", null, "Doors per floor"), h("b", null, `${d.doors} (${d.ts} with a T)`)),
-      h("div", { class: "tip-row" }, h("span", null, "Each floor is safe"), h("b", null, `${Math.round(((d.doors - d.ts) / d.doors) * 100)}%`)),
-      h("div", { class: "tip-row" }, h("span", null, "Next floor pays"), h("b", null, `${towerMultiplier(diff(), k + 1).toLocaleString("en-US")}x`)),
+      h("div", { class: "tip-row" }, h("span", null, "Next floor pays"), h("b", null, mult(towerMultiplier(diff(), k + 1)))),
     );
   };
   const startBtn = h("button", { class: "btn btn-primary btn-lg", onclick: () => void start() }, "Start climbing");
@@ -104,7 +101,7 @@ export function towersPage() {
   const drawButtons = () => {
     startBtn.hidden = !!run;
     cashBtn.hidden = !run;
-    if (run) cashBtn.textContent = run.floors.length ? `Cash out ${money(Math.floor(run.stake * 100 * run.mult) / 100)} (${run.mult.toLocaleString("en-US")}x)` : "Take bet back";
+    if (run) cashBtn.textContent = run.floors.length ? `Cash out ${money(Math.floor(run.stake * 100 * run.mult) / 100)} (${mult(run.mult)})` : "Take bet back";
     startBtn.disabled = cashBtn.disabled = busy;
     bet.setDisabled(busy || !!run);
     diffSeg.setDisabled(busy || !!run);
@@ -151,7 +148,7 @@ export function towersPage() {
       if (r.result === "top") {
         ended = { floors: r.floors!, caught: false };
         run = null;
-        banner.textContent = `You reached the top: ${r.mult!.toLocaleString("en-US")}x, +${money(r.payout!)}`;
+        banner.textContent = `You reached the top: ${mult(r.mult!)}, +${money(r.payout!)}`;
         banner.className = "bh-banner won";
         return;
       }
@@ -165,7 +162,7 @@ export function towersPage() {
       ended = { floors, caught: false };
       run = null;
       if (r.result === "cashed") {
-        banner.textContent = `Cashed out on floor ${floors.length}: ${r.mult!.toLocaleString("en-US")}x, +${money(r.payout!)}`;
+        banner.textContent = `Cashed out on floor ${floors.length}: ${mult(r.mult!)}, +${money(r.payout!)}`;
         banner.className = "bh-banner won";
       } else {
         banner.textContent = "Bet returned";
@@ -186,7 +183,7 @@ export function towersPage() {
     h(
       "div",
       { class: "game-layout" },
-      h("div", { class: "game-panel" }, bet.el, diffSeg.el, info, startBtn, cashBtn, h("p", { class: "hint" }, "Pick a door on every floor; some hide a T. Each floor you clear raises the multiplier, with no top floor. Cash out whenever you like.")),
+      h("div", { class: "game-panel" }, bet.el, diffSeg.el, info, startBtn, cashBtn),
       h("div", { class: "game-stage tw-wrap" }, banner, stage),
     ),
   );

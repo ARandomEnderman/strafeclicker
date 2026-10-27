@@ -266,11 +266,7 @@ export function upgraderPage() {
     "section",
     { class: "page" },
     h("h1", null, "Upgrader"),
-    h(
-      "p",
-      { class: "hint" },
-      `Stake items for a pricier one. Chance = your value ÷ target price × ${UPGRADE_RTP * 100}%, between ${UPGRADE_MIN_CHANCE * 100}% and ${UPGRADE_MAX_CHANCE * 100}%. Lose and the staked items are gone.`,
-    ),
+    h("p", { class: "hint" }, "Stake items for a pricier one. Lose and they're gone."),
     h("div", { class: "upg-top" }, inputSlot, h("div", { class: "upg-mid" }, dial, goBtn), targetSlot),
     outcome,
     h(

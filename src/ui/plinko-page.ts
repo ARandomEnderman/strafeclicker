@@ -197,7 +197,7 @@ export function plinkoPage() {
     h(
       "div",
       { class: "game-layout" },
-      h("div", { class: "game-panel" }, bet.el, riskSeg.el, rowSeg.el, dropBtn, h("p", { class: "hint" }, "Each peg bounces the ball left or right. The slot it lands in multiplies your bet.")),
+      h("div", { class: "game-panel" }, bet.el, riskSeg.el, rowSeg.el, dropBtn),
       h("div", { class: "game-stage plinko-stage" }, history, board),
     ),
   );

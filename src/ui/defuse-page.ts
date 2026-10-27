@@ -1,7 +1,7 @@
 import { DEFUSE_TILES, defuseMultiplier } from "../odds";
 import { defuseAction, InsufficientFunds, ServerError, type DefuseRun } from "../state";
 import { betInput } from "./bet-input";
-import { h, money, toast } from "./dom";
+import { h, money, mult, toast } from "./dom";
 import { icon } from "./icons";
 import { playBoom, playSafe } from "./sound";
 
@@ -10,13 +10,6 @@ import { playBoom, playSafe } from "./sound";
 
 const PRESETS = [1, 3, 5, 10, 24];
 const BOMBS_KEY = "strafeclicker:defuse-bombs";
-
-/** "4%" or "1 in 3,268,760": the chance of picking every safe tile before any bomb. */
-function clearOdds(bombs: number) {
-  let p = 1;
-  for (let i = 0; i < DEFUSE_TILES - bombs; i++) p *= (DEFUSE_TILES - bombs - i) / (DEFUSE_TILES - i);
-  return p >= 0.01 ? `${Math.round(p * 100)}%` : `1 in ${Math.round(1 / p).toLocaleString("en-US")}`;
-}
 
 export function defusePage() {
   let bombs = 3;
@@ -74,10 +67,8 @@ export function defusePage() {
     const k = run?.revealed.length ?? 0;
     const safe = DEFUSE_TILES - b;
     info.replaceChildren(
-      h("div", { class: "tip-row" }, h("span", null, "Next tile is safe"), h("b", null, `${Math.round(((DEFUSE_TILES - b - k) / (DEFUSE_TILES - k)) * 100)}%`)),
-      h("div", { class: "tip-row" }, h("span", null, "Next tile pays"), h("b", null, `${defuseMultiplier(b, k + 1).toFixed(2)}x`)),
-      h("div", { class: "tip-row" }, h("span", null, safe === 1 ? "Finding the 1 safe tile pays" : `Finding all ${safe} safe tiles pays`), h("b", null, `${defuseMultiplier(b, safe).toLocaleString("en-US")}x`)),
-      h("div", { class: "tip-row" }, h("span", null, "Chance of finding them all"), h("b", null, clearOdds(b))),
+      h("div", { class: "tip-row" }, h("span", null, "Next tile pays"), h("b", null, mult(defuseMultiplier(b, k + 1)))),
+      h("div", { class: "tip-row" }, h("span", null, safe === 1 ? "Finding the 1 safe tile pays" : `Finding all ${safe} safe tiles pays`), h("b", null, mult(defuseMultiplier(b, safe)))),
     );
   };
 
@@ -86,7 +77,7 @@ export function defusePage() {
   const drawButtons = () => {
     startBtn.hidden = !!run;
     cashBtn.hidden = !run;
-    if (run) cashBtn.textContent = run.revealed.length ? `Cash out ${money(Math.floor(run.stake * 100 * run.mult) / 100)} (${run.mult.toFixed(2)}x)` : "Take bet back";
+    if (run) cashBtn.textContent = run.revealed.length ? `Cash out ${money(Math.floor(run.stake * 100 * run.mult) / 100)} (${mult(run.mult)})` : "Take bet back";
     startBtn.disabled = cashBtn.disabled = busy;
     bet.setDisabled(busy || !!run);
     bombsInput.disabled = busy || !!run;
@@ -187,7 +178,6 @@ export function defusePage() {
         info,
         startBtn,
         cashBtn,
-        h("p", { class: "hint" }, "C4s are hidden under some tiles. Every safe tile raises the multiplier; hit a bomb and the bet is gone. Cash out whenever you like."),
       ),
       h("div", { class: "game-stage df-wrap" }, stage),
     ),

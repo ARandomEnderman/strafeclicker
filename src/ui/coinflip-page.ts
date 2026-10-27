@@ -142,7 +142,7 @@ export function coinflipPage(code: string | null = null) {
     "section",
     { class: "page" },
     h("h1", null, "Coinflip"),
-    h("p", { class: "hint" }, "Put up skins on T or CT. Whoever joins puts up skins worth 90–110% as much and gets the other side; the winner takes every item. No house cut."),
+    h("p", { class: "hint" }, "Put up skins on T or CT. The winner takes every item."),
     codeForm,
     h(
       "div",

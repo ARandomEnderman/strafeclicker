@@ -1,7 +1,7 @@
 import { serverNow } from "../live";
 import { getLeaderboard, getState, ServerError } from "../state";
 import { segmented } from "./bet-input";
-import { h, money, toast } from "./dom";
+import { h, money, mult, toast } from "./dom";
 import { icon } from "./icons";
 import { onLeave } from "./page";
 import { userLink } from "./profile-card";
@@ -129,7 +129,7 @@ export function leaderboardPage() {
         "div",
         { class: "lb-grid" },
         table("Most wagered", p.wagered, { prizes: p.prizes, empty: `No bets ${when} yet.` }),
-        table("Biggest win", p.best, { extra: (r) => `${GAMES[r.game ?? ""] ?? r.game ?? ""}${r.mult ? ` · ${+r.mult.toFixed(2)}x` : ""}`, empty: `No wins ${when} yet.` }),
+        table("Biggest win", p.best, { extra: (r) => `${GAMES[r.game ?? ""] ?? r.game ?? ""}${r.mult ? ` · ${mult(r.mult)}` : ""}`, empty: `No wins ${when} yet.` }),
       ),
       p.lastWinners.some((w) => w.prize > 0)
         ? h(

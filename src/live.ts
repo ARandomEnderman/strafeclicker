@@ -16,6 +16,8 @@ export const serverNow = () => Date.now() + clockOffset;
 /** Value of every inventory item just before and just after one price update. */
 export interface InventoryChange {
   items: { drop: OwnedItem; before: number; after: number }[];
+  /** Set for the change while the tab was closed (sent once, when the site opens). */
+  away?: boolean;
 }
 
 const statusListeners = new Set<() => void>();
@@ -96,7 +98,7 @@ export function startLive() {
   const away = getState()
     .inventory.filter((it) => seen[it.uid] != null)
     .map((it) => ({ drop: it, before: seen[it.uid], after: priceOf(it) }));
-  if (away.some((r) => r.before !== r.after)) emit({ items: away });
+  if (away.some((r) => r.before !== r.after)) emit({ items: away, away: true });
   else saveSeen();
   subscribe(saveSeen); // new and sold items
 

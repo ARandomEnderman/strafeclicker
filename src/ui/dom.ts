@@ -22,12 +22,32 @@ export function h<K extends keyof HTMLElementTagNameMap>(
   return el;
 }
 
+/**
+ * A money / multiplier field. Not type="number": browsers show those with the system's
+ * decimal separator (10,00 in much of Europe), while the site writes 10.00 everywhere.
+ * Typing a comma is still fine; it's read as a decimal point.
+ */
+export function decimalInput(attrs: Attrs) {
+  const el = h("input", { ...attrs, type: "text", inputmode: "decimal", autocomplete: "off", spellcheck: false }) as HTMLInputElement;
+  el.addEventListener("input", () => {
+    const clean = el.value.replace(/,/g, ".").replace(/[^\d.]/g, "").replace(/(\..*)\./g, "$1");
+    if (clean !== el.value) el.value = clean;
+  });
+  return el;
+}
+/** Read a decimalInput (or anything typed with "," or "."); NaN when empty or invalid. */
+export const parseDecimal = (s: string) => (s.trim() ? Number(s.trim().replace(/,/g, ".")) : NaN);
+
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 export const money = (n: number) => usd.format(n);
 
-export function toast(text: string, kind: "info" | "error" | "achievement" = "info", ms = 3000) {
+const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 2 });
+/** A multiplier: "1.65x", and from 1,000 up "12.5Kx", "3.24Mx". */
+export const mult = (x: number) => `${x >= 1000 ? compact.format(x) : x.toFixed(2)}x`;
+
+export function toast(text: string, kind: "info" | "error" | "achievement" | "up" | "down" = "info", ms = 3000) {
   const host = document.getElementById("toasts");
   if (!host) return;
   const el = h("div", { class: `toast toast-${kind}` }, text);

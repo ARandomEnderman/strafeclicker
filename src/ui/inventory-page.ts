@@ -90,7 +90,6 @@ export function inventoryPage() {
     "section",
     { class: "page" },
     h("h1", null, "Inventory"),
-    h("p", { class: "hint" }, "Prices follow the market live. Click an item to see its price history."),
     body,
   );
 }

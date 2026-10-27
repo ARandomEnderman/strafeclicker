@@ -1,12 +1,12 @@
 import "./style.css";
-import { getCase, getCatalog, loadCatalog, priceOf, round2 } from "./catalog";
+import { getCase, loadCatalog, priceOf, round2 } from "./catalog";
 import type { Case } from "./types";
 import type { Account } from "./types";
 import { displayBalance, getState, initState, logout, resetAll, setLoggedOutHandler, setOfflineHandler, setUnlockedHandler, subscribe } from "./state";
 import { openModal } from "./ui/modal";
 import { icon, type IconName } from "./ui/icons";
 import { feedPanel } from "./ui/feed";
-import { chatButton, chatPanel } from "./ui/chat-panel";
+import { chatButton, chatPanel, setChatOpen } from "./ui/chat-panel";
 import { missionsPage } from "./ui/missions-page";
 import { leaderboardPage } from "./ui/leaderboard-page";
 import { authPage } from "./ui/auth-page";
@@ -52,18 +52,19 @@ import { leavePage } from "./ui/page";
 import { setSound, soundEnabled } from "./ui/sound";
 import { clearPageListeners, onPrices, serverNow, startLive } from "./live";
 import { countdown } from "./ui/countdown";
-import { showInventoryChange } from "./ui/price-popup";
+import { awaySection, priceToast } from "./ui/price-popup";
+import type { InventoryChange } from "./live";
 
 const app = document.getElementById("app")!;
 
-type NavItem = { route: string; href: string; label: string; icon: IconName; title?: string };
+type NavItem = { route: string; href: string; label: string; icon: IconName };
 const MAIN_NAV: NavItem[] = [
   { route: "clicker", href: "#/clicker", label: "Clicker", icon: "clicker" },
   { route: "cases", href: "#/", label: "Cases", icon: "cases" },
   { route: "battles", href: "#/battles", label: "Case battles", icon: "battles" },
   { route: "upgrader", href: "#/upgrader", label: "Upgrader", icon: "upgrader" },
 ];
-/** The casino games, shown as a compact grid of tiles so the sidebar keeps room for the feed. */
+/** The casino games: a group in the sidebar that folds up when there isn't room. */
 const GAMES_NAV: NavItem[] = [
   { route: "coinflip", href: "#/coinflip", label: "Coinflip", icon: "coins" },
   { route: "jackpot", href: "#/jackpot", label: "Jackpot", icon: "jackpot" },
@@ -82,25 +83,94 @@ const BOTTOM_NAV: NavItem[] = [
   { route: "trade", href: "#/trade", label: "Trade", icon: "trade" },
   { route: "tree", href: "#/tree", label: "Upgrades", icon: "upgrades" },
 ];
-/** Free rewards and rankings, as one row of tiles. */
+/** Free rewards and rankings, another foldable group. */
 const REWARDS_NAV: NavItem[] = [
-  { route: "missions", href: "#/missions", label: "Missions", icon: "missions", title: "Daily missions" },
-  { route: "spin", href: "#/spin", label: "Spin", icon: "gift", title: "Daily spin" },
-  { route: "achievements", href: "#/achievements", label: "Awards", icon: "achievements", title: "Achievements" },
-  { route: "leaderboard", href: "#/leaderboard", label: "Leaders", icon: "leaderboard", title: "Leaderboards" },
+  { route: "missions", href: "#/missions", label: "Daily missions", icon: "missions" },
+  { route: "spin", href: "#/spin", label: "Daily spin", icon: "gift" },
+  { route: "achievements", href: "#/achievements", label: "Achievements", icon: "achievements" },
+  { route: "leaderboard", href: "#/leaderboard", label: "Leaderboards", icon: "leaderboard" },
 ];
 
 function navLink(n: NavItem, extra?: Node) {
   return h("a", { href: n.href, "data-route": n.route, class: "side-link" }, icon(n.icon, 18), h("span", null, n.label), extra);
 }
 
-/** Left column: logo, games, the live big-wins feed, and account pages at the bottom. */
+/**
+ * A titled, foldable group of sidebar links. Clicking the title folds it (and that choice
+ * is remembered); groups nobody folded by hand fold on their own when the sidebar runs
+ * out of height (see fitSidebar). A folded group shows the sum of its links' badges.
+ */
+interface SideGroup {
+  el: HTMLElement;
+  /** "open" / "closed" if the player chose, else null (automatic). */
+  pref: "open" | "closed" | null;
+  set: (open: boolean) => void;
+  syncBadge: () => void;
+}
+const GROUP_KEY = "strafeclicker:side:";
+function sideGroup(key: string, label: string, items: NavItem[], badges: Record<string, HTMLElement> = {}, onToggle: () => void): SideGroup {
+  let pref: SideGroup["pref"] = null;
+  try {
+    const v = localStorage.getItem(GROUP_KEY + key);
+    if (v === "open" || v === "closed") pref = v;
+  } catch {
+    // ignore
+  }
+  const sum = h("span", { class: "badge ping", hidden: true });
+  const body = h("nav", { class: "side-group-body", "aria-label": label }, ...items.map((n) => navLink(n, badges[n.route])));
+  const head = h("button", { type: "button", class: "side-group-head", "aria-expanded": "true" }, h("span", null, label), sum, icon("chevron", 14));
+  const el = h("div", { class: "side-group" }, head, body);
+  const g: SideGroup = {
+    el,
+    pref,
+    set(open) {
+      el.classList.toggle("collapsed", !open);
+      body.hidden = !open;
+      head.setAttribute("aria-expanded", String(open));
+      g.syncBadge();
+    },
+    syncBadge() {
+      const n = Object.values(badges).reduce((s, b) => s + (b.hidden ? 0 : Number(b.textContent) || 0), 0);
+      sum.hidden = !n || !body.hidden;
+      sum.textContent = String(n);
+    },
+  };
+  head.addEventListener("click", () => {
+    const open = body.hidden;
+    g.pref = open ? "open" : "closed";
+    try {
+      localStorage.setItem(GROUP_KEY + key, g.pref);
+    } catch {
+      // ignore
+    }
+    g.set(open);
+    onToggle();
+  });
+  g.set(pref !== "closed");
+  return g;
+}
+
+/** Open as many automatic groups as fit the sidebar's height, in order (games first). */
+function fitSidebar(scroll: HTMLElement, groups: SideGroup[]) {
+  const auto = groups.filter((g) => g.pref == null);
+  auto.forEach((g) => g.set(false));
+  for (const g of auto) {
+    g.set(true);
+    if (scroll.scrollHeight > scroll.clientHeight + 1) g.set(false);
+  }
+}
+
+/** Left column: logo, the main pages, the games and rewards groups, and account pages at the bottom. */
 function sidebar() {
   const invCount = h("span", { class: "badge" });
   // Unclaimed achievement rewards, and a ready daily spin.
   const toClaim = h("span", { class: "badge ping", hidden: true });
   const spinReady = h("span", { class: "badge ping", hidden: true }, "1");
-  const syncSpin = () => (spinReady.hidden = getState().nextSpinAt > serverNow());
+  const syncSpin = () => {
+    spinReady.hidden = getState().nextSpinAt > serverNow();
+    rewards?.syncBadge();
+  };
+  let rewards: SideGroup | undefined;
   setInterval(syncSpin, 30_000);
   subscribe(syncSpin);
   syncSpin();
@@ -114,6 +184,7 @@ function sidebar() {
     const m = a.missions?.list.filter((x) => x.done && !x.claimed).length ?? 0;
     missionsReady.hidden = !m;
     missionsReady.textContent = String(m);
+    rewards?.syncBadge();
   };
   subscribe(sync);
   sync();
@@ -125,36 +196,29 @@ function sidebar() {
     offers.textContent = String(n);
   });
   void loadTrades();
-  return h(
-    "aside",
-    { class: "sidebar", id: "sidebar" },
-    h("a", { class: "logo", href: "#/" }, "STRAFE", h("span", null, "CLICKER")),
+  const scroll = h("div", { class: "side-scroll" });
+  const fit = () => fitSidebar(scroll, groups);
+  const games = sideGroup("games", "Games", GAMES_NAV, {}, fit);
+  rewards = sideGroup("rewards", "Rewards", REWARDS_NAV, { achievements: toClaim, spin: spinReady, missions: missionsReady }, fit);
+  const groups = [games, rewards];
+  scroll.append(
     h("nav", { class: "side-nav" }, ...MAIN_NAV.map((n) => navLink(n))),
-    h(
-      "nav",
-      { class: "side-games", "aria-label": "Games" },
-      ...GAMES_NAV.map((n) => h("a", { href: n.href, "data-route": n.route, class: "side-link game-tile", title: n.label }, icon(n.icon, 18), h("span", null, n.label))),
-    ),
-    feedPanel(),
-    h(
-      "nav",
-      { class: "side-games side-rewards", "aria-label": "Rewards" },
-      ...REWARDS_NAV.map((n) =>
-        h(
-          "a",
-          { href: n.href, "data-route": n.route, class: "side-link game-tile", title: n.title ?? n.label },
-          icon(n.icon, 18),
-          h("span", null, n.label),
-          ({ achievements: toClaim, spin: spinReady, missions: missionsReady } as Record<string, HTMLElement>)[n.route] ?? "",
-        ),
-      ),
-    ),
+    games.el,
+    rewards.el,
     h(
       "nav",
       { class: "side-nav bottom" },
       ...BOTTOM_NAV.map((n) => navLink(n, { inventory: invCount, trade: offers }[n.route])),
       ...(getState().isAdmin ? [navLink({ route: "admin", href: "#/admin", label: "Admin", icon: "admin" })] : []),
     ),
+  );
+  window.addEventListener("resize", fit);
+  requestAnimationFrame(fit);
+  return h(
+    "aside",
+    { class: "sidebar", id: "sidebar" },
+    h("a", { class: "logo", href: "#/" }, "STRAFE", h("span", null, "CLICKER")),
+    scroll,
   );
 }
 
@@ -225,7 +289,6 @@ function footer() {
     "footer",
     { class: "footer" },
     h("span", null, "Simulator only. Play money, no deposits, no withdrawals, nothing is real. Not affiliated with Valve."),
-    h("span", null, `Prices: ${getCatalog().sources.prices}, refreshed by the server every minute.`),
     h(
       "button",
       {
@@ -293,15 +356,31 @@ function route() {
 
 function startApp() {
   app.replaceChildren(
-    h("div", { class: "shell" }, sidebar(), h("div", { class: "content" }, topbar(), siteBanner(), main, footer()), chatPanel()),
+    h(
+      "div",
+      { class: "shell" },
+      sidebar(),
+      h("div", { class: "content" }, topbar(), siteBanner(), main, footer()),
+      // Right column: live wins in the top third, the chat below.
+      h(
+        "aside",
+        { class: "rightbar" },
+        h("button", { class: "btn btn-ghost btn-sm icon-btn rightbar-close", "aria-label": "Close chat and live wins", onclick: () => setChatOpen(false) }, icon("close", 16)),
+        feedPanel(),
+        chatPanel(),
+      ),
+    ),
     h("div", { class: "nav-scrim", onclick: () => document.body.classList.remove("nav-open") }),
     h("div", { id: "toasts" }),
   );
   window.addEventListener("hashchange", route);
   route();
-  onPrices(showInventoryChange);
+  // What prices did while the tab was closed goes into the welcome-back popup (with any
+  // offline income); updates after that get a short toast each.
+  let away: InventoryChange | null = null;
+  onPrices((change) => (change.away ? (away = change) : priceToast(change)));
   startLive();
-  if (pendingOffline) showOffline(pendingOffline);
+  showWelcome(pendingOffline, away);
   pendingOffline = null;
   showUnlocked(pendingUnlocked.splice(0));
 }
@@ -312,25 +391,35 @@ function duration(seconds: number) {
   return h ? `${h}h ${m}m` : `${m}m`;
 }
 
-/** "Welcome back" popup for offline income (shown once the app is on screen). */
+/** Offline income that arrived before the app was on screen (at login). */
 let pendingOffline: NonNullable<Account["offline"]> | null = null;
 function showOffline(o: NonNullable<Account["offline"]>) {
   if (!document.querySelector(".topbar")) {
     pendingOffline = o;
     return;
   }
+  showWelcome(o, null);
+}
+
+/** "Welcome back": offline income and how the inventory's prices moved meanwhile. */
+function showWelcome(o: NonNullable<Account["offline"]> | null, prices: InventoryChange | null) {
+  const priceEl = awaySection(prices);
+  if (!o && !priceEl) return;
   openModal(
     "Welcome back",
     h(
       "div",
       { class: "popup-body" },
-      h(
-        "div",
-        { class: "popup-hero" },
-        h("div", { class: "popup-label" }, `You were away for ${duration(o.seconds)}`),
-        h("div", { class: "popup-value" }, `+${money(o.earned)}`),
-        h("div", { class: "popup-was" }, "offline income. ", h("a", { href: "#/tree" }, "Earn more"), " in the upgrade tree."),
-      ),
+      o
+        ? h(
+            "div",
+            { class: "popup-hero" },
+            h("div", { class: "popup-label" }, `You were away for ${duration(o.seconds)}`),
+            h("div", { class: "popup-value" }, `+${money(o.earned)}`),
+            h("div", { class: "popup-was" }, "offline income. ", h("a", { href: "#/tree" }, "Earn more"), " in the upgrade tree."),
+          )
+        : null,
+      priceEl,
     ),
   );
 }

@@ -1,10 +1,10 @@
 import flashbangImg from "../assets/flashbang.webp";
 import { fbState, onFlashbang, setWatchingFlashbang, type FbBet, type FbState } from "../flashbang";
 import { serverNow } from "../live";
-import { FB_AUTO_MIN, FB_GROWTH, FB_INTERMISSION_MS, FB_MAX, fbMultiplierAt } from "../odds";
+import { FB_GROWTH, FB_INTERMISSION_MS, fbMultiplierAt } from "../odds";
 import { flashbangAction, getState, InsufficientFunds, ServerError } from "../state";
 import { betInput } from "./bet-input";
-import { h, money, toast } from "./dom";
+import { decimalInput, h, money, mult, parseDecimal, toast } from "./dom";
 import { onLeave } from "./page";
 import { userLink } from "./profile-card";
 
@@ -12,7 +12,7 @@ import { userLink } from "./profile-card";
 // curve with the flashbang riding its tip, and the pop.
 
 const AUTO_KEY = "strafeclicker:fb-auto";
-const fmt = (m: number) => `${m.toFixed(2)}x`;
+const fmt = mult;
 /** Growth per second, for drawing the curve. */
 const G = FB_GROWTH * 1000;
 const multClass = (m: number) => (m >= 10 ? "m-high" : m >= 2 ? "m-mid" : "m-low");
@@ -146,17 +146,7 @@ export function flashbangPage() {
   } catch {
     // ignore
   }
-  const auto = h("input", {
-    class: "bet-field auto-field",
-    type: "number",
-    min: String(FB_AUTO_MIN),
-    max: String(FB_MAX),
-    step: "0.01",
-    placeholder: "Off",
-    value: savedAuto,
-    inputmode: "decimal",
-    "aria-label": "Auto cash out at",
-  }) as HTMLInputElement;
+  const auto = decimalInput({ class: "bet-field auto-field", placeholder: "Off", value: savedAuto, "aria-label": "Auto cash out at" });
   auto.addEventListener("change", () => {
     try {
       localStorage.setItem(AUTO_KEY, auto.value);
@@ -213,7 +203,7 @@ export function flashbangPage() {
       } else if (mode === "cancel" || mode === "cancel-next") {
         await flashbangAction("cancel");
       } else {
-        const a = auto.value.trim() ? Number(auto.value) : null;
+        const a = auto.value.trim() ? parseDecimal(auto.value) : null;
         await flashbangAction("bet", { bet: bet.value(), auto: a });
       }
     } catch (e) {
@@ -279,7 +269,7 @@ export function flashbangPage() {
         bet.el,
         autoEl,
         mainBtn,
-        h("p", { class: "hint" }, "The multiplier climbs until the flashbang pops. Cash out before it does. Everyone plays the same round."),
+        h("p", { class: "hint" }, "Cash out before the flashbang pops."),
         players,
       ),
       h("div", { class: "game-stage fb-wrap" }, history, stage),

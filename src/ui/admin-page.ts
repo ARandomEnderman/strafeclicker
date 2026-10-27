@@ -1,7 +1,7 @@
 import { getCatalog } from "../catalog";
 import { adminAction, ServerError } from "../state";
 import type { Item } from "../types";
-import { h, money, toast } from "./dom";
+import { decimalInput, h, money, parseDecimal, toast } from "./dom";
 import { icon } from "./icons";
 import { userLink } from "./profile-card";
 
@@ -182,18 +182,18 @@ export function adminPage() {
   // ---------- chat and rewards ----------
   const chatSection = () => {
     const o = ov!;
-    const rainMin = h("input", { class: "admin-num", type: "number", min: "0.01", step: "0.01", value: String(o.settings.rainMin) }) as HTMLInputElement;
+    const rainMin = decimalInput({ class: "admin-num", value: String(o.settings.rainMin) });
     const daily = h("input", { class: "search", value: o.settings.lbPrizes.daily.join(", "), placeholder: "e.g. 25, 10, 5" }) as HTMLInputElement;
     const weekly = h("input", { class: "search", value: o.settings.lbPrizes.weekly.join(", "), placeholder: "e.g. 100, 50, 25" }) as HTMLInputElement;
     const nums = (v: string) =>
       v
-        .split(/[,\s]+/)
+        .split(/[,;\s]+/)
         .filter(Boolean)
         .map(Number)
         .filter((x) => Number.isFinite(x) && x >= 0);
     const save = () =>
       run(async () => {
-        ov = (await adminAction<Overview>("settings", { rainMin: Number(rainMin.value), lbPrizes: { daily: nums(daily.value), weekly: nums(weekly.value) } })) as Overview;
+        ov = (await adminAction<Overview>("settings", { rainMin: parseDecimal(rainMin.value), lbPrizes: { daily: nums(daily.value), weekly: nums(weekly.value) } })) as Overview;
         draw();
       }, "Saved");
     return section(
@@ -259,7 +259,7 @@ export function adminPage() {
     );
   const promoSection = () => {
     const code = h("input", { class: "search", placeholder: "CODE", maxlength: "24" }) as HTMLInputElement;
-    const usd = h("input", { class: "admin-num", type: "number", min: "0", step: "0.01", placeholder: "$" }) as HTMLInputElement;
+    const usd = decimalInput({ class: "admin-num", placeholder: "$" });
     const uses = h("input", { class: "admin-num", type: "number", min: "0", step: "1", placeholder: "any" }) as HTMLInputElement;
     const hours = h("input", { class: "admin-num", type: "number", min: "0", step: "1", placeholder: "never" }) as HTMLInputElement;
     let item: { itemId: string; wear: string; stattrak: boolean; name: string } | null = null;
@@ -292,7 +292,7 @@ export function adminPage() {
     });
     const create = async () => {
       const r = await run(
-        () => adminAction<{ codes: PromoCode[] }>("promoCreate", { code: code.value, usd: Number(usd.value) || 0, maxUses: Number(uses.value) || 0, hours: Number(hours.value) || 0, item }),
+        () => adminAction<{ codes: PromoCode[] }>("promoCreate", { code: code.value, usd: parseDecimal(usd.value) || 0, maxUses: Number(uses.value) || 0, hours: Number(hours.value) || 0, item }),
         `Code ${code.value.toUpperCase()} created`,
       );
       if (r) {
@@ -404,7 +404,7 @@ export function adminPage() {
                       class: "btn btn-sm",
                       onclick: async () => {
                         const v = prompt(`Add money to ${u.user} (negative takes it away):`, "10");
-                        if (v && (await run(() => adminAction("money", { username: u.user, amount: Number(v) }), `${Number(v) >= 0 ? "Gave" : "Took"} ${money(Math.abs(Number(v)))}`))) void loadUsers();
+                        if (v && (await run(() => adminAction("money", { username: u.user, amount: parseDecimal(v) }), `${parseDecimal(v) >= 0 ? "Gave" : "Took"} ${money(Math.abs(parseDecimal(v)))}`))) void loadUsers();
                       },
                     },
                     "Money",

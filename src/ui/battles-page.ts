@@ -178,7 +178,7 @@ export function battlesPage(code: string | null = null) {
     "section",
     { class: "page" },
     h("h1", null, "Case battles"),
-    h("p", { class: "hint" }, "Everyone opens the same cases, one per round. The highest total value takes every item. Bots can fill empty seats."),
+    h("p", { class: "hint" }, "Highest total value takes every item."),
     codeForm,
     h(
       "div",

@@ -1,7 +1,7 @@
 import { KENO_DRAWS, KENO_MAX_PICKS, KENO_REVEAL_MS, KENO_TABLES, KENO_TILES } from "../odds";
 import { displayBalance, InsufficientFunds, playKeno, ServerError } from "../state";
 import { betInput } from "./bet-input";
-import { h, money, toast } from "./dom";
+import { h, money, mult, toast } from "./dom";
 import { icon } from "./icons";
 import { onLeave } from "./page";
 import { playReveal, playSafe, playTick } from "./sound";
@@ -10,7 +10,7 @@ import { playReveal, playSafe, playTick } from "./sound";
 // draw one tile at a time.
 
 const PICKS_KEY = "strafeclicker:keno-picks";
-const fmtMult = (m: number) => `${m.toLocaleString("en-US")}x`;
+const fmtMult = mult;
 
 export function kenoPage() {
   let picks = new Set<number>();
@@ -149,7 +149,7 @@ export function kenoPage() {
         bet.el,
         h("div", { class: "kn-buttons" }, randomBtn, clearBtn),
         playBtn,
-        h("p", { class: "hint" }, `Pick up to ${KENO_MAX_PICKS} tiles; ${KENO_DRAWS} of the 49 are drawn. The more of yours get hit, the more it pays.`),
+        h("p", { class: "hint" }, `Pick up to ${KENO_MAX_PICKS} tiles. The more get hit, the more it pays.`),
       ),
       h("div", { class: "game-stage kn-stage" }, banner, grid, table),
     ),

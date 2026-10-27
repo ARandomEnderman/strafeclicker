@@ -1,6 +1,6 @@
 import { BET_MAX, BET_MIN } from "../odds";
 import { displayBalance } from "../state";
-import { h } from "./dom";
+import { decimalInput, h, parseDecimal } from "./dom";
 import { icon } from "./icons";
 
 const KEY = "strafeclicker:bet";
@@ -13,16 +13,7 @@ export function betInput(onChange?: () => void) {
   } catch {
     // storage unavailable
   }
-  const input = h("input", {
-    class: "bet-field",
-    type: "number",
-    min: String(BET_MIN),
-    max: String(BET_MAX),
-    step: "0.01",
-    inputmode: "decimal",
-    value: saved.toFixed(2),
-    "aria-label": "Bet amount",
-  }) as HTMLInputElement;
+  const input = decimalInput({ class: "bet-field", value: saved.toFixed(2), "aria-label": "Bet amount" });
 
   const clamp = (v: number) => Math.round(Math.min(BET_MAX, Math.max(BET_MIN, v)) * 100) / 100;
   const set = (v: number) => {
@@ -37,7 +28,7 @@ export function betInput(onChange?: () => void) {
       // ignore
     }
   };
-  const value = () => clamp(Number(input.value) || 0);
+  const value = () => clamp(parseDecimal(input.value) || 0);
   input.addEventListener("change", () => set(value()));
   input.addEventListener("input", () => onChange?.());
 

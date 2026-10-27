@@ -197,9 +197,9 @@ export function chatPanel() {
   );
 
   const panel = h(
-    "aside",
+    "section",
     { class: "chat", "aria-label": "Chat" },
-    h("div", { class: "chat-head" }, icon("chat", 16), h("b", null, "Chat"), h("button", { class: "btn btn-ghost btn-sm icon-btn", "aria-label": "Close chat", onclick: () => setChatOpen(false) }, icon("close", 16))),
+    h("div", { class: "chat-head" }, icon("chat", 14), h("b", null, "Chat")),
     list,
     h("div", { class: "chat-compose" }, hints, h("div", { class: "chat-row" }, rainBtn, field, h("button", { class: "btn btn-primary btn-sm icon-btn", "aria-label": "Send", onclick: () => void send() }, icon("send", 15)))),
   );
@@ -217,7 +217,7 @@ export function chatPanel() {
   return panel;
 }
 
-/** The topbar button that opens and closes the chat, with an unread count. */
+/** The topbar button that opens and closes the right column (live wins and chat), with an unread count. */
 export function chatButton() {
   const badge = h("span", { class: "dot-badge", hidden: true });
   onUnread((n) => {

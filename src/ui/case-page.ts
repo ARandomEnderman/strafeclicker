@@ -338,8 +338,7 @@ async function animate(reel: HTMLElement, sound = true): Promise<void> {
 
 function contents(c: Case) {
   return [
-    h("h2", null, "Contents & odds"),
-    h("p", { class: "hint" }, "Click any item to see its price history."),
+    h("h2", null, "Contents"),
     ...tierOdds(c)
       .slice()
       .reverse()

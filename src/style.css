@@ -94,7 +94,7 @@ main {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 10px;
+  padding: 8px 10px;
   flex: none;
 }
 .side-nav.bottom {
@@ -104,7 +104,7 @@ main {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 9px 12px;
+  padding: 8px 12px;
   border-radius: 8px;
   text-decoration: none;
   color: var(--muted);
@@ -2741,13 +2741,17 @@ a.wallet-item:hover {
   display: flex;
   gap: 4px;
   align-items: center;
+  min-width: 0;
 }
+/* Six cases shrink to fit a narrow card instead of spilling out of it. */
 .bt-strip img {
-  width: 48px;
+  flex: 0 1 48px;
+  min-width: 0;
   height: 36px;
   object-fit: contain;
 }
 .bt-more {
+  flex: none;
   color: var(--muted);
   font-size: 12px;
 }
@@ -4650,27 +4654,6 @@ a.user-name:hover {
   }
 }
 
-/* Casino games: a compact grid in the sidebar */
-.side-games {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-  padding: 0 10px 10px;
-  flex: none;
-}
-.side-link.game-tile {
-  flex-direction: column;
-  gap: 3px;
-  padding: 7px 2px 6px;
-  font-size: 10.5px;
-  text-align: center;
-}
-.side-link.game-tile > span {
-  flex: none;
-  width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 .rc-runner::after {
   content: "";
   position: absolute;
@@ -4903,31 +4886,11 @@ a.user-name:hover {
   height: 42px;
 }
 
-/* ---------- rewards row in the sidebar ---------- */
-
-.side-rewards {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
-}
-.side-link.game-tile {
-  position: relative;
-}
-.side-link.game-tile > .badge.ping {
-  position: absolute;
-  top: 2px;
-  right: 4px;
-  width: auto;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
-  font-size: 10px;
-  line-height: 16px;
-}
 
 /* ---------- chat ---------- */
 
-.chat {
+/* The right column: live wins in the top third, chat in the bottom two thirds. */
+.rightbar {
   display: none;
   flex-direction: column;
   position: sticky;
@@ -4941,20 +4904,45 @@ a.user-name:hover {
 body.chat-open .shell {
   grid-template-columns: 224px minmax(0, 1fr) 300px;
 }
-body.chat-open .chat {
+body.chat-open .rightbar {
   display: flex;
+}
+.rightbar-close {
+  position: absolute;
+  top: 14px;
+  right: 10px;
+  z-index: 1;
+}
+.rightbar .feed {
+  flex: 1 1 0;
+  border-top: 0;
+}
+.rightbar .feed-head {
+  height: 60px;
+  padding: 0 16px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+.chat {
+  flex: 2 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line);
 }
 .chat-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 60px;
-  padding: 0 10px 0 16px;
+  height: 40px;
+  padding: 0 16px;
   border-bottom: 1px solid var(--line);
   flex: none;
-}
-.chat-head b {
-  flex: 1;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 .chat-list {
   flex: 1;
@@ -5182,7 +5170,7 @@ body.chat-open .chat {
   body.chat-open .shell {
     grid-template-columns: 224px minmax(0, 1fr);
   }
-  .chat {
+  .rightbar {
     position: fixed;
     right: 0;
     top: 0;
@@ -5596,13 +5584,113 @@ body.rain-shake .shell {
 .chat-rain-tag {
   white-space: nowrap;
 }
-.side-rewards .side-link.game-tile {
-  font-size: 10px;
-  padding-left: 0;
-  padding-right: 0;
-}
 @media (max-width: 600px) {
-  .chat {
+  .rightbar {
     width: 100vw;
   }
+}
+.toast-up {
+  border-left-color: var(--up);
+}
+.toast-down {
+  border-left-color: var(--down);
+}
+.away-prices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.away-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+.away-head span {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: 12px;
+}
+.away-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+}
+.away-row .mover-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ---------- sidebar groups ---------- */
+
+.side-scroll {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+.side-group {
+  padding: 0 10px 8px;
+}
+.side-group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px 6px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+.side-group-head:hover {
+  color: var(--text);
+}
+.side-group-head > span:first-child {
+  flex: 1;
+  text-align: left;
+}
+.side-group-head .icon {
+  transition: transform 0.15s;
+}
+.side-group.collapsed .side-group-head .icon {
+  transform: rotate(-90deg);
+}
+.side-group.collapsed:has(.side-link.active) .side-group-head {
+  color: var(--accent);
+}
+.side-group-head .badge {
+  font-size: 10px;
+  letter-spacing: 0;
+}
+.side-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.side-group-body .side-link {
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+/* Inventory, trade and upgrades sit at the bottom, and scroll with the rest when the screen is short. */
+.side-scroll .side-nav.bottom {
+  margin-top: auto;
+}
+.side-group-body .side-link {
+  padding-top: 6px;
+  padding-bottom: 6px;
 }

@@ -471,11 +471,6 @@ export function treePage() {
     "section",
     { class: "page" },
     h("h1", null, "Upgrade tree"),
-    h(
-      "p",
-      { class: "hint" },
-      `Spend balance to open more cases at once, earn more per click, earn more while you're away (up to ${OFFLINE_CAP_HOURS} hours) and put more cases in your case battles. Each level unlocks the next.`,
-    ),
     summary,
     h("div", { class: "graph" }, root, tip, h("div", { class: "graph-hint" }, "Hover for details, click to pin. Drag to move, scroll to zoom.")),
   );

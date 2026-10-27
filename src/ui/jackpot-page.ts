@@ -221,7 +221,7 @@ export function jackpotPage() {
     "section",
     { class: "page game-page" },
     h("h1", null, "Jackpot"),
-    h("p", { class: "hint" }, `Throw skins into one pot. Once two players are in, the wheel spins after ${JP_TIMER_MS / 1000} s; every cent you put in is a ticket, and the winner takes every item.`),
+    h("p", { class: "hint" }, "Throw skins into the pot. The more you put in, the better your odds. The winner takes everything."),
     h(
       "div",
       { class: "jp-layout" },

@@ -3,7 +3,7 @@ import { BHOP_DIFFICULTIES, bhopMultiplier } from "../odds";
 import { applyAccount, bhopAction, InsufficientFunds, ServerError, type BhopResult, type BhopRun } from "../state";
 import { agentSprite } from "./agent-sprite";
 import { betInput, segmented } from "./bet-input";
-import { h, money, toast } from "./dom";
+import { h, money, mult, toast } from "./dom";
 import { onLeave } from "./page";
 import { playTick } from "./sound";
 
@@ -47,7 +47,7 @@ export function bhopPage() {
       h(
         "div",
         { class: `bh-block${i === 0 ? " start" : ""}`, style: `left:${i * SPACING}px` },
-        h("span", { class: "bh-mult" }, i === 0 ? "Start" : `${bhopMultiplier(d, i).toFixed(2)}x`),
+        h("span", { class: "bh-mult" }, i === 0 ? "Start" : mult(bhopMultiplier(d, i))),
       ),
     );
     lane.prepend(...blocks);
@@ -161,9 +161,7 @@ export function bhopPage() {
   const drawInfo = () => {
     const d = BHOP_DIFFICULTIES[(run?.difficulty as BhopDifficulty) ?? difficulty];
     info.replaceChildren(
-      h("div", { class: "tip-row" }, h("span", null, "Each jump lands safely"), h("b", null, `${Math.round(d.p * 100)}%`)),
-      h("div", { class: "tip-row" }, h("span", null, "Blocks"), h("b", null, String(d.steps))),
-      h("div", { class: "tip-row" }, h("span", null, "Last block pays"), h("b", null, `${bhopMultiplier((run?.difficulty as BhopDifficulty) ?? difficulty, d.steps)}x`)),
+      h("div", { class: "tip-row" }, h("span", null, "Max win"), h("b", null, mult(bhopMultiplier((run?.difficulty as BhopDifficulty) ?? difficulty, d.steps)))),
     );
   };
 
@@ -178,7 +176,7 @@ export function bhopPage() {
     if (run) {
       const d = run.difficulty as BhopDifficulty;
       const next = bhopMultiplier(d, run.step + 1);
-      jumpBtn.textContent = `Jump to ${next.toFixed(2)}x`;
+      jumpBtn.textContent = `Jump to ${mult(next)}`;
       cashBtn.textContent = run.step === 0 ? "Take bet back" : `Cash out ${money(Math.floor(run.stake * 100 * run.mult) / 100)}`;
     }
     [startBtn, jumpBtn, cashBtn].forEach((b) => (b.disabled = busy));
@@ -285,7 +283,7 @@ export function bhopPage() {
         startBtn,
         jumpBtn,
         cashBtn,
-        h("p", { class: "hint" }, "One block in the lane gives way. Every jump raises the multiplier; cash out whenever you like. Space to jump, Enter to cash out."),
+        h("p", { class: "hint" }, "Space to jump, Enter to cash out."),
       ),
       h("div", { class: "game-stage bh-wrap" }, stage),
     ),
