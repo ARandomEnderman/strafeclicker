@@ -59,10 +59,14 @@ export class History {
     }
   }
 
-  /** Latest known price for every key. */
-  latest() {
+  /** Latest live price for every key (backfilled sale medians don't count). */
+  latestLive() {
     const out = {};
-    for (const [key, s] of this.series) out[key] = s[s.length - 1][1];
+    if (this.liveSince == null) return out;
+    for (const [key, s] of this.series) {
+      const [t, v] = s[s.length - 1];
+      if (t >= this.liveSince) out[key] = v;
+    }
     return out;
   }
 

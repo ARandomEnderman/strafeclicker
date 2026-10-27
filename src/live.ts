@@ -1,6 +1,6 @@
 import type { OwnedItem, ServerStatus } from "./types";
 import { priceOf, refreshPrices } from "./catalog";
-import { getState } from "./state";
+import { getState, subscribe } from "./state";
 
 // The server decides when prices change; this module only listens.
 
@@ -40,7 +40,41 @@ export function clearPageListeners() {
 
 let updating = Promise.resolve();
 
+// Each item's price when this browser last showed it, so the popup can also say
+// how much the inventory moved while the tab was closed.
+const SEEN_KEY = "strafeclicker:seen";
+
+function loadSeen(): Record<string, number> {
+  try {
+    return JSON.parse(localStorage.getItem(SEEN_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveSeen() {
+  try {
+    localStorage.setItem(SEEN_KEY, JSON.stringify(Object.fromEntries(getState().inventory.map((it) => [it.uid, priceOf(it)]))));
+  } catch {
+    // Storage unavailable: the popup just won't cover time away.
+  }
+}
+
+function emit(change: InventoryChange) {
+  saveSeen();
+  priceListeners.forEach((fn) => fn(change));
+  pageListeners.forEach((fn) => fn());
+}
+
 export function startLive() {
+  const seen = loadSeen();
+  const away = getState()
+    .inventory.filter((it) => seen[it.uid] != null)
+    .map((it) => ({ drop: it, before: seen[it.uid], after: priceOf(it) }));
+  if (away.some((r) => r.before !== r.after)) emit({ items: away });
+  else saveSeen();
+  subscribe(saveSeen); // new and sold items
+
   const es = new EventSource("/api/events");
   es.addEventListener("status", (e) => {
     const s: ServerStatus = JSON.parse((e as MessageEvent).data);
@@ -69,6 +103,5 @@ async function pull(version: number) {
     change.items.push({ drop: it, before: was, after: priceOf(it) });
   }
 
-  priceListeners.forEach((fn) => fn(change));
-  pageListeners.forEach((fn) => fn());
+  emit(change);
 }

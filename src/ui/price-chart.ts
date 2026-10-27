@@ -254,14 +254,20 @@ function renderPlot(host: HTMLElement, pts: Point[], t0: number, t1: number, liv
     const box = svg.getBoundingClientRect();
     const px = Math.min(Math.max(((clientX - box.left) / box.width) * W, m.l), m.l + iw);
     const t = tStart + ((px - m.l) / iw) * Math.max(1, t1 - tStart);
-    let v = pts[0][1];
-    for (const p of pts) if (p[0] <= t) v = p[1];
+    // Match how the line is drawn: interpolated through backfill, stepped once live.
+    let i = 0;
+    while (i < pts.length - 1 && pts[i + 1][0] <= t) i++;
+    const [ta, va] = pts[i];
+    const next = pts[i + 1];
+    const estimated = t < split;
+    const v = estimated && next ? va + ((next[1] - va) * (t - ta)) / Math.max(1, next[0] - ta) : va;
     for (const el of [cross, dot]) el.setAttribute("visibility", "visible");
     cross.setAttribute("x1", String(px));
     cross.setAttribute("x2", String(px));
     dot.setAttribute("cx", String(px));
     dot.setAttribute("cy", String(y(v)));
     tip.replaceChildren(h("b", null, money(v)), h("span", null, new Date(t).toLocaleString()));
+    if (estimated) tip.append(h("span", null, "sale median (estimate)"));
     tip.hidden = false;
     tip.style.left = `${(px / W) * 100}%`;
     tip.style.top = `${(y(v) / H) * 100}%`;

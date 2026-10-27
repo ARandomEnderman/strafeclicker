@@ -43,7 +43,10 @@ export function showInventoryChange(change: InventoryChange) {
           "button",
           {
             class: "mover",
-            onclick: () => openPriceChart(getItem(r.drop.itemId), r.drop),
+            onclick: () => {
+              open?.close();
+              openPriceChart(getItem(r.drop.itemId), r.drop);
+            },
           },
           h("span", { class: "mover-dot", style: `--rarity:${getItem(r.drop.itemId).color}` }),
           h("span", { class: "mover-name" }, fullName(r.drop)),

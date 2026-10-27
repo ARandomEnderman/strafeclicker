@@ -5,7 +5,7 @@ A CS2 case-opening simulator. Play money only: no deposits, no withdrawals, noth
 - **Real cases & contents**: all 42 CS2 weapon cases, with their actual skins, float ranges, StatTrak eligibility and Doppler phases.
 - **Real odds**: Valve's published rates (Mil-Spec 79.92%, Restricted 15.98%, Classified 3.20%, Covert 0.64%, Rare Special 0.26%), 10% StatTrak, community-measured float distribution.
 - **Live market prices**: the server refreshes every wear / StatTrak / phase price from Skinport (lowest current listing) once a minute, on the minute. Every browser sees the same countdown and gets the update pushed at the same moment; clients can't trigger or delay it.
-- **Inventory change popup** after each update that moves your inventory's value, with the biggest movers.
+- **Inventory change popup** after each update that moves your inventory's value, with the biggest movers. It also covers time away: reopen the site and it shows what changed since you last looked.
 - **Price history graphs** for every item variant (click any item), recorded by the server.
 - **Provably fair**: rolls are `HMAC-SHA256(serverSeed, "clientSeed:nonce")`, with a seed reveal + verifier page.
 

@@ -97,7 +97,7 @@ async function boot() {
     await history.compact();
   }
   // Until the first tick lands: snapshot prices, overridden by anything newer in history.
-  prices = { ...keep(snapshot?.prices), ...keep(history.latest()) };
+  prices = { ...keep(snapshot?.prices), ...keep(history.latestLive()) };
   // Seconds since epoch, so versions keep increasing across restarts and a
   // client holding a version from a previous run always gets a full refresh.
   version = Math.floor(Date.now() / 1000);
