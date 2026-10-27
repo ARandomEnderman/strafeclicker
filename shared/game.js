@@ -392,3 +392,20 @@ export const KENO_MAX_PICKS = 10;
 export const KENO_TABLES = {"1":[0,4.85],"2":[0,1.39,13.8],"3":[0,0.83,4.44,35.9],"4":[0,0.63,2.24,11.6,110],"5":[0,0,1.4,8.15,52.4,621],"6":[0,0,1,4.35,21.5,157,2341],"7":[0,0,0.79,2.68,11,60.9,553,10000],"8":[0,0,0,1.76,8.98,45,311,3648,10000],"9":[0,0,0,1.31,5.46,23.5,133,1156,10000,10000],"10":[0,0,0,1.02,3.58,13.6,65.7,461,5337,10000,10000]};
 /** How long the browser takes to reveal the draw (ms). */
 export const KENO_REVEAL_MS = 1600;
+
+// ---------- towers ----------
+// Climb as far as you like: each floor has `doors` doors and `ts` of them hide a T.
+// After k safe floors the multiplier is 0.99 / p^k with p = (doors - ts) / doors.
+
+export const TOWER_DIFFICULTIES = {
+  easy: { name: "Easy", doors: 4, ts: 1 },
+  medium: { name: "Medium", doors: 3, ts: 1 },
+  hard: { name: "Hard", doors: 2, ts: 1 },
+  expert: { name: "Expert", doors: 3, ts: 2 },
+};
+export const TOWER_MAX_MULT = 1_000_000;
+export function towerMultiplier(difficulty, floors) {
+  const d = TOWER_DIFFICULTIES[difficulty];
+  const p = (d.doors - d.ts) / d.doors;
+  return floors <= 0 ? 1 : Math.min(TOWER_MAX_MULT, Math.floor((0.99 / p ** floors) * 100 + 1e-9) / 100);
+}

@@ -27,6 +27,7 @@ import { siteBanner } from "./site";
 import { adminPage } from "./ui/admin-page";
 import { spinPage } from "./ui/spin-page";
 import { kenoPage } from "./ui/keno-page";
+import { towersPage } from "./ui/towers-page";
 import "./jackpot";
 import "./roulette";
 import { battlesPage } from "./ui/battles-page";
@@ -62,6 +63,7 @@ const MAIN_NAV: NavItem[] = [
   { route: "bhop", href: "#/bhop", label: "B-hop", icon: "bhop" },
   { route: "defuse", href: "#/defuse", label: "Defuse", icon: "bomb" },
   { route: "keno", href: "#/keno", label: "Keno", icon: "keno" },
+  { route: "towers", href: "#/towers", label: "Towers", icon: "towers" },
 ];
 const BOTTOM_NAV: NavItem[] = [
   { route: "inventory", href: "#/inventory", label: "Inventory", icon: "inventory" },
@@ -226,6 +228,7 @@ function route() {
   else if (page === "jackpot") view = jackpotPage();
   else if (page === "spin") view = spinPage();
   else if (page === "keno") view = kenoPage();
+  else if (page === "towers") view = towersPage();
   else if (page === "admin" && getState().isAdmin) view = adminPage();
   else if (page === "coinflip") view = arg ? coinflipView(Number(arg)) : coinflipPage(new URLSearchParams(query).get("code"));
   else if (page === "battles") view = arg ? battlePage(Number(arg)) : battlesPage(new URLSearchParams(query).get("code"));

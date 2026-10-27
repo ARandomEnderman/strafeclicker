@@ -4417,3 +4417,106 @@ a.user-name:hover {
 .kn-buttons .btn {
   flex: 1;
 }
+
+/* ---------- towers ---------- */
+
+.tw-wrap {
+  position: relative;
+  padding: 0;
+}
+.tw-stage {
+  height: max(420px, calc(100vh - 330px));
+  max-height: 640px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  padding: 64px 16px 24px;
+  background: linear-gradient(to bottom, #0f1219, #171c28);
+}
+.tw-tower {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 520px;
+  margin: 0 auto;
+}
+.tw-floor {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 10px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  transition: opacity 0.3s;
+}
+.tw-floor.current {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(245, 165, 36, 0.2);
+}
+.tw-floor.locked {
+  opacity: 0.4;
+}
+.tw-floor.caught {
+  border-color: var(--down);
+}
+.tw-label {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  font-size: 12px;
+  color: var(--muted);
+}
+.tw-label b {
+  color: var(--text);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.tw-floor.done .tw-label b {
+  color: var(--up);
+}
+.tw-doors {
+  display: grid;
+  grid-template-columns: repeat(var(--doors), 1fr);
+  gap: 8px;
+}
+.tw-door {
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: linear-gradient(#5a4632, #3e3022);
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.35);
+  color: #e8cfa5;
+  cursor: pointer;
+  transition: transform 0.12s, background 0.2s;
+}
+.tw-door:disabled {
+  cursor: default;
+}
+.tw-floor.current .tw-door:not(:disabled):hover {
+  transform: translateY(-2px);
+  background: linear-gradient(#6c553c, #4b3a29);
+}
+.tw-door.safe {
+  background: linear-gradient(#2f6e55, #245644);
+  color: #9ff2cc;
+  animation: df-pop 0.25s ease-out;
+}
+.tw-door.t {
+  background: linear-gradient(#4a2b31, #3a2228);
+  color: var(--down);
+  opacity: 0.7;
+}
+.tw-door.caught {
+  background: radial-gradient(circle, #ffb36b 0%, var(--down) 70%);
+  color: #2a0a0a;
+  animation: df-pop 0.35s ease-out;
+}
+.tw-door.rest {
+  opacity: 0.35;
+}
+.tw-wrap .bh-banner {
+  z-index: 2;
+}

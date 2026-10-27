@@ -89,3 +89,7 @@ export const KENO_DRAWS: number;
 export const KENO_MAX_PICKS: number;
 export const KENO_TABLES: Record<number, number[]>;
 export const KENO_REVEAL_MS: number;
+export type TowerDifficulty = "easy" | "medium" | "hard" | "expert";
+export const TOWER_DIFFICULTIES: Record<TowerDifficulty, { name: string; doors: number; ts: number }>;
+export const TOWER_MAX_MULT: number;
+export function towerMultiplier(difficulty: TowerDifficulty, floors: number): number;

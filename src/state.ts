@@ -301,6 +301,29 @@ export async function rouletteBet(color: string, bet: number) {
   return post("roulette", { color, bet });
 }
 
+export interface TowerFloor {
+  door: number;
+  ts: number[];
+}
+export interface TowerRun {
+  difficulty: string;
+  stake: number;
+  floors: TowerFloor[];
+  mult: number;
+  next: number;
+}
+export interface TowerResult {
+  result?: "safe" | "caught" | "top" | "cashed" | "cancelled";
+  floors?: TowerFloor[];
+  mult?: number;
+  payout?: number;
+  run: TowerRun | null;
+}
+export async function towersAction(action: "state" | "start" | "pick" | "cashout", body: object = {}) {
+  await flushClicks();
+  return post<TowerResult>("towers", { action, ...body });
+}
+
 export interface DefuseRun {
   bombs: number;
   stake: number;

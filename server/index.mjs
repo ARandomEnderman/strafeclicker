@@ -33,6 +33,7 @@ import { plinko } from "./games/plinko.mjs";
 import { Flashbang } from "./games/flashbang.mjs";
 import { Bhop } from "./games/bhop.mjs";
 import { Defuse } from "./games/defuse.mjs";
+import { Towers } from "./games/towers.mjs";
 import { Roulette } from "./games/roulette.mjs";
 import { Coinflip } from "./games/coinflip.mjs";
 import { Jackpot } from "./games/jackpot.mjs";
@@ -253,6 +254,7 @@ const jackpot = new Jackpot(game, db, { broadcast, toUser });
 jackpot.start();
 const bhop = new Bhop(game, db);
 const defuse = new Defuse(game, db);
+const towers = new Towers(game, db);
 /** Like broadcast, but each connection gets data made for its user. */
 function broadcastPer(event, data) {
   for (const res of clients) res.write(`event: ${event}\ndata: ${JSON.stringify(data(res.userId))}\n\n`);
@@ -503,6 +505,13 @@ const actions = {
     if (body.action === "cancel") return coinflip.cancel(userId, body);
     throw new GameError("bad_input", "Unknown action");
   },
+  towers: (userId, body) => {
+    if (body.action === "state") return towers.state(userId);
+    if (body.action === "start") return towers.start(userId, body);
+    if (body.action === "pick") return towers.pick(userId, body);
+    if (body.action === "cashout") return towers.cashout(userId);
+    throw new GameError("bad_input", "Unknown action");
+  },
   defuse: (userId, body) => {
     if (body.action === "state") return defuse.state(userId);
     if (body.action === "start") return defuse.start(userId, body);
@@ -524,6 +533,7 @@ const actions = {
   reset: (userId) => {
     bhop.forget(userId); // their stakes are part of what's being wiped
     defuse.forget(userId);
+    towers.forget(userId);
     return game.reset(userId);
   },
 };
