@@ -10,28 +10,35 @@ import { onLeave } from "./page";
 // background pans and the wheel zooms. Each node shows its icon and price; hovering
 // shows the details in a tooltip, clicking pins it so the upgrade can be bought there.
 
-// Three branches 120° apart around the centre.
+// Four branches 90° apart around the centre.
 const BRANCHES: { id: PerkId; angle: number; icon: IconName; about: string; effect: (v: number) => string }[] = [
   {
     id: "multiOpen",
-    angle: Math.PI * (5 / 6),
+    angle: Math.PI * (3 / 4),
     icon: "multiOpen",
     about: "Open several of the same case in one go.",
     effect: (v) => `Open ${v} case${v === 1 ? "" : "s"} at once`,
   },
   {
     id: "clickPower",
-    angle: Math.PI / 6,
+    angle: Math.PI / 4,
     icon: "clickPower",
     about: "What each click on the clicker pays (in full up to 10 clicks per second).",
     effect: (v) => `${money(v)} per click`,
   },
   {
     id: "offlineIncome",
-    angle: -Math.PI / 2,
+    angle: -Math.PI * (3 / 4),
     icon: "offlineIncome",
     about: `Paid when you come back after 5+ minutes away, for up to ${OFFLINE_CAP_HOURS} hours.`,
     effect: (v) => `${money(v)} per hour while away`,
+  },
+  {
+    id: "battleRounds",
+    angle: -Math.PI / 4,
+    icon: "battleRounds",
+    about: "How many cases you can put in a case battle you create.",
+    effect: (v) => `Up to ${v} cases per battle`,
   },
 ];
 
@@ -467,7 +474,7 @@ export function treePage() {
     h(
       "p",
       { class: "hint" },
-      `Spend balance to open more cases at once, earn more per click and earn more while you're away (up to ${OFFLINE_CAP_HOURS} hours). Each level unlocks the next.`,
+      `Spend balance to open more cases at once, earn more per click, earn more while you're away (up to ${OFFLINE_CAP_HOURS} hours) and put more cases in your case battles. Each level unlocks the next.`,
     ),
     summary,
     h("div", { class: "graph" }, root, tip, h("div", { class: "graph-hint" }, "Hover for details, click to pin. Drag to move, scroll to zoom.")),

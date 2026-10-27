@@ -75,6 +75,17 @@ export const PERKS = {
       { value: 4, cost: 600 },
     ],
   },
+  battleRounds: {
+    name: "Battle size",
+    unit: "cases per battle",
+    levels: [
+      { value: 3, cost: 0 },
+      { value: 5, cost: 20 },
+      { value: 10, cost: 75 },
+      { value: 15, cost: 250 },
+      { value: 20, cost: 750 },
+    ],
+  },
   clickPower: {
     name: "Click power",
     unit: "per click",
@@ -90,7 +101,7 @@ export const PERKS = {
   },
 };
 
-export const NO_PERKS = { multiOpen: 0, clickPower: 0, offlineIncome: 0 };
+export const NO_PERKS = { multiOpen: 0, clickPower: 0, offlineIncome: 0, battleRounds: 0 };
 
 /** Offline income only counts gaps of at least this long, and pays at most this many hours. */
 export const OFFLINE_MIN_GAP_MS = 5 * 60_000;
@@ -287,7 +298,8 @@ export const bhopMultiplier = (difficulty, step) =>
 // ---------- case battles ----------
 
 export const BATTLE_SIZES = [2, 3, 4];
-export const BATTLE_MAX_ROUNDS = 10;
+/** Hard cap; how many cases a player can put in a battle comes from the battleRounds perk. */
+export const BATTLE_MAX_ROUNDS = 20;
 /** Each round: the reels spin for BATTLE_SPIN_MS, then a pause before the next. */
 export const BATTLE_SPIN_MS = 4000;
 export const BATTLE_ROUND_MS = 5500;

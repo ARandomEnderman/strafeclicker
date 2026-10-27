@@ -2986,3 +2986,8 @@ a.wallet-item:hover {
   color: var(--up);
   font-variant-numeric: tabular-nums;
 }
+.bt-limit {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+}

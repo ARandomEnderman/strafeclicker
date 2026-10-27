@@ -60,6 +60,7 @@ const ICONS = {
   multiOpen: Boxes,
   clickPower: MousePointerClick,
   offlineIncome: Moon,
+  battleRounds: Swords,
   coins: Coins,
   gem: Gem,
   crown: Crown,

@@ -1,6 +1,6 @@
 import { battles, onBattles, type Battle } from "../battles";
 import { getCase, openableCases, openCost, round2 } from "../catalog";
-import { BATTLE_MAX_ROUNDS, BATTLE_SIZES } from "../odds";
+import { BATTLE_SIZES, PERKS, perkValue } from "../odds";
 import { battleAction, displayBalance, getState, InsufficientFunds, ServerError } from "../state";
 import { segmented } from "./bet-input";
 import { h, money, toast } from "./dom";
@@ -22,11 +22,14 @@ export function battlesPage(code: string | null = null) {
   let visibility: Visibility = "public";
   let query = "";
   const pickedEl = h("div", { class: "bt-picked" });
+  const limitEl = h("span", { class: "bt-limit" });
   const costEl = h("b");
   const createBtn = h("button", { class: "btn btn-primary", onclick: () => void create() });
   const grid = h("div", { class: "bt-case-grid" });
   const search = h("input", { class: "search", placeholder: "Search cases and capsules", oninput: (e: Event) => ((query = (e.target as HTMLInputElement).value), drawGrid()) });
 
+  /** Most cases this player may put in a battle (the Battle size upgrade). */
+  const maxCases = () => perkValue(getState().perks, "battleRounds");
   const cost = () => round2(picked.reduce((s, id) => s + openCost(getCase(id)!), 0));
   const drawPicked = () => {
     pickedEl.replaceChildren(
@@ -39,7 +42,12 @@ export function battlesPage(code: string | null = null) {
               h("span", null, money(openCost(getCase(id)!))),
             ),
           )
-        : [h("div", { class: "fb-empty" }, `Add up to ${BATTLE_MAX_ROUNDS} cases from the list below, one per round.`)]),
+        : [h("div", { class: "fb-empty" }, `Add up to ${maxCases()} cases from the list below, one per round.`)]),
+    );
+    const next = PERKS.battleRounds.levels[getState().perks.battleRounds + 1];
+    limitEl.replaceChildren(
+      `${picked.length} / ${maxCases()} cases`,
+      ...(next ? [" · ", h("a", { href: "#/tree" }, `Upgrade to ${next.value}`)] : []),
     );
     costEl.textContent = money(cost());
     createBtn.textContent = picked.length ? `Create for ${money(cost())}` : "Create battle";
@@ -58,7 +66,10 @@ export function battlesPage(code: string | null = null) {
               class: "bt-case",
               title: c.name,
               onclick: () => {
-                if (picked.length >= BATTLE_MAX_ROUNDS) return toast(`Up to ${BATTLE_MAX_ROUNDS} cases`, "error");
+                if (picked.length >= maxCases()) {
+                  const next = PERKS.battleRounds.levels[getState().perks.battleRounds + 1];
+                  return toast(next ? `Up to ${maxCases()} cases. Battle size in the upgrade tree raises it to ${next.value}.` : `Up to ${maxCases()} cases`, "error");
+                }
                 picked.push(c.id);
                 drawPicked();
               },
@@ -172,7 +183,7 @@ export function battlesPage(code: string | null = null) {
     h(
       "div",
       { class: "bt-create" },
-      h("div", { class: "bt-create-head" }, icon("battles", 18), h("b", null, "New battle")),
+      h("div", { class: "bt-create-head" }, icon("battles", 18), h("b", null, "New battle"), limitEl),
       pickedEl,
       h("div", { class: "bt-create-row" }, sizeSeg.el, visSeg.el, h("div", { class: "bt-total" }, h("span", null, "Cost per player"), costEl), createBtn),
       search,
