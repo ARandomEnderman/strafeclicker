@@ -29,22 +29,20 @@ async function verifyPassword(password, stored) {
 
 const sha256 = (s) => createHash("sha256").update(s).digest("hex");
 
-/** Failed logins: at most 10 per username and 30 per IP every 10 minutes. */
-const failures = new Map();
+/**
+ * Failed logins: at most 15 per IP every 10 minutes. Limited per IP rather than per
+ * username, so nobody can lock someone else out by guessing at their name.
+ */
+const MAX_FAILURES = 15;
 const FAIL_WINDOW_MS = 10 * 60_000;
-function tooManyFailures(keys, limits) {
+const failures = new Map(); // ip -> timestamps of recent failures
+
+function recentFailures(ip) {
   const now = Date.now();
-  return keys.some((k, i) => {
-    const list = (failures.get(k) ?? []).filter((t) => now - t < FAIL_WINDOW_MS);
-    failures.set(k, list);
-    return list.length >= limits[i];
-  });
-}
-function noteFailure(keys) {
-  for (const k of keys) {
-    if (!failures.has(k)) failures.set(k, []);
-    failures.get(k).push(Date.now());
-  }
+  const list = (failures.get(ip) ?? []).filter((t) => now - t < FAIL_WINDOW_MS);
+  if (list.length) failures.set(ip, list);
+  else failures.delete(ip);
+  return list;
 }
 
 export class Auth {
@@ -95,13 +93,12 @@ export class Auth {
   async login(username, password, ip) {
     username = String(username ?? "").trim();
     password = String(password ?? "");
-    const keys = [`u:${username.toLowerCase()}`, `ip:${ip}`];
-    if (tooManyFailures(keys, [10, 30])) throw new GameError("rate_limited", "Too many failed logins. Try again in a few minutes.", 429);
+    if (recentFailures(ip).length >= MAX_FAILURES) throw new GameError("rate_limited", "Too many failed logins. Try again in a few minutes.", 429);
     const row = this.q.byName.get(username);
     // Hash even for unknown users so response time doesn't reveal which usernames exist.
     const ok = row ? await verifyPassword(password, row.pass_hash) : (await hashPassword(password), false);
     if (!ok) {
-      noteFailure(keys);
+      failures.set(ip, [...recentFailures(ip), Date.now()]);
       throw new GameError("bad_login", "Wrong username or password", 401);
     }
     return { userId: row.id, token: this.#newSession(row.id) };
