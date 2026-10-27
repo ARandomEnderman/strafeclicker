@@ -37,12 +37,34 @@ Needs **Node 22.13 or newer** (it uses Node's built-in SQLite, so there's nothin
 - Everyone starts at $0 (`STARTING_BALANCE` in `server/game.mjs`).
 - Anonymous accounts from older versions (`data/accounts.json`) are imported on first start. Signing up from the same browser carries that account's balance and items over.
 
+## Run on ZimaOS (Docker + Cloudflare Tunnel)
+
+On the Zima box (SSH or its terminal):
+
+```sh
+cd /DATA
+git clone -b claude/inspiring-thompson-a4htcj https://github.com/ARandomEnderman/strafeclicker.git
+cd strafeclicker
+docker compose up -d --build
+docker logs -f strafeclicker      # wait for "listening on http://localhost:3000", then Ctrl+C
+```
+
+No `git` on the box? Download the code instead:
+`wget -O sc.tar.gz https://github.com/ARandomEnderman/strafeclicker/archive/refs/heads/claude/inspiring-thompson-a4htcj.tar.gz && tar xzf sc.tar.gz`
+
+- Open `http://<zima-ip>:3000` on your network to check it works.
+- In the Cloudflared app, point the public hostname at `http://<zima-ip>:3000`.
+- Everything is stored in `/DATA/AppData/strafeclicker` (accounts database, compressed price history). Back up that folder.
+- Update later with `git pull && docker compose up -d --build`. Data is kept.
+- Port 3000 taken? Change the left side of `"3000:3000"` in `docker-compose.yml`, e.g. `"3100:3000"`.
+- `TRUST_PROXY=1` is already set in the compose file. Don't port-forward the port on your router; the tunnel doesn't need it.
+
 ## How prices work
 
 - `server/index.mjs` ticks at every wall-clock minute. Each tick fetches Skinport's main listing; every 5th tick also fetches the tradable-only listing that fills gaps. That's 6 requests per 5 minutes, under Skinport's limit of 8.
 - Skinport refreshes its listings about every 5 minutes, so most ticks find nothing new, and real skin prices move slowly: roughly 1–2% of items change per half hour. The countdown still resets every minute.
 - The price is the lowest current listing. Skinport's "suggested price" is only a fallback for items with nothing listed, because it barely changes during the day.
-- Changed prices are appended to `data/history.ndjson` (set `DATA_DIR` to move it). Points older than 48 hours are thinned to one per hour.
+- Price history is stored brotli-compressed in `data/history.br` (about 10× smaller than plain JSON), with changes since the last hourly repack in `data/history.ndjson`. Set `DATA_DIR` to move it. Points older than 48 hours are thinned to one per hour.
 - On first start the history is backfilled with Skinport's 90/30/7-day and 24-hour sale medians, so graphs aren't empty. They're drawn dashed and left out of the change/high/low stats, since sale medians aren't the same measure as the live listing price.
 - Browsers subscribe to `/api/events` (Server-Sent Events). On each tick they fetch only the prices that changed (`/api/prices?since=<version>`).
 

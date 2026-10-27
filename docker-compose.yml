@@ -1,0 +1,16 @@
+# ZimaOS / any Docker host:  docker compose up -d --build
+name: strafeclicker
+services:
+  strafeclicker:
+    build: .
+    container_name: strafeclicker
+    restart: unless-stopped
+    init: true
+    ports:
+      - "3000:3000"
+    environment:
+      # Behind Cloudflare Tunnel: read the visitor's IP from CF-Connecting-IP.
+      TRUST_PROXY: "1"
+    volumes:
+      # Accounts (SQLite), price history and the Skinport request log live here.
+      - /DATA/AppData/strafeclicker:/data

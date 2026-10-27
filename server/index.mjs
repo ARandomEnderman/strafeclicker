@@ -38,7 +38,8 @@ const TICK_MS = 60_000;
 /** The tradable-only listing is refetched every Nth tick (or sooner if we don't have it yet). */
 const TRADABLE_EVERY = 5;
 const KEEP_DIFFS = 120;
-const COMPACT_EVERY_MS = 6 * 3_600_000;
+/** How often the price-history log is folded into the compressed history.br. */
+const COMPACT_EVERY_MS = 3_600_000;
 
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 
@@ -85,7 +86,7 @@ let version = 0;
 const diffs = [];
 let tradableListing = null;
 const status = { lastUpdateAt: null, nextUpdateAt: null, changed: 0, error: null };
-const history = new History(join(DATA_DIR, "history.ndjson"));
+const history = new History(DATA_DIR);
 const db = openDb(join(DATA_DIR, "strafeclicker.db"));
 const game = new Game(db, { contents: () => contents, prices: () => prices });
 const auth = new Auth(db, game);
@@ -125,9 +126,9 @@ async function boot() {
     } catch (err) {
       log(`history: no backfill (${err.message})`);
     }
-  } else {
-    await history.compact();
   }
+  const packed = await history.compact();
+  log(`history: compressed ${(packed.rawBytes / 1e6).toFixed(1)} MB to ${(packed.packedBytes / 1e6).toFixed(2)} MB`);
   // Until the first tick lands: snapshot prices, overridden by anything newer in history.
   prices = { ...keep(snapshot?.prices), ...keep(history.latestLive()) };
   // Seconds since epoch, so versions keep increasing across restarts and a
@@ -135,7 +136,7 @@ async function boot() {
   version = Math.floor(Date.now() / 1000);
   log(`history: ${history.series.size} series, live since ${history.liveSince ? new Date(history.liveSince).toISOString() : "never"}`);
 
-  setInterval(() => history.compact().catch((e) => log("compact failed", e.message)), COMPACT_EVERY_MS).unref();
+  setInterval(() => history.compact().catch((e) => log("history compaction failed", e.message)), COMPACT_EVERY_MS).unref();
   schedule();
 }
 
