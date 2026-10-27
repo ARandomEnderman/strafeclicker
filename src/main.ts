@@ -17,6 +17,7 @@ import { treePage } from "./ui/tree-page";
 import { achievementsPage } from "./ui/achievements-page";
 import { plinkoPage } from "./ui/plinko-page";
 import { flashbangPage } from "./ui/flashbang-page";
+import { bhopPage } from "./ui/bhop-page";
 import "./flashbang";
 import { ACHIEVEMENTS } from "../shared/achievements.js";
 import { leavePage } from "./ui/page";
@@ -135,7 +136,6 @@ const KINDS: Case["kind"][] = ["case", "capsule", "autograph"];
 /** Pages that aren't built yet. */
 const SOON: Record<string, string> = {
   battles: "Open cases against other players. Highest total value takes every item.",
-  bhop: "Jump from tile to tile. Every jump raises the multiplier, one wrong tile loses it.",
 };
 
 function soonPage(page: string) {
@@ -167,6 +167,7 @@ function route() {
   else if (page === "achievements") view = achievementsPage();
   else if (page === "plinko") view = plinkoPage();
   else if (page === "flashbang") view = flashbangPage();
+  else if (page === "bhop") view = bhopPage();
   else if (SOON[page]) view = soonPage(page);
   else {
     const kind = new URLSearchParams(query).get("kind") as Case["kind"];

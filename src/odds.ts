@@ -4,6 +4,7 @@ import { WEAR_BUCKETS } from "../shared/game.js";
 // The rules themselves live in shared/game.js so the server rolls with exactly
 // the odds the site shows.
 export {
+  BHOP_DIFFICULTIES,
   BET_MAX,
   BET_MIN,
   CLICK_CPS_LIMIT,
@@ -26,6 +27,7 @@ export {
   UPGRADE_MIN_CHANCE,
   UPGRADE_RTP,
   WEAR_BUCKETS,
+  bhopMultiplier,
   canStatTrak,
   clickEfficiency,
   clickRateAt,

@@ -29,6 +29,7 @@ import { Game, GameError } from "./game.mjs";
 import { History } from "./history.mjs";
 import { plinko } from "./games/plinko.mjs";
 import { Flashbang } from "./games/flashbang.mjs";
+import { Bhop } from "./games/bhop.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = join(ROOT, "dist");
@@ -209,6 +210,7 @@ function toUser(userId, event, data) {
 
 const flashbang = new Flashbang(game, db, { broadcast, toUser });
 flashbang.start();
+const bhop = new Bhop(game, db);
 
 setInterval(() => {
   for (const res of clients) res.write(": ping\n\n");
@@ -322,11 +324,21 @@ const actions = {
     if (body.action === "cashout") return flashbang.cashout(userId);
     throw new GameError("bad_input", "Unknown action");
   },
+  bhop: (userId, body) => {
+    if (body.action === "state") return bhop.state(userId);
+    if (body.action === "start") return bhop.start(userId, body);
+    if (body.action === "jump") return bhop.jump(userId);
+    if (body.action === "cashout") return bhop.cashout(userId);
+    throw new GameError("bad_input", "Unknown action");
+  },
   open: (userId, body) => game.open(userId, String(body.caseId ?? ""), body.count ?? 1),
   perk: (userId, body) => game.buyPerk(userId, String(body.perk ?? "")),
   sell: (userId, body) => game.sell(userId, body.uids),
   upgrade: (userId, body) => game.upgrade(userId, body.uids, body.target),
-  reset: (userId) => game.reset(userId),
+  reset: (userId) => {
+    bhop.forget(userId); // its stake was part of what's being wiped
+    return game.reset(userId);
+  },
 };
 
 const SESSION_MAX_AGE = 30 * 86_400;

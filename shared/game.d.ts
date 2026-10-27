@@ -52,3 +52,7 @@ export const FB_MAX: number;
 export const FB_AUTO_MIN: number;
 export function fbMultiplierAt(ms: number): number;
 export function fbTimeFor(x: number): number;
+export type BhopDifficulty = "easy" | "medium" | "hard" | "expert";
+export const BHOP_DIFFICULTIES: Record<BhopDifficulty, { name: string; p: number; steps: number }>;
+export const BHOP_RTP: number;
+export function bhopMultiplier(difficulty: BhopDifficulty, step: number): number;

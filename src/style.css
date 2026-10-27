@@ -2374,3 +2374,141 @@ a.wallet-item:hover {
   font-size: 12px;
   padding: 4px 0;
 }
+
+/* ---------- b-hop ---------- */
+
+.bh-wrap {
+  padding: 0;
+}
+.bh-stage {
+  position: relative;
+  height: max(340px, calc(100vh - 360px));
+  max-height: 520px;
+  overflow: hidden;
+  background: linear-gradient(to bottom, #1a2030 0%, #10141d 55%, #07090d 100%);
+}
+.bh-sky {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 70% 10%, rgba(245, 165, 36, 0.08), transparent 60%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.015) 0 2px, transparent 2px 80px);
+}
+.bh-lane {
+  position: absolute;
+  left: 0;
+  bottom: 32%;
+  height: 0;
+  will-change: transform;
+}
+.bh-block {
+  position: absolute;
+  top: 0;
+  width: 96px;
+  height: 40px;
+  margin-left: -48px;
+  border-radius: 4px;
+  background: linear-gradient(#5b6378 0 6px, #3a4152 6px 100%);
+  box-shadow:
+    inset 0 -4px 0 rgba(0, 0, 0, 0.35),
+    0 14px 24px rgba(0, 0, 0, 0.45);
+  transition: transform 0.6s cubic-bezier(0.5, 0, 1, 1), opacity 0.6s, background 0.3s;
+}
+.bh-block::after {
+  /* the pillar holding it up */
+  content: "";
+  position: absolute;
+  left: 38px;
+  top: 40px;
+  width: 20px;
+  height: 400px;
+  background: linear-gradient(90deg, #232836, #2c3242);
+}
+.bh-block.start {
+  width: 140px;
+  margin-left: -70px;
+  background: linear-gradient(#6b6f80 0 6px, #464b5c 6px 100%);
+}
+.bh-block.start::after {
+  left: 60px;
+}
+.bh-block.passed {
+  background: linear-gradient(var(--up) 0 6px, #2f5a49 6px 100%);
+}
+.bh-block.broken {
+  transform: translateY(380px) rotate(18deg);
+  opacity: 0;
+}
+.bh-block.revealed {
+  background: linear-gradient(var(--down) 0 6px, #5a2f35 6px 100%);
+}
+.bh-block.safe-reveal {
+  opacity: 0.6;
+}
+.bh-mult {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 14px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.bh-block.passed .bh-mult,
+.bh-block.revealed .bh-mult {
+  color: var(--text);
+}
+.bh-agent {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 150px;
+  transform-origin: 0 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+.bh-agent img {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 150px;
+  width: auto;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 8px 8px rgba(0, 0, 0, 0.5));
+}
+.bh-agent img:not([src]) {
+  visibility: hidden;
+}
+.bh-banner {
+  position: absolute;
+  left: 50%;
+  top: 18px;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 800;
+  background: rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+.bh-banner:empty {
+  display: none;
+}
+.bh-banner.won {
+  color: var(--up);
+}
+.bh-banner.lost {
+  color: var(--down);
+}
+.bh-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+.bh-cash {
+  background: var(--up);
+  color: #04160d;
+}

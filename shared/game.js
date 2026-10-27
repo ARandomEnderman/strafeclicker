@@ -268,3 +268,18 @@ export const FB_AUTO_MIN = 1.01;
 export const fbMultiplierAt = (ms) => Math.floor(Math.exp(FB_GROWTH * Math.max(0, ms)) * 100 + 1e-9) / 100;
 /** Milliseconds into a round at which the multiplier reaches `x`. */
 export const fbTimeFor = (x) => Math.log(x) / FB_GROWTH;
+
+// ---------- b-hop ----------
+// A lane of tiles; one of them gives way. Each jump lands safely with probability `p`
+// (independently), so after k safe jumps the multiplier is 0.99 / p^k: cashing out at
+// any point pays back 99% on average.
+
+export const BHOP_DIFFICULTIES = {
+  easy: { name: "Easy", p: 0.9, steps: 24 },
+  medium: { name: "Medium", p: 0.8, steps: 20 },
+  hard: { name: "Hard", p: 0.6, steps: 15 },
+  expert: { name: "Expert", p: 0.4, steps: 10 },
+};
+export const BHOP_RTP = 0.99;
+export const bhopMultiplier = (difficulty, step) =>
+  step <= 0 ? 1 : Math.floor((BHOP_RTP / Math.pow(BHOP_DIFFICULTIES[difficulty].p, step)) * 100 + 1e-9) / 100;

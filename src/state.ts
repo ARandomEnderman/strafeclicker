@@ -181,6 +181,27 @@ export async function flashbangAction<T = object>(action: "bet" | "cancel" | "ca
   return post<T>("flashbang", { action, ...body });
 }
 
+export interface BhopRun {
+  difficulty: string;
+  stake: number;
+  step: number;
+  mult: number;
+}
+export interface BhopResult {
+  result?: "landed" | "fell" | "finished" | "cashed" | "cancelled";
+  step?: number;
+  /** Revealed when the run ends: the tile that gives way (null if the lane held). */
+  breaksAt?: number | null;
+  mult?: number;
+  payout?: number;
+  run: BhopRun | null;
+}
+
+export async function bhopAction(action: "state" | "start" | "jump" | "cashout", body: object = {}, defer = false) {
+  await flushClicks();
+  return post<BhopResult>("bhop", { action, ...body }, defer);
+}
+
 export async function dropPlinko(bet: number, rows: number, risk: string): Promise<PlinkoResult> {
   await flushClicks();
   const r = await post<Omit<PlinkoResult, "reveal">>("plinko", { bet, rows, risk });
