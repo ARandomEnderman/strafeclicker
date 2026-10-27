@@ -4,6 +4,7 @@ import { WEAR_BUCKETS } from "../shared/game.js";
 // The rules themselves live in shared/game.js so the server rolls with exactly
 // the odds the site shows.
 export {
+  CLICK_CPS_LIMIT,
   OFFLINE_CAP_HOURS,
   PERKS,
   PHASE_WEIGHTS,
@@ -16,12 +17,15 @@ export {
   UPGRADE_RTP,
   WEAR_BUCKETS,
   canStatTrak,
+  clickEfficiency,
+  clickRateAt,
   needsKey,
   perkValue,
   phaseEntries,
   pickTier,
   pickWeighted,
   priceKey,
+  rateClicks,
   tierOdds,
   upgradeChance,
   variants,

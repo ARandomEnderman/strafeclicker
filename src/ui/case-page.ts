@@ -1,5 +1,5 @@
 import type { Case, Item, OwnedItem } from "../types";
-import { caseEV, casePrice, getItem, keyCost, openCost, priceOf, priceRange } from "../catalog";
+import { casePrice, getItem, keyCost, openCost, priceOf, priceRange } from "../catalog";
 import { onPricesForPage } from "../live";
 import { PERKS, TIER_INFO, needsKey, perkValue, pickWeighted, tierLabel, tierOdds } from "../odds";
 import { renderSkin } from "../skin-renderer";
@@ -51,7 +51,6 @@ export function casePage(c: Case) {
   // Everything price-dependent is redrawn when the server pushes new prices.
   const drawPrices = () => {
     const cost = openCost(c);
-    const ev = caseEV(c);
     const price = casePrice(c);
     openBtn.textContent = price == null ? "Not on the market" : `Open ${count > 1 ? `${count} ` : ""}for ${money(cost * count)}`;
     openBtn.disabled = price == null || spinning;
@@ -59,8 +58,6 @@ export function casePage(c: Case) {
       ...[
         stat(c.kind === "case" ? "Case" : "Capsule", price == null ? "—" : money(price)),
         needsKey(c) ? stat("Key", money(keyCost(c))) : null,
-        stat("Expected value", money(ev)),
-        stat("RTP", price == null ? "—" : `${((ev / cost) * 100).toFixed(1)}%`),
       ].filter((el) => el != null),
     );
     contentsEl.replaceChildren(...contents(c));

@@ -100,6 +100,37 @@ export const OFFLINE_CAP_HOURS = 12;
 export const perkValue = (perks, id) => PERKS[id].levels[perks?.[id] ?? 0].value;
 
 /** Upgrader: chance = (your value / target price) × UPGRADE_RTP, kept inside these bounds. */
+// ---------- clicker speed limit ----------
+// Up to CLICK_CPS_LIMIT clicks per second pay full value. Past that, every click is worth
+// e^(-CLICK_FALLOFF × excess): 12 cps pays 50%, 15 cps 18%, 20 cps 3%.
+export const CLICK_CPS_LIMIT = 10;
+export const CLICK_FALLOFF = Math.LN2 / 2;
+/** Time constant (s) of the moving click-rate average. */
+export const CLICK_RATE_TAU = 1;
+
+export const clickEfficiency = (cps) => (cps <= CLICK_CPS_LIMIT ? 1 : Math.exp(-CLICK_FALLOFF * (cps - CLICK_CPS_LIMIT)));
+
+/**
+ * Rate a run of clicks. `state` is { rate, last } (the moving clicks/s average and the time of
+ * the previous click, ms); `times` are click times in ms, oldest first. Each click is judged
+ * by the rate around it, so a steady 10 cps pays in full. Returns the new state and `paid`,
+ * the number of full-value clicks the run is worth.
+ */
+export function rateClicks(state, times) {
+  let { rate, last } = state;
+  let paid = 0;
+  for (const t of times) {
+    const decayed = last == null ? 0 : rate * Math.exp(-Math.max(0, t - last) / 1000 / CLICK_RATE_TAU);
+    paid += clickEfficiency(decayed + 0.5 / CLICK_RATE_TAU);
+    rate = decayed + 1 / CLICK_RATE_TAU;
+    last = t;
+  }
+  return { rate, last, paid };
+}
+
+/** The moving clicks/s average at time `t`. */
+export const clickRateAt = (state, t) => (state.last == null ? 0 : state.rate * Math.exp(-Math.max(0, t - state.last) / 1000 / CLICK_RATE_TAU));
+
 export const UPGRADE_RTP = 0.9;
 export const UPGRADE_MIN_CHANCE = 0.01;
 export const UPGRADE_MAX_CHANCE = 0.8;

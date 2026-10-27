@@ -8,9 +8,10 @@ A CS2 case-opening simulator. Play money only: no deposits, no withdrawals, noth
 - **Inventory change popup** after each update that moves your inventory's value, with the biggest movers. It also covers time away: reopen the site and it shows what changed since you last looked.
 - **Price history graphs** for every item variant (click any item), recorded by the server.
 - **Accounts**: sign up with a username and password (no guest accounts). Balance, inventory and every roll live on the server in SQLite; the browser only ever sees outcomes.
-- **Clicker**: click to earn money ($0.05 per click to start). The server caps clicks at a burst of 20, then 15 per second.
+- **Clicker**: click to earn money ($0.05 per click to start). Up to 10 clicks per second pay in full; faster than that, each click is worth exponentially less (12 cps pays 50%, 15 cps 18%, 20 cps 3%). The server works this out from the click timings, and won't accept a timeline that runs ahead of real time.
+- **Live wins**: the sidebar shows everyone's big wins as they happen ($5+ or 10x+ the stake), held back until the reel or animation has finished so it never spoils your own roll.
 - **Upgrader**: stake up to 10 items for one pricier skin or sticker. Chance = your value ÷ target price × 90%, between 1% and 80%.
-- **Upgrade tree**: an Obsidian-style graph (drag nodes, pan, zoom). Spend balance to open up to 5 cases at once, raise click value up to $1.00, and raise offline income from $0.25 to $4.00 per hour. Levels and costs are in `PERKS` in `shared/game.js`.
+- **Upgrade tree**: an Obsidian-style graph (drag nodes, pan, zoom). Each node shows its icon and price; hover for details, click to pin and buy. Spend balance to open up to 5 cases at once, raise click value up to $1.00, and raise offline income from $0.25 to $4.00 per hour. Levels and costs are in `PERKS` in `shared/game.js`.
 - **Offline income**: time away (gaps of 5+ minutes, up to 12 hours) is paid out when you come back, with a welcome-back popup.
 
 ## Run
@@ -73,13 +74,13 @@ No `git` on the box? Download the code instead:
 | `GET /api/catalog` | Cases and items (no prices) |
 | `GET /api/prices?since=v` | Flat price map, or just the changes since version `v` |
 | `GET /api/status` | Last / next update time, version, last error |
-| `GET /api/events` | SSE stream of `status` events |
+| `GET /api/events` | SSE stream: `status`, `wins` (recent list on connect) and `win` events |
 | `GET /api/history/:itemId` | Price history for every variant of an item |
 | `POST /api/register` `{username, password}` | Create an account and log in |
 | `POST /api/login` `{username, password}` | Log in |
 | `POST /api/logout` | Log out |
 | `GET /api/me` | Your account (401 when logged out) |
-| `POST /api/click` `{clicks}` | Credit clicks (capped per second) |
+| `POST /api/click` `{clicks, times}` | Credit clicks; `times` are the click timestamps (ms) |
 | `POST /api/open` `{caseId, count}` | Open 1–5 of a case, up to your multi-open level |
 | `POST /api/sell` `{uids}` | Sell items at the current price |
 | `POST /api/upgrade` `{uids, target}` | Stake items on a target variant |
@@ -114,6 +115,7 @@ The returned element is placed in a fixed 4:3 box and should fill it.
 | `server/game.mjs` | Every money action: open, sell, click, upgrade, perks |
 | `server/auth.mjs` | Sign-up, login, sessions |
 | `server/db.mjs` | SQLite schema |
+| `server/feed.mjs` | Live big-wins feed |
 | `shared/game.js` | Odds, float generation, upgrade chance, perk table (server rolls with it, browser displays it) |
 | `server/data.mjs` | Case contents + Skinport prices |
 | `server/history.mjs` | Price history log |
@@ -123,4 +125,6 @@ The returned element is placed in a fixed 4:3 box and should fill it.
 | `src/live.ts` | Listens for server price updates |
 | `src/state.ts` | Mirrors the server account, sends actions |
 | `src/skin-renderer.ts` | Skin picture plug point |
-| `src/ui/` | Pages (cases, clicker, upgrader, upgrade tree, inventory), countdown, popup, price chart |
+| `src/ui/` | Pages (cases, clicker, upgrader, upgrade tree, inventory), sidebar feed, countdown, popup, price chart |
+
+Icons are from [Lucide](https://lucide.dev) (ISC licence); `src/ui/icons.ts` lists the ones used.

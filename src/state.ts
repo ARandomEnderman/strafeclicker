@@ -1,6 +1,6 @@
 import type { Account, Case, Drop, OwnedItem } from "./types";
 import { round2 } from "./catalog";
-import { perkValue } from "./odds";
+import { clickEfficiency, clickRateAt, perkValue, rateClicks } from "./odds";
 import type { PerkId } from "../shared/game.js";
 
 // The server owns the account (balance, inventory, every roll). This module just
@@ -89,33 +89,50 @@ export async function logout() {
 }
 
 // ---------- clicker ----------
-// Clicks are counted locally and sent in small batches; the server decides how
-// many count (it caps clicks per second).
+// Clicks are counted locally and sent in small batches with their timestamps; the
+// server decides what they're worth (past 10 per second each click pays less). The
+// local rate below mirrors its maths so the balance shown is the one it will credit.
 
-let pendingClicks = 0;
+let pendingTimes: number[] = [];
+/** Full-value clicks the pending ones are worth. */
+let pendingPaid = 0;
+let rate = { rate: 0, last: null as number | null };
 let flushing: Promise<void> | null = null;
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
-/** What one click is worth right now. */
+/** What one full-speed click is worth right now. */
 export const clickValue = () => perkValue(account.perks, "clickPower");
 
-/** Balance including clicks that haven't reached the server yet. */
-export const displayBalance = () => round2(account.balance + pendingClicks * clickValue());
+/** Current clicks per second (moving average) and the share of a click's value it pays. */
+export function clickSpeed() {
+  const cps = clickRateAt(rate, Date.now());
+  return { cps, efficiency: clickEfficiency(cps) };
+}
 
-export function click() {
-  pendingClicks++;
+/** Balance including clicks that haven't reached the server yet. */
+export const displayBalance = () => round2(account.balance + pendingPaid * clickValue());
+
+/** Register one click; returns what it earned. */
+export function click(): number {
+  const t = Date.now();
+  const next = rateClicks(rate, [t]);
+  rate = { rate: next.rate, last: next.last };
+  pendingTimes.push(t);
+  pendingPaid += next.paid;
   listeners.forEach((fn) => fn());
   flushTimer ??= setTimeout(() => void flushClicks(), 250);
+  return next.paid * clickValue();
 }
 
 export async function flushClicks(): Promise<void> {
   if (flushTimer) clearTimeout(flushTimer);
   flushTimer = null;
   await flushing;
-  if (!pendingClicks) return;
-  const n = pendingClicks;
-  pendingClicks = 0;
-  flushing = post("click", { clicks: n })
+  if (!pendingTimes.length) return;
+  const times = pendingTimes;
+  pendingTimes = [];
+  pendingPaid = 0;
+  flushing = post("click", { clicks: times.length, times })
     .then(() => undefined)
     .catch((err) => console.error("click flush failed", err))
     .finally(() => (flushing = null));

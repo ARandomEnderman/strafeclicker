@@ -96,3 +96,20 @@ export interface Account {
     upgradesWon: number;
   };
 }
+
+/** An entry in the live big-wins feed. */
+export interface Win {
+  id: number;
+  user: string;
+  game: "case" | "upgrader" | "plinko" | "flashbang" | "bhop" | "battle";
+  /** Payout, USD. */
+  value: number;
+  stake: number;
+  mult: number | null;
+  at: number;
+  /** The item won, for item games. */
+  drop?: { itemId: string; phase: string | null; wear: string | null; stattrak: boolean };
+  /** Case name, or e.g. the multiplier hit. */
+  source?: string;
+  label?: string;
+}

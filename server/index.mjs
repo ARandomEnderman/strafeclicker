@@ -24,6 +24,7 @@ import {
 } from "./data.mjs";
 import { Auth } from "./auth.mjs";
 import { openDb } from "./db.mjs";
+import { Feed } from "./feed.mjs";
 import { Game, GameError } from "./game.mjs";
 import { History } from "./history.mjs";
 
@@ -88,7 +89,8 @@ let tradableListing = null;
 const status = { lastUpdateAt: null, nextUpdateAt: null, changed: 0, error: null };
 const history = new History(DATA_DIR);
 const db = openDb(join(DATA_DIR, "strafeclicker.db"));
-const game = new Game(db, { contents: () => contents, prices: () => prices });
+const feed = new Feed(db);
+const game = new Game(db, { contents: () => contents, prices: () => prices }, feed);
 const auth = new Auth(db, game);
 
 async function boot() {
@@ -195,6 +197,8 @@ function broadcast(event, data) {
   for (const res of clients) res.write(msg);
 }
 
+feed.onWin((win) => broadcast("win", win));
+
 setInterval(() => {
   for (const res of clients) res.write(": ping\n\n");
 }, 25_000).unref();
@@ -207,6 +211,7 @@ function events(req, res) {
     "X-Accel-Buffering": "no",
   });
   res.write(`retry: 3000\nevent: status\ndata: ${JSON.stringify(statusBody())}\n\n`);
+  res.write(`event: wins\ndata: ${JSON.stringify(feed.recent())}\n\n`);
   clients.add(res);
   req.on("close", () => clients.delete(res));
 }
@@ -295,7 +300,7 @@ async function readJson(req) {
 
 /** POST /api/<action> handlers for logged-in users. Each returns its result plus the account view. */
 const actions = {
-  click: (userId, body) => game.click(userId, body.clicks),
+  click: (userId, body) => game.click(userId, body.clicks, body.times),
   open: (userId, body) => game.open(userId, String(body.caseId ?? ""), body.count ?? 1),
   perk: (userId, body) => game.buyPerk(userId, String(body.perk ?? "")),
   sell: (userId, body) => game.sell(userId, body.uids),

@@ -1,9 +1,9 @@
 import type { Case } from "../types";
-import { caseEV, getCatalog, openableCases, openCost } from "../catalog";
+import { getCatalog, openableCases, openCost } from "../catalog";
 import { onPricesForPage } from "../live";
 import { h, money } from "./dom";
 
-type Sort = "new" | "cheap" | "pricey" | "rtp";
+type Sort = "new" | "cheap" | "pricey";
 let sort: Sort = "new";
 let query = "";
 
@@ -19,24 +19,18 @@ export function casesPage(kind: Case["kind"] = "case") {
   const draw = () => {
     const cases = openableCases()
       .filter((c) => c.kind === kind && c.name.toLowerCase().includes(query.toLowerCase()))
-      .map((c) => ({ c, cost: openCost(c), rtp: caseEV(c) / openCost(c) }));
+      .map((c) => ({ c, cost: openCost(c) }));
     if (sort === "cheap") cases.sort((a, b) => a.cost - b.cost);
     if (sort === "pricey") cases.sort((a, b) => b.cost - a.cost);
-    if (sort === "rtp") cases.sort((a, b) => b.rtp - a.rtp);
 
     grid.replaceChildren(
-      ...cases.map(({ c, cost, rtp }) =>
+      ...cases.map(({ c, cost }) =>
         h(
           "a",
           { class: "case-card", href: `#/case/${c.id}` },
           h("img", { src: c.image, alt: "", loading: "lazy" }),
           h("div", { class: "case-name" }, c.name),
-          h(
-            "div",
-            { class: "case-foot" },
-            h("span", { class: "case-cost" }, money(cost)),
-            h("span", { class: "case-rtp", title: "Expected value ÷ cost to open" }, `RTP ${(rtp * 100).toFixed(0)}%`),
-          ),
+          h("div", { class: "case-foot" }, h("span", { class: "case-cost" }, money(cost))),
         ),
       ),
     );
@@ -86,7 +80,7 @@ export function casesPage(kind: Case["kind"] = "case") {
           draw();
         },
       }),
-      h("div", { class: "sort" }, sortBtn("new", "Newest"), sortBtn("cheap", "Cheapest"), sortBtn("pricey", "Priciest"), sortBtn("rtp", "Best RTP")),
+      h("div", { class: "sort" }, sortBtn("new", "Newest"), sortBtn("cheap", "Cheapest"), sortBtn("pricey", "Priciest")),
     ),
     h(
       "p",

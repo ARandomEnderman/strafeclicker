@@ -9,6 +9,8 @@ import {
   OFFLINE_CAP_HOURS,
   OFFLINE_MIN_GAP_MS,
   PERKS,
+  clickEfficiency,
+  rateClicks,
   UPGRADE_MAX_CHANCE,
   UPGRADE_MAX_ITEMS,
   UPGRADE_MIN_CHANCE,
@@ -21,14 +23,16 @@ import {
   upgradeChance,
 } from "../shared/game.js";
 import { tx } from "./db.mjs";
+import { isBigWin } from "./feed.mjs";
 
 export const STARTING_BALANCE = 0;
-/** Clicks: a bucket of 20 that refills at 15 per second, so autoclickers can't print money. */
-const CLICK_BURST = 20;
-const CLICKS_PER_SEC = 15;
+/** Most clicks one request can carry. */
+const CLICK_BATCH_MAX = 100;
+/** How far a client's click timeline may run ahead of real time (ms). */
+const CLICK_CLOCK_SLACK = 300;
 
 /** Money is kept in integer cents so thousands of $0.05 clicks never drift. */
-const cents = (usd) => Math.round(usd * 100);
+export const cents = (usd) => Math.round(usd * 100);
 
 const freshStats = () => ({ opened: 0, spentCents: 0, unboxedCents: 0, best: null, clicks: 0, upgrades: 0, upgradesWon: 0 });
 
@@ -41,7 +45,7 @@ export class GameError extends Error {
 }
 
 /** Uniform floats in [0, 1) from the OS CSPRNG. */
-function randomFloats(n) {
+export function randomFloats(n) {
   const buf = randomBytes(4 * n);
   return Array.from({ length: n }, (_, i) => buf.readUInt32BE(i * 4) / 2 ** 32);
 }
@@ -58,14 +62,19 @@ const rowToItem = (r) => ({
   obtainedAt: r.obtained_at,
 });
 
+/** The parts of an owned item the feed needs to draw it. */
+const dropOf = (it) => ({ itemId: it.itemId, phase: it.phase, wear: it.wear, stattrak: it.stattrak });
+
 export class Game {
   /**
    * @param {import("node:sqlite").DatabaseSync} db
    * @param {{ contents: () => any, prices: () => Record<string, number> }} market
+   * @param {import("./feed.mjs").Feed} [feed] where big wins are announced
    */
-  constructor(db, market) {
+  constructor(db, market, feed) {
     this.db = db;
     this.market = market;
+    this.feed = feed;
     /** userId -> click rate-limit bucket (in memory; resets harmlessly on restart) */
     this.clickBuckets = new Map();
     this.q = {
@@ -169,16 +178,38 @@ export class Game {
     return { earned: earned / 100, seconds: Math.round(ms / 1000) };
   }
 
-  /** Load the account, pay any offline income, let fn change it, save it: one transaction. */
+  /**
+   * Load the account, pay any offline income, let fn change it, save it: one transaction.
+   * fn gets the account and a `changes` object: `added` / `removed` items, and `wins`
+   * to announce in the live feed once the transaction has committed.
+   */
   #act(userId, fn) {
-    return tx(this.db, () => {
+    const changes = {};
+    const out = tx(this.db, () => {
       const a = this.#load(userId);
       const offline = this.#payOffline(a);
-      const changes = {};
       const result = fn(a, changes);
       this.#save(a, changes);
       return { ...result, account: { ...this.#view(a), ...(offline ? { offline } : {}) } };
     });
+    for (const { win, delayMs } of changes.wins ?? []) this.feed?.push(win, delayMs);
+    return out;
+  }
+
+  /** For the other games (server/games/*): the same transaction wrapper. */
+  act(userId, fn) {
+    return this.#act(userId, fn);
+  }
+
+  /** Queue a feed entry if the payout is big enough. Values in USD. */
+  announce(changes, a, game, value, stake, extra = {}, delayMs = 0) {
+    if (!isBigWin(value, stake)) return;
+    (changes.wins ??= []).push({ win: { user: a.username, game, value, stake, ...extra }, delayMs });
+  }
+
+  /** Current price of an owned item or variant (USD, 0 if unpriced). */
+  priceOf(variant) {
+    return this.#price(variant);
   }
 
   /** What the browser gets to see. */
@@ -223,19 +254,43 @@ export class Game {
     if (!a.stats.best || value > a.stats.best.value) a.stats.best = { name: this.#item(owned.itemId).name, value };
   }
 
-  click(userId, requested) {
+  /**
+   * Credit a batch of clicks. Past CLICK_CPS_LIMIT clicks per second each click pays
+   * exponentially less (see clickEfficiency). `times` are the client's click timestamps:
+   * only their spacing is used, and the timeline may not run ahead of real time, so faking
+   * them can't make clicks look slower than they arrived. Without valid times the batch
+   * counts as spread over the time since the last one.
+   */
+  click(userId, requested, times) {
     return this.#act(userId, (a) => {
-      const n = Math.max(0, Math.min(100, Math.floor(Number(requested) || 0)));
+      const n = Math.max(0, Math.min(CLICK_BATCH_MAX, Math.floor(Number(requested) || 0)));
+      if (!n) return { credited: 0, paid: 0 };
       const now = Date.now();
-      const b = this.clickBuckets.get(a.id) ?? { tokens: CLICK_BURST, at: now };
-      b.tokens = Math.min(CLICK_BURST, b.tokens + ((now - b.at) / 1000) * CLICKS_PER_SEC);
-      b.at = now;
-      const credited = Math.min(n, Math.floor(b.tokens));
-      b.tokens -= credited;
-      this.clickBuckets.set(a.id, b);
-      a.balanceCents += credited * cents(perkValue(a.perks, "clickPower"));
-      a.stats.clicks += credited;
-      return { credited };
+      let st = this.clickBuckets.get(a.id);
+      if (!st || now - st.recv > 60_000) st = { rate: 0, last: null, skew: Infinity, recv: now, carry: 0 };
+      const valid =
+        Array.isArray(times) &&
+        times.length === n &&
+        times.every((t, i) => Number.isFinite(t) && t >= (i ? times[i - 1] : (st.last ?? -Infinity))) &&
+        times[n - 1] - now <= st.skew + CLICK_CLOCK_SLACK;
+      let paid;
+      if (valid) {
+        st.skew = Math.min(st.skew, times[n - 1] - now);
+        ({ rate: st.rate, last: st.last, paid } = rateClicks(st, times));
+      } else {
+        const secs = Math.min(1, Math.max(0.1, (now - st.recv) / 1000));
+        paid = n * clickEfficiency(n / secs);
+        st = { rate: 0, last: null, skew: Infinity, carry: st.carry };
+      }
+      st.recv = now;
+      // Fractions of a cent carry over to the next batch.
+      const earned = paid * cents(perkValue(a.perks, "clickPower")) + st.carry;
+      const credited = Math.floor(earned);
+      st.carry = earned - credited;
+      this.clickBuckets.set(a.id, st);
+      a.balanceCents += credited;
+      a.stats.clicks += n;
+      return { credited: n, paid };
     });
   }
 
@@ -262,6 +317,8 @@ export class Game {
       for (const owned of items) {
         a.stats.unboxedCents += cents(this.#price(owned));
         this.#noteBest(a, owned);
+        // Held back until the reel has landed (6 s spin).
+        this.announce(changes, a, "case", this.#price(owned), cost / n / 100, { drop: dropOf(owned), source: c.name }, 6500);
       }
       return { items };
     });
@@ -338,6 +395,7 @@ export class Game {
         changes.added = [owned];
         a.stats.upgradesWon++;
         this.#noteBest(a, owned);
+        this.announce(changes, a, "upgrader", targetCents / 100, inputCents / 100, { drop: dropOf(owned) }, 4400);
       }
       a.stats.upgrades++;
       return { won, chance, item: owned };

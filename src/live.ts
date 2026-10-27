@@ -66,6 +66,28 @@ function emit(change: InventoryChange) {
   pageListeners.forEach((fn) => fn());
 }
 
+// Other server events (live feed, game rounds): name -> handlers.
+let es: EventSource | null = null;
+const eventHandlers = new Map<string, Set<(data: any) => void>>();
+
+function attach(name: string) {
+  es?.addEventListener(name, (e) => {
+    const data = JSON.parse((e as MessageEvent).data);
+    eventHandlers.get(name)?.forEach((fn) => fn(data));
+  });
+}
+
+/** Listen for a named server-sent event. Returns an unsubscribe function. */
+export function onServerEvent<T>(name: string, fn: (data: T) => void) {
+  let set = eventHandlers.get(name);
+  if (!set) {
+    eventHandlers.set(name, (set = new Set()));
+    attach(name);
+  }
+  set.add(fn);
+  return () => void set.delete(fn);
+}
+
 export function startLive() {
   const seen = loadSeen();
   const away = getState()
@@ -75,7 +97,8 @@ export function startLive() {
   else saveSeen();
   subscribe(saveSeen); // new and sold items
 
-  const es = new EventSource("/api/events");
+  es = new EventSource("/api/events");
+  for (const name of eventHandlers.keys()) attach(name);
   es.addEventListener("status", (e) => {
     const s: ServerStatus = JSON.parse((e as MessageEvent).data);
     clockOffset = s.now - Date.now();
