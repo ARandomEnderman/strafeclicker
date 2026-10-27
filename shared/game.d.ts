@@ -76,3 +76,8 @@ export const ROULETTE_SPIN_MS: number;
 export const ROULETTE_RESULT_MS: number;
 export const FLIP_MS: number;
 export const FLIP_LEAD_MS: number;
+export const JP_TIMER_MS: number;
+export const JP_SPIN_MS: number;
+export const JP_RESULT_MS: number;
+export const JP_MAX_ITEMS: number;
+export const JP_MIN_DEPOSIT: number;

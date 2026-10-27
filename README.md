@@ -14,6 +14,7 @@ A CS2 case-opening simulator. Play money only: no deposits, no withdrawals, noth
 - **Flashbang**: a crash game with one round for everyone. A flashbang rides the multiplier curve (e^(0.00006 × ms): 2x after about 12 s, 10x after 38 s) until it pops; cash out before then, by hand or with an auto target. The crash point has a 1% edge (P(at least x) = 0.99 / x, capped at 1000x) and stays on the server until the pop. Rounds are 10 s apart; bets placed while a round runs (if you're not riding it) go into the next one. Everyone on the page, and anyone still riding the round wherever they are on the site, is flashed at the same moment: full white for 1.2 s, fading over 3.3 s, with a bang and ear ringing. Stakes are held in the database, so a restart refunds whatever was riding.
 - **B-hop**: jump along a lane of bhop blocks and cash out before one gives way. Pick a difficulty: each jump lands safely 90% (Easy, 24 blocks), 80% (Medium, 20), 60% (Hard, 15) or 40% (Expert, 10) of the time, and the multiplier after k jumps is 0.99 / p^k. The breaking block is decided when the run starts and kept on the server; the browser only learns it by landing on it or when the run ends. Runs survive reloads. The jumper is `src/assets/ct-agent.webp`, keyed from a green-screen capture. Replace it with another picture of the same name (a green-screen `.png`/`.jpg` works too: it's keyed and cropped to the biggest figure in the browser).
 - **Coinflip**: 1v1 for cash. Stake an amount on T or CT; whoever joins matches it and gets the other side, and the winner takes both (no house cut). Public, friends only or private (code), or play a bot. Both players see the coin land at the same moment.
+- **Jackpot**: everyone deposits skins (up to 10 per deposit, $0.10 minimum) into one pot. Once two players are in, the wheel spins after 45 s; each cent of deposited value is a ticket, and the winner takes every item. The wheel stops with the winning ticket under the pointer on every screen. Items are held by the server while in the pot (a restart returns them), and while you're the only one in you can take them back.
 - **Roulette**: the classic CS-site wheel, one round for everyone: 15 numbers, 0 is green (pays 14x), 1–7 T and 8–14 CT (2x each; 93.3% back on average, as on those sites). 20 s of betting, a 6 s spin that lands on the same spot for everyone, 3 s for the result. Everyone's bets are listed per colour. Stakes are held in the database and refunded after a restart.
 - **Defuse**: a 5×5 grid hiding 1–24 C4s. Reveal tiles and cash out before you hit one; after k safe tiles the multiplier is 0.99 / (chance of surviving k picks), so it pays back 99% like the other games. Bomb positions are drawn on the server when the round starts and only shown after it ends. Rounds survive reloads.
 - **Case battles**: 2, 3 or 4 players open the same cases, one per round (up to 3 per battle to start, raised to 20 by the Battle size upgrade); the highest total value takes every item (a tie is settled at random). Battles are public, friends only, or private (joined with a 6-character code or invite link). Each player pays when they take a seat, the creator can fill empty seats with bots, and cancelling refunds everyone. When the last seat fills the server rolls everything and hands the items over; every browser then plays the rounds back on the same clock.
@@ -111,6 +112,7 @@ No `git` on the box? Download the code instead:
 | `POST /api/defuse` `{action: "start", bet, bombs}` / `reveal` `{tile}` / `cashout` / `state` | Defuse rounds |
 | `POST /api/roulette` `{color, bet}` | Bet on `t`, `ct` or `green` this round; round state comes over SSE as `roulette` events |
 | `POST /api/coinflip` `{action: "create", bet, side, visibility}` / `join` `{id}` or `{code}` / `bot` / `cancel` | Coinflips; the list comes over SSE as `flips` events |
+| `POST /api/jackpot` `{uids}` / `{action: "withdraw"}` | Deposit items into the pot, or take them back before anyone else joins; round state comes over SSE as `jackpot` events |
 | `POST /api/reset` | Wipe your balance, items and upgrades (keeps the login) |
 
 POST bodies must be `application/json`, which also stops other sites from posting forms to it.
@@ -142,7 +144,7 @@ The returned element is placed in a fixed 4:3 box and should fill it.
 | `server/auth.mjs` | Sign-up, login, sessions |
 | `server/db.mjs` | SQLite schema |
 | `server/feed.mjs` | Live big-wins feed |
-| `server/games/` | Plinko, flashbang, b-hop, case battles |
+| `server/games/` | Plinko, flashbang, roulette, coinflip, jackpot, b-hop, defuse, case battles |
 | `server/friends.mjs` | Friend requests and lists |
 | `server/trades.mjs` | Trade offers |
 | `server/profiles.mjs` | Player profiles |

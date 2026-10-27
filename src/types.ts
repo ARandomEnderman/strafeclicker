@@ -113,7 +113,7 @@ export interface Win {
   id: number;
   user: string;
   name?: string;
-  game: "case" | "upgrader" | "plinko" | "flashbang" | "bhop" | "battle";
+  game: "case" | "upgrader" | "plinko" | "flashbang" | "bhop" | "battle" | "jackpot";
   /** Payout, USD. */
   value: number;
   stake: number;

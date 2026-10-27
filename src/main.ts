@@ -22,6 +22,8 @@ import { defusePage } from "./ui/defuse-page";
 import { roulettePage } from "./ui/roulette-page";
 import { coinflipPage, coinflipView } from "./ui/coinflip-page";
 import "./flips";
+import { jackpotPage } from "./ui/jackpot-page";
+import "./jackpot";
 import "./roulette";
 import { battlesPage } from "./ui/battles-page";
 import { battlePage } from "./ui/battle-page";
@@ -48,6 +50,7 @@ const MAIN_NAV: NavItem[] = [
   { route: "cases", href: "#/", label: "Cases", icon: "cases" },
   { route: "battles", href: "#/battles", label: "Case battles", icon: "battles" },
   { route: "coinflip", href: "#/coinflip", label: "Coinflip", icon: "coins" },
+  { route: "jackpot", href: "#/jackpot", label: "Jackpot", icon: "jackpot" },
   { route: "upgrader", href: "#/upgrader", label: "Upgrader", icon: "upgrader" },
   { route: "plinko", href: "#/plinko", label: "Plinko", icon: "plinko" },
   { route: "flashbang", href: "#/flashbang", label: "Flashbang", icon: "flashbang" },
@@ -208,6 +211,7 @@ function route() {
   else if (page === "bhop") view = bhopPage();
   else if (page === "defuse") view = defusePage();
   else if (page === "roulette") view = roulettePage();
+  else if (page === "jackpot") view = jackpotPage();
   else if (page === "coinflip") view = arg ? coinflipView(Number(arg)) : coinflipPage(new URLSearchParams(query).get("code"));
   else if (page === "battles") view = arg ? battlePage(Number(arg)) : battlesPage(new URLSearchParams(query).get("code"));
   else if (page === "friends") view = friendsPage();

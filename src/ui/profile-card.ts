@@ -8,7 +8,7 @@ import { icon } from "./icons";
 // reused at full size on the profile page.
 
 /** A stable colour per username for the avatar. */
-function hue(user: string) {
+export function hue(user: string) {
   let x = 0;
   for (const ch of user.toLowerCase()) x = (x * 31 + ch.charCodeAt(0)) >>> 0;
   return x % 360;

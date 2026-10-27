@@ -34,6 +34,7 @@ import { Bhop } from "./games/bhop.mjs";
 import { Defuse } from "./games/defuse.mjs";
 import { Roulette } from "./games/roulette.mjs";
 import { Coinflip } from "./games/coinflip.mjs";
+import { Jackpot } from "./games/jackpot.mjs";
 import { Battles } from "./games/battles.mjs";
 import { Friends } from "./friends.mjs";
 import { Trades } from "./trades.mjs";
@@ -244,6 +245,8 @@ const flashbang = new Flashbang(game, db, { broadcast, toUser });
 flashbang.start();
 const roulette = new Roulette(game, db, { broadcast, toUser });
 roulette.start();
+const jackpot = new Jackpot(game, db, { broadcast, toUser });
+jackpot.start();
 const bhop = new Bhop(game, db);
 const defuse = new Defuse(game, db);
 /** Like broadcast, but each connection gets data made for its user. */
@@ -287,6 +290,7 @@ function events(req, res) {
   res.write(`event: wins\ndata: ${JSON.stringify(feed.recent())}\n\n`);
   res.write(`event: fb\ndata: ${JSON.stringify(flashbang.state())}\n\n`);
   res.write(`event: roulette\ndata: ${JSON.stringify(roulette.state())}\n\n`);
+  res.write(`event: jackpot\ndata: ${JSON.stringify(jackpot.state())}\n\n`);
   // Server-settled results (a flashbang auto cash-out, a pop) reach the player this way.
   res.userId = sessionUser(req);
   res.write(`event: battles\ndata: ${JSON.stringify(battles.list(res.userId))}\n\n`);
@@ -427,6 +431,7 @@ const actions = {
     return { ...friends.list(userId, isOnline), account: game.view(userId) };
   },
   roulette: (userId, body) => roulette.bet(userId, body),
+  jackpot: (userId, body) => (body.action === "withdraw" ? jackpot.withdraw(userId) : jackpot.deposit(userId, body)),
   coinflip: (userId, body) => {
     if (body.action === "create") return coinflip.create(userId, body);
     if (body.action === "join") return coinflip.join(userId, body);
@@ -578,6 +583,7 @@ for (const sig of ["SIGINT", "SIGTERM"]) {
   process.on(sig, () => {
     flashbang.stop();
     roulette.stop();
+    jackpot.stop();
     void steam.stop().finally(() => {
       db.close();
       process.exit(0);

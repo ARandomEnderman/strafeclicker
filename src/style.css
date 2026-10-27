@@ -3955,3 +3955,148 @@ a.user-name:hover {
     grid-row: 1;
   }
 }
+
+/* ---------- jackpot ---------- */
+
+.jp-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+  align-items: start;
+}
+.jp-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.jp-wheel {
+  position: relative;
+  width: min(100%, 400px);
+}
+.jp-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.jp-svg g {
+  transform-origin: 0 0;
+}
+.jp-empty {
+  fill: var(--bg-3);
+}
+.jp-hole {
+  fill: var(--bg-2);
+}
+.jp-pointer {
+  fill: #fff;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}
+.jp-center {
+  position: absolute;
+  inset: 12% 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none;
+  padding: 0 28%;
+}
+.jp-pot {
+  font-size: clamp(22px, 5vw, 34px);
+  font-weight: 900;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.jp-sub {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+.jp-history {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.jp-hist {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 12px;
+}
+.jp-hist span {
+  color: var(--muted);
+}
+.jp-hist b {
+  color: var(--up);
+}
+.jp-side {
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+}
+.jp-players {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.jp-player {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bg);
+  border-left: 4px solid hsl(var(--h) 55% 45%);
+}
+.jp-player.me {
+  outline: 1px solid rgba(245, 165, 36, 0.5);
+}
+.jp-player.winner {
+  outline: 2px solid var(--up);
+}
+.jp-player-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.jp-player-head .user-link {
+  font-weight: 700;
+}
+.jp-chance {
+  min-width: 48px;
+  text-align: right;
+  color: var(--accent);
+  font-weight: 800;
+}
+.jp-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.jp-items img {
+  width: 44px;
+  height: 33px;
+  object-fit: contain;
+  border-radius: 4px;
+  background: var(--bg-2);
+  border-bottom: 2px solid var(--rarity);
+}
+.jp-deposit .trade-actions {
+  justify-content: flex-start;
+}
+.jp-grid {
+  max-height: 360px;
+}
+@media (max-width: 900px) {
+  .jp-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

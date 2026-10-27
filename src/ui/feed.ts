@@ -14,6 +14,7 @@ const GAME_ICON: Record<Win["game"], IconName> = {
   flashbang: "flashbang",
   bhop: "bhop",
   battle: "battles",
+  jackpot: "jackpot",
 };
 const GAME_NAME: Record<Win["game"], string> = {
   case: "Case",
@@ -22,6 +23,7 @@ const GAME_NAME: Record<Win["game"], string> = {
   flashbang: "Flashbang",
   bhop: "B-hop",
   battle: "Case battle",
+  jackpot: "Jackpot",
 };
 const SHOWN = 30;
 

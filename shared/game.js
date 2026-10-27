@@ -355,3 +355,12 @@ export const ROULETTE_RESULT_MS = 3000;
 /** How long the coin spins (ms), after a short lead-in once the second player joins. */
 export const FLIP_MS = 3500;
 export const FLIP_LEAD_MS = 1200;
+
+// ---------- jackpot ----------
+
+/** Countdown once two players are in, the spin, and how long the winner is shown. */
+export const JP_TIMER_MS = 45_000;
+export const JP_SPIN_MS = 7000;
+export const JP_RESULT_MS = 5000;
+export const JP_MAX_ITEMS = 10; // per deposit
+export const JP_MIN_DEPOSIT = 0.1; // USD

@@ -267,6 +267,11 @@ export async function coinflipAction(action: "create" | "join" | "bot" | "cancel
   return post<{ id: number }>("coinflip", { action, ...body });
 }
 
+export async function jackpotAction(body: { uids?: string[]; action?: "withdraw" }) {
+  await flushClicks();
+  return post("jackpot", body);
+}
+
 export async function rouletteBet(color: string, bet: number) {
   await flushClicks();
   return post("roulette", { color, bet });
