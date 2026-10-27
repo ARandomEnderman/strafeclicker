@@ -1,9 +1,9 @@
 import type { Case, Item, OwnedItem } from "../types";
-import { caseEV, casePrice, getItem, openCost, pickTier, priceOf, priceRange, tierOdds } from "../catalog";
+import { caseEV, casePrice, getItem, keyCost, openCost, priceOf, priceRange } from "../catalog";
 import { onPricesForPage } from "../live";
-import { TIER_INFO } from "../odds";
+import { PERKS, TIER_INFO, needsKey, perkValue, pickTier, tierLabel, tierOdds } from "../odds";
 import { renderSkin } from "../skin-renderer";
-import { getState, InsufficientFunds, openCase, sell } from "../state";
+import { getState, InsufficientFunds, openCases, sell, ServerError } from "../state";
 import { h, money, toast } from "./dom";
 import { displayName, dropCard, itemPreviewCard } from "./item-card";
 import { playTick, playReveal } from "./sound";
@@ -15,79 +15,150 @@ const SPIN_MS = 6500;
 let fast = false;
 
 export function casePage(c: Case) {
-  const reel = h("div", { class: "reel" });
-  const reelWrap = h("div", { class: "reel-wrap" }, reel, h("div", { class: "reel-marker" }));
+  const reels = h("div", { class: "reels" });
   const result = h("div", { class: "result" });
   const openBtn = h("button", { class: "btn btn-primary btn-lg", onclick: () => spin() });
+  const countPicker = h("div", { class: "sort count-picker" });
   const stats = h("div", { class: "case-stats" });
   const contentsEl = h("div", { class: "contents" });
-  fillReel(reel, c, null);
+  let spinning = false;
+  let count = Math.min(lastCount, maxCount());
+
+  const makeReels = (n: number) => {
+    reels.classList.toggle("multi", n > 1);
+    reels.replaceChildren(
+      ...Array.from({ length: n }, () => {
+        const reel = h("div", { class: "reel" });
+        fillReel(reel, c, null);
+        return h("div", { class: "reel-wrap" }, reel, h("div", { class: "reel-marker" }));
+      }),
+    );
+  };
 
   // Everything price-dependent is redrawn when the server pushes new prices.
   const drawPrices = () => {
     const cost = openCost(c);
     const ev = caseEV(c);
-    openBtn.textContent = `Open for ${money(cost)}`;
+    const price = casePrice(c);
+    openBtn.textContent = price == null ? "Not on the market" : `Open ${count > 1 ? `${count} ` : ""}for ${money(cost * count)}`;
+    openBtn.disabled = price == null || spinning;
     stats.replaceChildren(
-      stat("Case", money(casePrice(c))),
-      stat("Key", money(cost - casePrice(c))),
-      stat("Expected value", money(ev)),
-      stat("RTP", `${((ev / cost) * 100).toFixed(1)}%`),
+      ...[
+        stat(c.kind === "case" ? "Case" : "Capsule", price == null ? "—" : money(price)),
+        needsKey(c) ? stat("Key", money(keyCost(c))) : null,
+        stat("Expected value", money(ev)),
+        stat("RTP", price == null ? "—" : `${((ev / cost) * 100).toFixed(1)}%`),
+      ].filter((el) => el != null),
     );
     contentsEl.replaceChildren(...contents(c));
   };
+
+  // ×1 … ×5; levels you haven't bought yet are locked and point at the upgrade tree.
+  const drawCount = () => {
+    const max = maxCount();
+    countPicker.replaceChildren(
+      ...PERKS.multiOpen.levels.map(({ value }) =>
+        value <= max
+          ? h(
+              "button",
+              {
+                class: `chip${value === count ? " active" : ""}`,
+                disabled: spinning,
+                onclick: () => {
+                  count = lastCount = value;
+                  makeReels(count);
+                  drawCount();
+                  drawPrices();
+                },
+              },
+              `×${value}`,
+            )
+          : h("a", { class: "chip locked", href: "#/tree", title: "Unlock in the upgrade tree" }, `🔒 ×${value}`),
+      ),
+    );
+  };
+
+  makeReels(count);
+  drawCount();
   drawPrices();
   onPricesForPage(drawPrices);
 
   async function spin() {
-    let won: OwnedItem;
-    try {
-      won = await openCase(c);
-    } catch (e) {
-      if (e instanceof InsufficientFunds) return toast("Not enough balance. Top up or sell some skins.", "error");
-      throw e;
-    }
+    if (spinning) return;
+    spinning = true;
     openBtn.disabled = true;
-    result.replaceChildren();
-    fillReel(reel, c, getItem(won.itemId));
-    if (!fast) await animate(reel, reelWrap);
-    else snapTo(reel, reelWrap);
-    playReveal(getItem(won.itemId).tier);
-    showResult(won);
-    openBtn.disabled = false;
+    drawCount();
+    try {
+      let won: OwnedItem[];
+      try {
+        won = await openCases(c, count);
+      } catch (e) {
+        if (e instanceof InsufficientFunds) return toast("Not enough balance. Earn some on the Clicker page or sell items.", "error");
+        if (e instanceof ServerError) return toast(e.message, "error");
+        throw e;
+      }
+      result.replaceChildren();
+      if (reels.children.length !== won.length) makeReels(won.length);
+      const wraps = [...reels.children] as HTMLElement[];
+      wraps.forEach((wrap, i) => fillReel(wrap.firstElementChild as HTMLElement, c, getItem(won[i].itemId)));
+      if (!fast) await Promise.all(wraps.map((wrap, i) => animate(wrap.firstElementChild as HTMLElement, wrap, i === 0)));
+      else wraps.forEach((wrap) => snapTo(wrap.firstElementChild as HTMLElement, wrap));
+      const best = won.map((w) => getItem(w.itemId)).sort((a, b) => TIER_RANK[b.tier] - TIER_RANK[a.tier])[0];
+      playReveal(best.tier);
+      showResult(won);
+    } finally {
+      spinning = false;
+      drawCount();
+      drawPrices();
+    }
   }
 
-  function showResult(won: OwnedItem) {
-    const cost = openCost(c);
-    const value = priceOf(won);
-    const inInv = () => getState().inventory.some((i) => i.uid === won.uid);
-    const sellBtn = h(
-      "button",
-      {
-        class: "btn",
-        onclick: () => {
-          if (!inInv()) return;
-          sell([won.uid]);
-          toast(`Sold for ${money(value)}`);
-          sellBtn.disabled = true;
-          sellBtn.textContent = "Sold";
+  function showResult(won: OwnedItem[]) {
+    const cost = openCost(c) * won.length;
+    const value = won.reduce((s, w) => s + priceOf(w), 0);
+    const unsold = () => won.filter((w) => getState().inventory.some((i) => i.uid === w.uid));
+    const sellBtn = (items: OwnedItem[], label: string) => {
+      const btn: HTMLButtonElement = h(
+        "button",
+        {
+          class: "btn",
+          onclick: async () => {
+            const left = items.filter((w) => unsold().includes(w));
+            if (!left.length) return;
+            btn.disabled = true;
+            toast(`Sold for ${money(await sell(left.map((w) => w.uid)))}`);
+            btn.textContent = "Sold";
+          },
         },
-      },
-      `Sell for ${money(value)}`,
-    );
-    const item = getItem(won.itemId);
+        label,
+      );
+      return btn;
+    };
+    const delta = h("div", { class: `result-delta ${value >= cost ? "up" : "down"}` }, `${value >= cost ? "+" : ""}${money(value - cost)}`);
+
+    if (won.length === 1) {
+      const item = getItem(won[0].itemId);
+      result.replaceChildren(
+        h(
+          "div",
+          { class: `result-card tier-${item.tier}` },
+          dropCard(won[0], { size: "lg" }),
+          h("div", { class: "result-actions" }, delta, sellBtn(won, `Sell for ${money(value)}`), h("a", { class: "btn btn-ghost", href: "#/inventory" }, "Inventory")),
+        ),
+      );
+      return;
+    }
     result.replaceChildren(
       h(
         "div",
-        { class: `result-card tier-${item.tier}` },
-        dropCard(won, { size: "lg" }),
+        { class: "result-multi" },
         h(
           "div",
-          { class: "result-actions" },
-          h("div", { class: `result-delta ${value >= cost ? "up" : "down"}` }, `${value >= cost ? "+" : ""}${money(value - cost)}`),
-          sellBtn,
-          h("a", { class: "btn btn-ghost", href: "#/inventory" }, "Inventory"),
+          { class: "result-multi-head" },
+          h("div", null, h("b", null, `${won.length} drops · ${money(value)}`), " ", delta),
+          h("div", { class: "result-actions row" }, sellBtn(won, `Sell all for ${money(value)}`), h("a", { class: "btn btn-ghost", href: "#/inventory" }, "Inventory")),
         ),
+        h("div", { class: "item-grid" }, ...won.map((w) => dropCard(w, { extra: sellBtn([w], "Sell") }))),
       ),
     );
   }
@@ -95,7 +166,7 @@ export function casePage(c: Case) {
   return h(
     "section",
     { class: "page" },
-    h("a", { class: "back", href: "#/" }, "← All cases"),
+    h("a", { class: "back", href: `#/?kind=${c.kind}` }, c.kind === "case" ? "← All cases" : "← All capsules"),
     h(
       "div",
       { class: "case-hero" },
@@ -109,6 +180,7 @@ export function casePage(c: Case) {
           "div",
           { class: "case-actions" },
           openBtn,
+          countPicker,
           h(
             "label",
             { class: "toggle" },
@@ -118,11 +190,16 @@ export function casePage(c: Case) {
         ),
       ),
     ),
-    reelWrap,
+    reels,
     result,
     contentsEl,
   );
 }
+
+const TIER_RANK = { milspec: 0, restricted: 1, classified: 2, covert: 3, gold: 4 } as const;
+const maxCount = () => perkValue(getState().perks, "multiOpen");
+/** Remembered across case pages, like the "skip animation" toggle. */
+let lastCount = 1;
 
 function stat(label: string, value: string) {
   return h("div", { class: "stat" }, h("span", null, label), h("b", null, value));
@@ -168,7 +245,7 @@ function snapTo(reel: HTMLElement, wrap: HTMLElement) {
   reel.style.transform = `translateX(${-targetOffset(reel, wrap, 0)}px)`;
 }
 
-function animate(reel: HTMLElement, wrap: HTMLElement): Promise<void> {
+function animate(reel: HTMLElement, wrap: HTMLElement, sound = true): Promise<void> {
   const target = targetOffset(reel, wrap, Math.random() * 2 - 1);
   const pitch = (reel.children[1] as HTMLElement).offsetLeft - (reel.children[0] as HTMLElement).offsetLeft;
   void reel.offsetWidth; // flush the reset before starting the transition
@@ -182,7 +259,7 @@ function animate(reel: HTMLElement, wrap: HTMLElement): Promise<void> {
       const x = -new DOMMatrixReadOnly(getComputedStyle(reel).transform).m41;
       const tileUnderMarker = Math.floor((x + wrap.clientWidth / 2) / pitch);
       if (tileUnderMarker !== lastTile) {
-        if (lastTile !== -1) playTick();
+        if (lastTile !== -1 && sound) playTick();
         lastTile = tileUnderMarker;
       }
       raf = requestAnimationFrame(tick);
@@ -213,7 +290,7 @@ function contents(c: Case) {
           h(
             "div",
             { class: "tier-head", style: `--rarity:${info.color}` },
-            h("b", null, tier === "gold" ? c.rareLabel : info.label),
+            h("b", null, tierLabel(c, tier)),
             h("span", null, `${(p * 100).toFixed(2)}% · ${pool.length} items · ${(p / pool.length * 100).toFixed(4)}% each`),
           ),
           h(

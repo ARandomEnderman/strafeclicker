@@ -10,7 +10,7 @@ export interface SkinRenderRequest {
   item: Item;
   phase?: string | null;
   float?: number | null;
-  seed?: number;
+  seed?: number | null;
   stattrak?: boolean;
   size: "sm" | "md" | "lg";
 }

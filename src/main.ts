@@ -1,11 +1,15 @@
 import "./style.css";
 import { getCase, getCatalog, loadCatalog } from "./catalog";
-import { getState, initState, resetAll, subscribe, topUp, TOP_UP } from "./state";
+import type { Case } from "./types";
+import { displayBalance, getState, initState, resetAll, subscribe } from "./state";
 import { h, money } from "./ui/dom";
 import { casesPage } from "./ui/cases-page";
 import { casePage } from "./ui/case-page";
 import { inventoryPage } from "./ui/inventory-page";
-import { fairPage } from "./ui/fair-page";
+import { clickerPage } from "./ui/clicker-page";
+import { upgraderPage } from "./ui/upgrader-page";
+import { treePage } from "./ui/tree-page";
+import { leavePage } from "./ui/page";
 import { setSound, soundEnabled } from "./ui/sound";
 import { clearPageListeners, onPrices, startLive } from "./live";
 import { countdown } from "./ui/countdown";
@@ -17,7 +21,7 @@ function header() {
   const balance = h("b", { class: "balance-amount" });
   const invCount = h("span", { class: "badge" });
   const sync = () => {
-    balance.textContent = money(getState().balance);
+    balance.textContent = money(displayBalance());
     invCount.textContent = String(getState().inventory.length);
   };
   subscribe(sync);
@@ -37,8 +41,10 @@ function header() {
       "nav",
       null,
       h("a", { href: "#/", "data-route": "cases" }, "Cases"),
+      h("a", { href: "#/clicker", "data-route": "clicker" }, "Clicker"),
+      h("a", { href: "#/upgrader", "data-route": "upgrader" }, "Upgrader"),
+      h("a", { href: "#/tree", "data-route": "tree" }, "Upgrade tree"),
       h("a", { href: "#/inventory", "data-route": "inventory" }, "Inventory ", invCount),
-      h("a", { href: "#/fair", "data-route": "fair" }, "Fairness"),
     ),
     countdown(),
     h(
@@ -47,7 +53,6 @@ function header() {
       soundBtn,
       h("span", { class: "balance-label" }, "Balance"),
       balance,
-      h("button", { class: "btn btn-sm", title: "Free play money", onclick: topUp }, `+${money(TOP_UP)}`),
     ),
   );
 }
@@ -75,17 +80,27 @@ function footer() {
 
 const main = h("main");
 
+const KINDS: Case["kind"][] = ["case", "capsule", "autograph"];
+
 function route() {
-  const [, page, arg] = location.hash.replace(/^#/, "").split("/");
+  const [path, query = ""] = location.hash.replace(/^#/, "").split("?");
+  const [, page, arg] = path.split("/");
   let view: HTMLElement;
   let active = page || "cases";
   clearPageListeners();
+  leavePage();
   if (page === "case" && arg && getCase(arg)) {
     view = casePage(getCase(arg)!);
     active = "cases";
   } else if (page === "inventory") view = inventoryPage();
-  else if (page === "fair") view = fairPage();
-  else view = casesPage();
+  else if (page === "clicker") view = clickerPage();
+  else if (page === "upgrader") view = upgraderPage();
+  else if (page === "tree") view = treePage();
+  else {
+    const kind = new URLSearchParams(query).get("kind") as Case["kind"];
+    view = casesPage(KINDS.includes(kind) ? kind : "case");
+    active = "cases";
+  }
 
   document.querySelectorAll<HTMLAnchorElement>("nav a").forEach((a) => a.classList.toggle("active", a.dataset.route === active));
   main.replaceChildren(view);

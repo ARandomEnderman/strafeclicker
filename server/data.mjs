@@ -13,6 +13,7 @@
 
 const CRATES_URL = "https://raw.githubusercontent.com/ByMykel/CSGO-API/main/public/api/en/crates.json";
 const SKINS_URL = "https://raw.githubusercontent.com/ByMykel/CSGO-API/main/public/api/en/skins.json";
+const STICKERS_URL = "https://raw.githubusercontent.com/ByMykel/CSGO-API/main/public/api/en/stickers.json";
 // The default listing and the tradable-only listing each cover items the other misses.
 export const PRICE_URLS = {
   main: "https://api.skinport.com/v1/items?app_id=730&currency=USD",
@@ -31,6 +32,15 @@ const WEARS = [
   { key: "WW", name: "Well-Worn", min: 0.38, max: 0.45 },
   { key: "BS", name: "Battle-Scarred", min: 0.45, max: 1.0 },
 ];
+
+/** Sticker rarities sit on the same 1-in-5 ladder (High Grade, Remarkable, Exotic, Extraordinary). */
+const STICKER_TIER_BY_RARITY = {
+  rarity_rare: "milspec",
+  rarity_mythical: "restricted",
+  rarity_legendary: "classified",
+  rarity_ancient: "covert",
+  rarity_contraband: "covert",
+};
 
 const TIER_BY_RARITY = {
   rarity_rare_weapon: "milspec",
@@ -97,13 +107,16 @@ export function allVariants(contents) {
 }
 
 export async function fetchContents() {
-  const [crates, skins] = await Promise.all([fetchJson(CRATES_URL), fetchJson(SKINS_URL)]);
-  return buildContents(crates, skins);
+  const [crates, skins, stickers] = await Promise.all([fetchJson(CRATES_URL), fetchJson(SKINS_URL), fetchJson(STICKERS_URL)]);
+  return buildContents(crates, skins, stickers);
 }
 
-/** Cases and items, without prices. */
-export function buildContents(crates, skins) {
+const CAPSULE_TYPES = { "Sticker Capsule": "capsule", "Autograph Capsule": "autograph" };
+
+/** Weapon cases, sticker/autograph capsules and everything in them, without prices. */
+export function buildContents(crates, skins, stickers) {
   const skinById = new Map(skins.map((s) => [s.id, s]));
+  const stickerById = new Map(stickers.map((s) => [s.id, s]));
   const items = {};
 
   function addItem(entries, tier) {
@@ -134,6 +147,29 @@ export function buildContents(crates, skins) {
     return id;
   }
 
+  function addSticker(entry, tier) {
+    if (items[entry.id]) return entry.id;
+    const sticker = stickerById.get(entry.id);
+    const name = sticker?.market_hash_name ?? `Sticker | ${entry.name}`;
+    items[entry.id] = {
+      id: entry.id,
+      name,
+      weapon: "Sticker",
+      finish: name.split(" | ").slice(1).join(" | "),
+      kind: "sticker",
+      tier,
+      color: entry.rarity.color,
+      minFloat: null,
+      maxFloat: null,
+      wears: [],
+      stattrak: false,
+      paintIndex: null,
+      pattern: null,
+      image: sticker?.image ?? entry.image,
+    };
+    return entry.id;
+  }
+
   const groupByName = (list) => {
     const groups = new Map();
     for (const e of list) {
@@ -145,17 +181,29 @@ export function buildContents(crates, skins) {
 
   const cases = [];
   for (const crate of crates) {
-    if (crate.type !== "Case") continue;
+    const kind = crate.type === "Case" ? "case" : CAPSULE_TYPES[crate.type];
+    // Capsules without a market name (operation collections, unreleased majors) can't be priced.
+    if (!kind || (kind !== "case" && !crate.market_hash_name)) continue;
+
     const contents = { milspec: [], restricted: [], classified: [], covert: [], gold: [] };
-    for (const group of groupByName(crate.contains)) {
-      const tier = TIER_BY_RARITY[group[0].rarity.id];
-      if (!tier) throw new Error(`Unknown rarity ${group[0].rarity.id} in ${crate.name}`);
-      contents[tier].push(addItem(group, tier));
+    if (kind === "case") {
+      for (const group of groupByName(crate.contains)) {
+        const tier = TIER_BY_RARITY[group[0].rarity.id];
+        if (!tier) throw new Error(`Unknown rarity ${group[0].rarity.id} in ${crate.name}`);
+        contents[tier].push(addItem(group, tier));
+      }
+      for (const group of groupByName(crate.contains_rare)) contents.gold.push(addItem(group, "gold"));
+    } else {
+      for (const entry of crate.contains) {
+        const tier = STICKER_TIER_BY_RARITY[entry.rarity.id];
+        if (!tier) throw new Error(`Unknown sticker rarity ${entry.rarity.id} in ${crate.name}`);
+        contents[tier].push(addSticker(entry, tier));
+      }
     }
-    for (const group of groupByName(crate.contains_rare)) contents.gold.push(addItem(group, "gold"));
 
     cases.push({
       id: slug(crate.name),
+      kind,
       name: crate.name,
       marketName: crate.market_hash_name,
       image: crate.image,
@@ -210,8 +258,9 @@ export function priceCatalog(contents, index, previous = {}) {
   }
   for (const c of contents.cases) {
     const p = index.get(`${c.marketName}|`) ?? previous[`case|${c.id}`];
+    // A container with no listing has no price; the site won't sell it.
     if (p == null) unpriced++;
-    prices[`case|${c.id}`] = round2(p ?? 0.03);
+    else prices[`case|${c.id}`] = round2(p);
   }
   return { prices, filled, unpriced };
 }

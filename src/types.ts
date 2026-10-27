@@ -11,7 +11,7 @@ export interface Item {
   name: string;
   weapon: string;
   finish: string | null;
-  kind: "weapon" | "knife" | "gloves";
+  kind: "weapon" | "knife" | "gloves" | "sticker";
   tier: Tier;
   color: string;
   minFloat: number | null;
@@ -27,6 +27,8 @@ export interface Item {
 
 export interface Case {
   id: string;
+  /** Weapon cases need a key; sticker and autograph capsules don't. */
+  kind: "case" | "capsule" | "autograph";
   name: string;
   image: string;
   released: string | null;
@@ -64,14 +66,30 @@ export interface Drop {
   float: number | null;
   wear: WearKey | null;
   stattrak: boolean;
-  /** Paint seed 0–1000, decides pattern placement. */
-  seed: number;
+  /** Paint seed 0–1000, decides pattern placement. Null for stickers. */
+  seed: number | null;
 }
 
 export interface OwnedItem extends Drop {
   uid: string;
-  caseId: string;
-  openedAt: number;
-  /** Provably-fair proof for this roll. */
-  proof: { serverSeedHash: string; clientSeed: string; nonce: number };
+  /** Case id it came from, or "upgrade". */
+  source: string;
+  obtainedAt: number;
+}
+
+/** Everything the server lets the browser see about its account. */
+export interface Account {
+  balance: number;
+  /** Upgrade-tree levels, see PERKS in shared/game.js. */
+  perks: { multiOpen: number; clickPower: number };
+  inventory: OwnedItem[];
+  stats: {
+    opened: number;
+    spent: number;
+    unboxedValue: number;
+    best: { name: string; value: number } | null;
+    clicks: number;
+    upgrades: number;
+    upgradesWon: number;
+  };
 }

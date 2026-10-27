@@ -7,7 +7,7 @@ import { openPriceChart } from "./price-chart";
 
 export function displayName(item: Item, d?: Pick<Drop, "stattrak" | "phase">) {
   const st = d?.stattrak ? "StatTrak™ " : "";
-  const star = item.kind === "weapon" ? "" : "★ ";
+  const star = item.kind === "knife" || item.kind === "gloves" ? "★ " : "";
   const finish = item.finish ? `${item.finish}${d?.phase ? ` (${d.phase})` : ""}` : "Vanilla";
   return { weapon: `${star}${st}${item.weapon}`, finish };
 }

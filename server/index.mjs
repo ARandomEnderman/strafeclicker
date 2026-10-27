@@ -1,16 +1,18 @@
 #!/usr/bin/env node
 // StrafeClicker server: serves the site, refreshes market prices once a minute on
-// a fixed wall-clock schedule, keeps a price history, and pushes updates to every
-// browser over Server-Sent Events. Clients only ever *see* the schedule.
+// a fixed wall-clock schedule, keeps a price history, pushes updates to every
+// browser over Server-Sent Events, and owns every account: balances, inventories
+// and all rolls live here. Clients only ever see outcomes.
 //
 //   npm run dev     Vite dev server + API on one port
 //   npm start       production: serves dist/ (run `npm run build` first)
 
 import { createServer } from "node:http";
+import { readFileSync, writeFileSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import { dirname, extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { gzipSync } from "node:zlib";
+import { brotliCompressSync, constants as zlibConstants, gunzipSync, gzipSync } from "node:zlib";
 import {
   PRICE_URLS,
   allVariants,
@@ -20,11 +22,12 @@ import {
   indexListings,
   priceCatalog,
 } from "./data.mjs";
+import { Game, GameError } from "./game.mjs";
 import { History } from "./history.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = join(ROOT, "dist");
-const SNAPSHOT = join(ROOT, "server/snapshot.json");
+const SNAPSHOT = join(ROOT, "server/snapshot.json.gz");
 const DATA_DIR = resolve(ROOT, process.env.DATA_DIR ?? "data");
 const DEV = process.argv.includes("--dev");
 const PORT = Number(process.env.PORT ?? 3000);
@@ -41,16 +44,30 @@ const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
  * Skinport allows 8 requests per 5 minutes per IP. Track our own and stay at 7, so
  * retries can never push us into a permanent 429 loop. The main listing (5 per window)
  * always fits; the tradable listing and the one-off backfill use what's left.
+ * The log is kept on disk so restarting the server doesn't forget recent requests.
  */
 const skinportBudget = {
   limit: 7,
   windowMs: 5 * 60_000,
+  file: join(DATA_DIR, "skinport-requests.json"),
   stamps: [],
+  load() {
+    try {
+      this.stamps = JSON.parse(readFileSync(this.file, "utf8"));
+    } catch {
+      this.stamps = [];
+    }
+  },
   take() {
     const now = Date.now();
     this.stamps = this.stamps.filter((t) => now - t < this.windowMs);
     if (this.stamps.length >= this.limit) return false;
     this.stamps.push(now);
+    try {
+      writeFileSync(this.file, JSON.stringify(this.stamps));
+    } catch {
+      // Not fatal; worst case a restart risks a 429.
+    }
     return true;
   },
 };
@@ -58,7 +75,8 @@ const skinportBudget = {
 // ---------- state ----------
 
 let contents;
-let contentsBody; // pre-serialised /api/catalog response
+/** Pre-compressed /api/catalog response (it's several MB of JSON with every sticker). */
+let catalogBody;
 let prices = {};
 let version = 0;
 /** Recent per-version changes so clients can catch up without a full download. */
@@ -66,10 +84,11 @@ const diffs = [];
 let tradableListing = null;
 const status = { lastUpdateAt: null, nextUpdateAt: null, changed: 0, error: null };
 const history = new History(join(DATA_DIR, "history.ndjson"));
+const game = new Game(join(DATA_DIR, "accounts.json"), { contents: () => contents, prices: () => prices });
 
 async function boot() {
-  const snapshot = await readFile(SNAPSHOT, "utf8")
-    .then(JSON.parse)
+  const snapshot = await readFile(SNAPSHOT)
+    .then((buf) => JSON.parse(gunzipSync(buf).toString("utf8")))
     .catch(() => null);
 
   try {
@@ -80,12 +99,20 @@ async function boot() {
     contents = snapshot.contents;
     log(`contents: using snapshot (${err.message})`);
   }
-  contentsBody = JSON.stringify(contents);
+  const raw = Buffer.from(JSON.stringify(contents));
+  catalogBody = {
+    raw,
+    gzip: gzipSync(raw),
+    br: brotliCompressSync(raw, { params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 9 } }),
+  };
+  await game.load();
+  log(`accounts: ${game.accounts.size}`);
 
   const validKeys = new Set(allVariants(contents).map((v) => v.key));
   const keep = (map) => Object.fromEntries(Object.entries(map ?? {}).filter(([k]) => validKeys.has(k)));
 
-  await history.load();
+  await history.load(); // also creates DATA_DIR
+  skinportBudget.load();
   if (history.empty && skinportBudget.take()) {
     try {
       for (const { t, changes } of await fetchSalesBackfill(contents)) await history.record(t, keep(changes), { backfill: true });
@@ -180,9 +207,9 @@ function events(req, res) {
 
 // ---------- HTTP ----------
 
-function send(req, res, code, body, type = "application/json; charset=utf-8") {
+function send(req, res, code, body, type = "application/json; charset=utf-8", extraHeaders = {}) {
   let buf = Buffer.isBuffer(body) ? body : Buffer.from(typeof body === "string" ? body : JSON.stringify(body));
-  const headers = { "Content-Type": type, "Cache-Control": "no-cache" };
+  const headers = { "Content-Type": type, "Cache-Control": "no-cache", ...extraHeaders };
   if (buf.length > 1024 && /\bgzip\b/.test(req.headers["accept-encoding"] ?? "") && !type.startsWith("image/")) {
     buf = gzipSync(buf);
     headers["Content-Encoding"] = "gzip";
@@ -191,6 +218,70 @@ function send(req, res, code, body, type = "application/json; charset=utf-8") {
   res.writeHead(code, headers);
   res.end(buf);
 }
+
+function sendCatalog(req, res) {
+  const accept = req.headers["accept-encoding"] ?? "";
+  const enc = /\bbr\b/.test(accept) ? "br" : /\bgzip\b/.test(accept) ? "gzip" : null;
+  const buf = enc ? catalogBody[enc] : catalogBody.raw;
+  res.writeHead(200, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-cache",
+    "Content-Length": buf.length,
+    Vary: "Accept-Encoding",
+    ...(enc ? { "Content-Encoding": enc } : {}),
+  });
+  res.end(buf);
+}
+
+// ---------- accounts ----------
+
+const COOKIE = "sc_account";
+
+function cookieValue(req, name) {
+  for (const part of (req.headers.cookie ?? "").split(";")) {
+    const [k, ...v] = part.trim().split("=");
+    if (k === name) return decodeURIComponent(v.join("="));
+  }
+  return null;
+}
+
+/** The caller's account, creating one (and its cookie) on first visit. */
+function accountFor(req, headers) {
+  const id = cookieValue(req, COOKIE);
+  const a = game.account(id);
+  if (a.id !== id) {
+    const secure = req.headers["x-forwarded-proto"] === "https" ? "; Secure" : "";
+    headers["Set-Cookie"] = `${COOKIE}=${encodeURIComponent(a.id)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000${secure}`;
+  }
+  return a;
+}
+
+async function readJson(req) {
+  // Requiring a JSON content type also means other sites can't post here with a plain form.
+  if (!(req.headers["content-type"] ?? "").startsWith("application/json")) throw new GameError("bad_request", "Expected JSON", 415);
+  let size = 0;
+  const chunks = [];
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > 64 * 1024) throw new GameError("bad_request", "Body too large", 413);
+    chunks.push(chunk);
+  }
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+  } catch {
+    throw new GameError("bad_request", "Invalid JSON");
+  }
+}
+
+/** POST /api/<action> handlers. Each returns extra response fields; the account view is always added. */
+const actions = {
+  click: (a, body) => ({ credited: game.click(a, body.clicks) }),
+  open: (a, body) => ({ items: game.open(a, String(body.caseId ?? ""), body.count ?? 1) }),
+  perk: (a, body) => ({ level: game.buyPerk(a, String(body.perk ?? "")) }),
+  sell: (a, body) => ({ sold: game.sell(a, body.uids) }),
+  upgrade: (a, body) => game.upgrade(a, body.uids, body.target),
+  reset: (a) => (game.reset(a), {}),
+};
 
 function pricesBody(since) {
   if (since > 0 && since <= version && (since === version || diffs[0]?.version <= since + 1)) {
@@ -202,7 +293,26 @@ function pricesBody(since) {
 }
 
 async function api(req, res, url) {
-  if (url.pathname === "/api/catalog") return send(req, res, 200, contentsBody);
+  if (url.pathname === "/api/catalog") return sendCatalog(req, res);
+  if (url.pathname === "/api/me") {
+    const headers = {};
+    const a = accountFor(req, headers);
+    return send(req, res, 200, game.view(a), undefined, headers);
+  }
+  const action = url.pathname.match(/^\/api\/(\w+)$/)?.[1];
+  if (action && Object.hasOwn(actions, action)) {
+    if (req.method !== "POST") return send(req, res, 405, { error: "POST only" });
+    const headers = {};
+    try {
+      const body = await readJson(req);
+      const a = accountFor(req, headers);
+      const result = actions[action](a, body);
+      return send(req, res, 200, { ...result, account: game.view(a) }, undefined, headers);
+    } catch (err) {
+      if (!(err instanceof GameError)) throw err;
+      return send(req, res, err.status, { error: err.code, message: err.message }, undefined, headers);
+    }
+  }
   if (url.pathname === "/api/prices") return send(req, res, 200, pricesBody(Number(url.searchParams.get("since") ?? 0)));
   if (url.pathname === "/api/status") return send(req, res, 200, statusBody());
   if (url.pathname === "/api/events") return events(req, res);
@@ -262,6 +372,16 @@ async function main() {
     else serveStatic(req, res, url);
   });
   server.listen(PORT, () => log(`listening on http://localhost:${PORT}${DEV ? " (dev)" : ""}`));
+}
+
+// Accounts are saved a second after each change; don't lose that second on shutdown.
+for (const sig of ["SIGINT", "SIGTERM"]) {
+  process.on(sig, () => {
+    game
+      .flush()
+      .catch((e) => console.error(e))
+      .finally(() => process.exit(0));
+  });
 }
 
 main().catch((err) => {

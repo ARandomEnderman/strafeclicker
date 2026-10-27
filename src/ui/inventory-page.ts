@@ -24,6 +24,7 @@ export function inventoryPage() {
         h("div", { class: "stat" }, h("span", null, "Cases opened"), h("b", null, stats.opened)),
         h("div", { class: "stat" }, h("span", null, "Spent"), h("b", null, money(stats.spent))),
         h("div", { class: "stat" }, h("span", null, "Unboxed value"), h("b", null, money(stats.unboxedValue))),
+        h("div", { class: "stat" }, h("span", null, "Upgrades won"), h("b", null, `${stats.upgradesWon} / ${stats.upgrades}`)),
         stats.best ? h("div", { class: "stat" }, h("span", null, "Best pull"), h("b", null, `${stats.best.name} · ${money(stats.best.value)}`)) : null,
       ),
       h(
@@ -35,9 +36,9 @@ export function inventoryPage() {
               "button",
               {
                 class: "btn",
-                onclick: () => {
+                onclick: async () => {
                   if (!confirm(`Sell all ${inv.length} items for ${money(total)}?`)) return;
-                  toast(`Sold everything for ${money(sell(inv.map((i) => i.uid)))}`);
+                  toast(`Sold everything for ${money(await sell(inv.map((i) => i.uid)))}`);
                   draw();
                 },
               },
@@ -55,9 +56,9 @@ export function inventoryPage() {
                   "button",
                   {
                     class: "btn btn-sm",
-                    title: `Seed ${it.seed} · nonce ${it.proof.nonce}`,
-                    onclick: () => {
-                      toast(`Sold ${getItem(it.itemId).name} for ${money(sell([it.uid]))}`);
+                    onclick: async (e: Event) => {
+                      (e.currentTarget as HTMLButtonElement).disabled = true;
+                      toast(`Sold ${getItem(it.itemId).name} for ${money(await sell([it.uid]))}`);
                       draw();
                     },
                   },

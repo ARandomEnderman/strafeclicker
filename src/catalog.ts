@@ -1,5 +1,5 @@
-import type { Case, Catalog, Drop, Item, Prices, Tier } from "./types";
-import { PHASE_WEIGHTS, STATTRAK_ODDS, TIERS, TIER_ODDS, WEAR_BUCKETS, wearOf } from "./odds";
+import type { Case, Catalog, Drop, Item, Prices } from "./types";
+import { STATTRAK_ODDS, WEAR_BUCKETS, canStatTrak, needsKey, phaseEntries, priceKey, tierOdds, variants } from "./odds";
 
 let catalog: Catalog;
 let prices: Prices = {};
@@ -40,87 +40,24 @@ function applyPrices(p: PricesResponse) {
 export const getCatalog = () => catalog;
 export const getItem = (id: string): Item => catalog.items[id];
 export const getCase = (id: string): Case | undefined => catalog.cases.find((c) => c.id === id);
-export const casePrice = (c: Case) => prices[`case|${c.id}`] ?? 0;
-export const openCost = (c: Case) => round2(casePrice(c) + catalog.keyPrice);
+/** Market price of the container itself; null when it has no listing (then it can't be opened). */
+export const casePrice = (c: Case): number | null => prices[`case|${c.id}`] ?? null;
+export const keyCost = (c: Case) => (needsKey(c) ? catalog.keyPrice : 0);
+export const openCost = (c: Case) => round2((casePrice(c) ?? 0) + keyCost(c));
+/** Containers that can be opened right now. */
+export const openableCases = () => catalog.cases.filter((c) => casePrice(c) != null);
 
 export const round2 = (n: number) => Math.round(n * 100) / 100;
 
-export const priceKey = (d: Pick<Drop, "itemId" | "phase" | "wear" | "stattrak">) =>
-  `${d.itemId}|${d.phase ?? ""}|${d.wear ?? "-"}|${d.stattrak ? 1 : 0}`;
-
-/** Tiers present in a case, with odds renormalised if a tier is empty (some early cases). */
-export function tierOdds(c: Case): [Tier, number][] {
-  const present = TIERS.filter((t) => c.contents[t].length > 0);
-  const total = present.reduce((s, t) => s + TIER_ODDS[t], 0);
-  return present.map((t) => [t, TIER_ODDS[t] / total]);
-}
-
-function pickWeighted<T>(entries: [T, number][], r: number): T {
-  const total = entries.reduce((s, [, w]) => s + w, 0);
-  let acc = 0;
-  for (const [v, w] of entries) {
-    acc += w / total;
-    if (r < acc) return v;
-  }
-  return entries[entries.length - 1][0];
-}
-
-export function pickTier(c: Case, r: number): Tier {
-  return pickWeighted(tierOdds(c), r);
-}
-
-function phaseEntries(item: Item): [string, number][] {
-  return (item.phases ?? []).map((p) => [p.name, PHASE_WEIGHTS[p.name] ?? 1]);
-}
-
-/**
- * Turn eight uniform floats into a concrete drop:
- * r[0] tier, r[1] item, r[2] phase, r[3] wear bucket, r[4] float in bucket, r[5] StatTrak, r[6] seed.
- */
-export function resolveDrop(c: Case, r: number[]): Drop {
-  const tier = pickTier(c, r[0]);
-  const pool = c.contents[tier];
-  const item = getItem(pool[Math.floor(r[1] * pool.length)]);
-  const phase = item.phases ? pickWeighted(phaseEntries(item), r[2]) : null;
-
-  let float: number | null = null;
-  if (item.minFloat != null && item.maxFloat != null) {
-    const bucket = pickWeighted(
-      WEAR_BUCKETS.map((b) => [b, b.weight]),
-      r[3],
-    );
-    const raw = bucket.min + r[4] * (bucket.max - bucket.min);
-    float = item.minFloat + raw * (item.maxFloat - item.minFloat);
-  }
-
-  return {
-    itemId: item.id,
-    phase,
-    float,
-    wear: float == null ? null : wearOf(float),
-    stattrak: item.stattrak && item.kind !== "gloves" && r[5] < STATTRAK_ODDS,
-    seed: Math.floor(r[6] * 1001),
-  };
-}
-
 export function priceOf(d: Pick<Drop, "itemId" | "phase" | "wear" | "stattrak">): number {
   return prices[priceKey(d)] ?? 0;
-}
-
-/** Every priced variant of an item. */
-export function variants(item: Item): Pick<Drop, "itemId" | "phase" | "wear" | "stattrak">[] {
-  const out = [];
-  for (const phase of item.phases?.map((p) => p.name) ?? [null])
-    for (const stattrak of item.stattrak ? [false, true] : [false])
-      for (const wear of item.wears.length ? item.wears : [null]) out.push({ itemId: item.id, phase, wear, stattrak });
-  return out;
 }
 
 /** Expected market value of one item drawn from this item's distribution. */
 function itemEV(item: Item): number {
   const phases: [string | null, number][] = item.phases ? phaseEntries(item) : [[null, 1]];
   const phaseTotal = phases.reduce((s, [, w]) => s + w, 0);
-  const stChance = item.stattrak && item.kind !== "gloves" ? STATTRAK_ODDS : 0;
+  const stChance = canStatTrak(item) ? STATTRAK_ODDS : 0;
 
   // Probability of each wear given the item's float range.
   const wearProb = new Map<string, number>();

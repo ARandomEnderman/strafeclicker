@@ -1,129 +1,123 @@
-import type { Case, OwnedItem } from "./types";
-import { getItem, openCost, priceOf, resolveDrop, round2 } from "./catalog";
-import { randomHex, rollFloats, sha256Hex } from "./fair";
+import type { Account, Case, Drop, OwnedItem } from "./types";
+import { round2 } from "./catalog";
+import { perkValue } from "./odds";
+import type { PerkId } from "../shared/game.js";
 
-// Everything is play money, stored in this browser only.
+// The server owns the account (balance, inventory, every roll). This module just
+// mirrors what it last said and forwards actions to it.
 
-const KEY = "strafeclicker:v1";
-export const STARTING_BALANCE = 250;
-export const TOP_UP = 100;
-
-interface FairState {
-  serverSeed: string;
-  serverSeedHash: string;
-  clientSeed: string;
-  nonce: number;
-  /** Seeds that have been rotated out, revealed for verification. */
-  revealed: { serverSeed: string; serverSeedHash: string; clientSeed: string; lastNonce: number }[];
-}
-
-interface State {
-  balance: number;
-  inventory: OwnedItem[];
-  stats: { opened: number; spent: number; unboxedValue: number; best: { name: string; value: number } | null };
-  fair: FairState;
-}
-
-let state: State;
+let account: Account;
 const listeners = new Set<() => void>();
 
-export const getState = () => state;
+export const getState = () => account;
 export function subscribe(fn: () => void) {
   listeners.add(fn);
   return () => listeners.delete(fn);
 }
 
-function save() {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(state));
-  } catch {
-    // Private mode / storage full: keep going in memory.
-  }
+function set(next: Account) {
+  account = next;
   listeners.forEach((fn) => fn());
-}
-
-async function freshFair(clientSeed = randomHex(8)): Promise<FairState> {
-  const serverSeed = randomHex(32);
-  return { serverSeed, serverSeedHash: await sha256Hex(serverSeed), clientSeed, nonce: 0, revealed: [] };
-}
-
-export async function initState() {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) state = JSON.parse(raw);
-  } catch {
-    // Corrupt or unavailable storage: start over.
-  }
-  state ??= {
-    balance: STARTING_BALANCE,
-    inventory: [],
-    stats: { opened: 0, spent: 0, unboxedValue: 0, best: null },
-    fair: await freshFair(),
-  };
-  save();
-}
-
-export function topUp() {
-  state.balance = round2(state.balance + TOP_UP);
-  save();
-}
-
-export async function resetAll() {
-  localStorage.removeItem(KEY);
-  state = undefined as unknown as State;
-  await initState();
 }
 
 export class InsufficientFunds extends Error {}
 
-/** Charge for a case and roll it. The item goes straight into the inventory. */
-export async function openCase(c: Case): Promise<OwnedItem> {
-  const cost = openCost(c);
-  if (state.balance < cost) throw new InsufficientFunds();
-  state.balance = round2(state.balance - cost);
-
-  const f = state.fair;
-  const nonce = f.nonce++;
-  const drop = resolveDrop(c, await rollFloats(f.serverSeed, f.clientSeed, nonce));
-  const owned: OwnedItem = {
-    ...drop,
-    uid: randomHex(8),
-    caseId: c.id,
-    openedAt: Date.now(),
-    proof: { serverSeedHash: f.serverSeedHash, clientSeed: f.clientSeed, nonce },
-  };
-  state.inventory.unshift(owned);
-
-  const value = priceOf(owned);
-  state.stats.opened++;
-  state.stats.spent = round2(state.stats.spent + cost);
-  state.stats.unboxedValue = round2(state.stats.unboxedValue + value);
-  if (!state.stats.best || value > state.stats.best.value) state.stats.best = { name: getItem(owned.itemId).name, value };
-  save();
-  return owned;
+export class ServerError extends Error {
+  constructor(
+    public code: string,
+    message: string,
+  ) {
+    super(message);
+  }
 }
 
-export function sell(uids: string[]) {
-  const set = new Set(uids);
-  let total = 0;
-  state.inventory = state.inventory.filter((it) => {
-    if (!set.has(it.uid)) return true;
-    total += priceOf(it);
-    return false;
+/** Show an account the server sent earlier (see `defer` below). */
+export const applyAccount = (a: Account) => set(a);
+
+/**
+ * POST an action. With `defer`, the new account isn't shown yet: the caller applies
+ * it with applyAccount once its animation is done, so the result isn't spoiled early.
+ */
+async function post<T>(action: string, body: object = {}, defer = false): Promise<T & { account: Account }> {
+  const res = await fetch(`/api/${action}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
   });
-  state.balance = round2(state.balance + total);
-  save();
-  return round2(total);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (data.account) set(data.account);
+    if (data.error === "insufficient") throw new InsufficientFunds(data.message);
+    throw new ServerError(data.error ?? "http", data.message ?? `HTTP ${res.status}`);
+  }
+  if (!defer) set(data.account);
+  return data;
 }
 
-/** Reveal the current server seed and start a new one. */
-export async function rotateSeed(clientSeed?: string) {
-  const f = state.fair;
-  const next = await freshFair(clientSeed?.trim() || f.clientSeed);
-  next.revealed = [
-    { serverSeed: f.serverSeed, serverSeedHash: f.serverSeedHash, clientSeed: f.clientSeed, lastNonce: f.nonce - 1 },
-    ...f.revealed,
-  ].slice(0, 20);
-  state.fair = next;
-  save();
+export async function initState() {
+  const res = await fetch("/api/me");
+  if (!res.ok) throw new Error(`/api/me: HTTP ${res.status}`);
+  set(await res.json());
+}
+
+// ---------- clicker ----------
+// Clicks are counted locally and sent in small batches; the server decides how
+// many count (it caps clicks per second).
+
+let pendingClicks = 0;
+let flushing: Promise<void> | null = null;
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** What one click is worth right now. */
+export const clickValue = () => perkValue(account.perks, "clickPower");
+
+/** Balance including clicks that haven't reached the server yet. */
+export const displayBalance = () => round2(account.balance + pendingClicks * clickValue());
+
+export function click() {
+  pendingClicks++;
+  listeners.forEach((fn) => fn());
+  flushTimer ??= setTimeout(() => void flushClicks(), 250);
+}
+
+export async function flushClicks(): Promise<void> {
+  if (flushTimer) clearTimeout(flushTimer);
+  flushTimer = null;
+  await flushing;
+  if (!pendingClicks) return;
+  const n = pendingClicks;
+  pendingClicks = 0;
+  flushing = post("click", { clicks: n })
+    .then(() => undefined)
+    .catch((err) => console.error("click flush failed", err))
+    .finally(() => (flushing = null));
+  await flushing;
+}
+
+// ---------- actions ----------
+
+/** Open `count` of a case at once (up to the multi-open perk). */
+export async function openCases(c: Case, count: number): Promise<OwnedItem[]> {
+  await flushClicks();
+  return (await post<{ items: OwnedItem[] }>("open", { caseId: c.id, count })).items;
+}
+
+/** Buy the next level of a perk. */
+export async function buyPerk(perk: PerkId) {
+  await flushClicks();
+  return (await post<{ level: number }>("perk", { perk })).level;
+}
+
+export async function sell(uids: string[]): Promise<number> {
+  return (await post<{ sold: number }>("sell", { uids })).sold;
+}
+
+/** The returned account must be passed to applyAccount after the spin. */
+export async function upgrade(uids: string[], target: Pick<Drop, "itemId" | "phase" | "wear" | "stattrak">) {
+  return post<{ won: boolean; chance: number; item: OwnedItem | null }>("upgrade", { uids, target }, true);
+}
+
+export async function resetAll() {
+  await flushClicks();
+  await post("reset");
 }

@@ -2,12 +2,15 @@
 
 A CS2 case-opening simulator. Play money only: no deposits, no withdrawals, nothing real.
 
-- **Real cases & contents**: all 42 CS2 weapon cases, with their actual skins, float ranges, StatTrak eligibility and Doppler phases.
+- **Real cases & capsules**: all 42 CS2 weapon cases plus 229 sticker and autograph capsules, with their actual contents, float ranges, StatTrak eligibility and Doppler phases. Capsules open without a key.
 - **Real odds**: Valve's published rates (Mil-Spec 79.92%, Restricted 15.98%, Classified 3.20%, Covert 0.64%, Rare Special 0.26%), 10% StatTrak, community-measured float distribution.
 - **Live market prices**: the server refreshes every wear / StatTrak / phase price from Skinport (lowest current listing) once a minute, on the minute. Every browser sees the same countdown and gets the update pushed at the same moment; clients can't trigger or delay it.
 - **Inventory change popup** after each update that moves your inventory's value, with the biggest movers. It also covers time away: reopen the site and it shows what changed since you last looked.
 - **Price history graphs** for every item variant (click any item), recorded by the server.
-- **Provably fair**: rolls are `HMAC-SHA256(serverSeed, "clientSeed:nonce")`, with a seed reveal + verifier page.
+- **Server-side everything**: each browser gets an anonymous account (an HttpOnly cookie). Balance, inventory and every roll live on the server; the browser only ever sees outcomes.
+- **Clicker**: click to earn money ($0.05 per click to start). The server caps clicks at a burst of 20, then 15 per second.
+- **Upgrader**: stake up to 10 items for one pricier skin or sticker. Chance = your value ÷ target price × 90%, between 1% and 80%.
+- **Upgrade tree**: spend balance to open up to 5 cases at once and raise click value up to $1.00. Levels and costs are in `PERKS` in `shared/game.js`.
 
 ## Run
 
@@ -22,6 +25,8 @@ npm start          # production: serves dist/ + API, PORT defaults to 3000
 Behind an HTTP proxy on Node 22, prefix with `NODE_USE_ENV_PROXY=1` so `fetch` uses it.
 
 Needs a host that runs Node (a VPS, Fly.io, Render, Railway…). Static hosting like GitHub Pages won't work anymore because the price schedule lives on the server.
+
+Accounts are saved to `data/accounts.json`. Everyone starts at $0.
 
 ## How prices work
 
@@ -39,8 +44,17 @@ Needs a host that runs Node (a VPS, Fly.io, Render, Railway…). Static hosting 
 | `GET /api/status` | Last / next update time, version, last error |
 | `GET /api/events` | SSE stream of `status` events |
 | `GET /api/history/:itemId` | Price history for every variant of an item |
+| `GET /api/me` | Your account (creates one on first visit) |
+| `POST /api/click` `{clicks}` | Credit clicks (capped per second) |
+| `POST /api/open` `{caseId, count}` | Open 1–5 of a case, up to your multi-open level |
+| `POST /api/sell` `{uids}` | Sell items at the current price |
+| `POST /api/upgrade` `{uids, target}` | Stake items on a target variant |
+| `POST /api/perk` `{perk}` | Buy the next level of `multiOpen` or `clickPower` |
+| `POST /api/reset` | Wipe your account |
 
-`server/snapshot.json` is a committed set of contents and prices. The server falls back to it if GitHub is unreachable and starts from its prices until the first tick. Regenerate it with `npm run data`.
+POST bodies must be `application/json`, which also stops other sites from posting forms to it.
+
+`server/snapshot.json.gz` is a committed set of contents and prices. The server falls back to it if GitHub is unreachable and starts from its prices until the first tick. Regenerate it with `npm run data`.
 
 ## Plugging in a skin texture generator
 
@@ -62,14 +76,15 @@ The returned element is placed in a fixed 4:3 box and should fill it.
 
 | Path | What |
 | --- | --- |
-| `server/index.mjs` | HTTP server, price ticks, SSE |
+| `server/index.mjs` | HTTP server, price ticks, SSE, account cookies |
+| `server/game.mjs` | Accounts and every money action: open, sell, click, upgrade, perks |
+| `shared/game.js` | Odds, float generation, upgrade chance, perk table (server rolls with it, browser displays it) |
 | `server/data.mjs` | Case contents + Skinport prices |
 | `server/history.mjs` | Price history log |
-| `scripts/build-data.mjs` | Regenerates `server/snapshot.json` |
-| `src/odds.ts` | Drop rates, wear buckets, phase weights |
-| `src/catalog.ts` | Rolling a drop, pricing, expected value |
+| `scripts/build-data.mjs` | Regenerates `server/snapshot.json.gz` |
+| `src/odds.ts` | Re-exports the shared rules plus rarity labels |
+| `src/catalog.ts` | Pricing and expected value |
 | `src/live.ts` | Listens for server price updates |
-| `src/fair.ts` | Provably-fair RNG |
-| `src/state.ts` | Balance, inventory, stats (localStorage) |
+| `src/state.ts` | Mirrors the server account, sends actions |
 | `src/skin-renderer.ts` | Skin picture plug point |
-| `src/ui/` | Pages, countdown, popup, price chart |
+| `src/ui/` | Pages (cases, clicker, upgrader, upgrade tree, inventory), countdown, popup, price chart |

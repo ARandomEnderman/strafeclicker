@@ -1,7 +1,7 @@
 import type { Drop, Item, WearKey } from "../types";
-import { priceKey, priceOf } from "../catalog";
+import { priceOf } from "../catalog";
 import { onPrices, serverNow } from "../live";
-import { WEAR_NAME } from "../odds";
+import { WEAR_NAME, priceKey } from "../odds";
 import { deltaLine, h, money } from "./dom";
 import { displayName } from "./item-card";
 import { openModal } from "./modal";
