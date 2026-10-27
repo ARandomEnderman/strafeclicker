@@ -63,3 +63,6 @@ export const BATTLE_ROUND_MS: number;
 export const BATTLE_REEL_LEN: number;
 export const BATTLE_WIN_AT: number;
 export function battleReel(c: Case, winnerId: string, r: () => number): { ids: string[]; stop: number };
+export const DEFUSE_TILES: number;
+export const DEFUSE_RTP: number;
+export function defuseMultiplier(bombs: number, k: number): number;

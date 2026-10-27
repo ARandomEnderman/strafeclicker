@@ -35,6 +35,13 @@ function beep(freq: number, ms: number, gain: number, type: OscillatorType = "sq
 }
 
 export const playTick = () => beep(1800, 25, 0.03);
+/** A low thud for a bomb. */
+export const playBoom = () => {
+  beep(90, 500, 0.25, "sawtooth");
+  beep(55, 700, 0.2, "sine");
+};
+/** A bright blip for a safe tile. */
+export const playSafe = () => beep(1320, 90, 0.05, "triangle");
 
 const REVEAL_FREQ: Record<Tier, number[]> = {
   milspec: [440],

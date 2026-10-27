@@ -262,6 +262,28 @@ export interface BhopResult {
   run: BhopRun | null;
 }
 
+export interface DefuseRun {
+  bombs: number;
+  stake: number;
+  revealed: number[];
+  mult: number;
+  next: number;
+}
+export interface DefuseResult {
+  result?: "safe" | "boom" | "cleared" | "cashed" | "cancelled";
+  tile?: number;
+  /** Where the bombs were; sent once the round is over. */
+  mines?: number[];
+  mult?: number;
+  payout?: number;
+  run: DefuseRun | null;
+}
+
+export async function defuseAction(action: "state" | "start" | "reveal" | "cashout", body: object = {}) {
+  await flushClicks();
+  return post<DefuseResult>("defuse", { action, ...body });
+}
+
 export async function bhopAction(action: "state" | "start" | "jump" | "cashout", body: object = {}, defer = false) {
   await flushClicks();
   return post<BhopResult>("bhop", { action, ...body }, defer);

@@ -18,6 +18,7 @@ import { achievementsPage } from "./ui/achievements-page";
 import { plinkoPage } from "./ui/plinko-page";
 import { flashbangPage } from "./ui/flashbang-page";
 import { bhopPage } from "./ui/bhop-page";
+import { defusePage } from "./ui/defuse-page";
 import { battlesPage } from "./ui/battles-page";
 import { battlePage } from "./ui/battle-page";
 import "./battles";
@@ -46,6 +47,7 @@ const MAIN_NAV: NavItem[] = [
   { route: "plinko", href: "#/plinko", label: "Plinko", icon: "plinko" },
   { route: "flashbang", href: "#/flashbang", label: "Flashbang", icon: "flashbang" },
   { route: "bhop", href: "#/bhop", label: "B-hop", icon: "bhop" },
+  { route: "defuse", href: "#/defuse", label: "Defuse", icon: "bomb" },
 ];
 const BOTTOM_NAV: NavItem[] = [
   { route: "inventory", href: "#/inventory", label: "Inventory", icon: "inventory" },
@@ -198,6 +200,7 @@ function route() {
   else if (page === "plinko") view = plinkoPage();
   else if (page === "flashbang") view = flashbangPage();
   else if (page === "bhop") view = bhopPage();
+  else if (page === "defuse") view = defusePage();
   else if (page === "battles") view = arg ? battlePage(Number(arg)) : battlesPage(new URLSearchParams(query).get("code"));
   else if (page === "friends") view = friendsPage();
   else if (page === "trade") view = tradePage(new URLSearchParams(query).get("with"));

@@ -323,3 +323,15 @@ export function battleReel(c, winnerId, r) {
   });
   return { ids, stop: Math.round((0.15 + r() * 0.7) * 1000) / 1000 };
 }
+
+// ---------- defuse (mines) ----------
+// A 5×5 grid with `bombs` C4s. After k safe tiles the multiplier is 0.99 divided by
+// the chance of surviving k picks, C(25-b, k) / C(25, k): 99% back on average.
+
+export const DEFUSE_TILES = 25;
+export const DEFUSE_RTP = 0.99;
+export function defuseMultiplier(bombs, k) {
+  let m = DEFUSE_RTP;
+  for (let i = 0; i < k; i++) m *= (DEFUSE_TILES - i) / (DEFUSE_TILES - bombs - i);
+  return k <= 0 ? 1 : Math.floor(m * 100 + 1e-9) / 100;
+}

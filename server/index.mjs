@@ -31,6 +31,7 @@ import { SteamMarket } from "./steam.mjs";
 import { plinko } from "./games/plinko.mjs";
 import { Flashbang } from "./games/flashbang.mjs";
 import { Bhop } from "./games/bhop.mjs";
+import { Defuse } from "./games/defuse.mjs";
 import { Battles } from "./games/battles.mjs";
 import { Friends } from "./friends.mjs";
 import { Trades } from "./trades.mjs";
@@ -240,6 +241,7 @@ function toUser(userId, event, data) {
 const flashbang = new Flashbang(game, db, { broadcast, toUser });
 flashbang.start();
 const bhop = new Bhop(game, db);
+const defuse = new Defuse(game, db);
 /** Like broadcast, but each connection gets data made for its user. */
 function broadcastPer(event, data) {
   for (const res of clients) res.write(`event: ${event}\ndata: ${JSON.stringify(data(res.userId))}\n\n`);
@@ -415,6 +417,13 @@ const actions = {
     else if (body.action !== "list") throw new GameError("bad_input", "Unknown action");
     return { ...friends.list(userId, isOnline), account: game.view(userId) };
   },
+  defuse: (userId, body) => {
+    if (body.action === "state") return defuse.state(userId);
+    if (body.action === "start") return defuse.start(userId, body);
+    if (body.action === "reveal") return defuse.reveal(userId, body);
+    if (body.action === "cashout") return defuse.cashout(userId);
+    throw new GameError("bad_input", "Unknown action");
+  },
   bhop: (userId, body) => {
     if (body.action === "state") return bhop.state(userId);
     if (body.action === "start") return bhop.start(userId, body);
@@ -427,7 +436,8 @@ const actions = {
   sell: (userId, body) => game.sell(userId, body.uids),
   upgrade: (userId, body) => game.upgrade(userId, body.uids, body.target),
   reset: (userId) => {
-    bhop.forget(userId); // its stake was part of what's being wiped
+    bhop.forget(userId); // their stakes are part of what's being wiped
+    defuse.forget(userId);
     return game.reset(userId);
   },
 };
