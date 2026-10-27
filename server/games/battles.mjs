@@ -8,9 +8,9 @@
 // when the playback ends, so nothing is given away early.
 
 import { randomInt } from "node:crypto";
-import { BATTLE_MAX_ROUNDS, BATTLE_ROUND_MS, BATTLE_SIZES } from "../../shared/game.js";
+import { BATTLE_MAX_ROUNDS, BATTLE_REEL_LEN, BATTLE_ROUND_MS, BATTLE_SIZES, battleReel } from "../../shared/game.js";
 import { isBigWin } from "../feed.mjs";
-import { GameError } from "../game.mjs";
+import { GameError, randomFloats } from "../game.mjs";
 
 const BOT_NAMES = ["Bot Alpha", "Bot Bravo", "Bot Charlie"];
 /** public: listed for everyone. friends: listed for the creator's friends. private: join by code only. */
@@ -184,7 +184,11 @@ export class Battles {
     b.rounds = cases.map((c) =>
       b.slots.map(() => {
         const drop = this.game.rollDrop(c);
-        return { drop, value: this.game.priceOf(drop) };
+        // The whole strip and its stopping point, so every viewer's reel is identical.
+        const rand = randomFloats(2 * BATTLE_REEL_LEN + 1);
+        let k = 0;
+        const reel = battleReel(c, drop.itemId, () => rand[k++]);
+        return { drop, value: this.game.priceOf(drop), reel };
       }),
     );
     b.totals = b.slots.map((_, i) => Math.round(b.rounds.reduce((sum, r) => sum + r[i].value, 0) * 100) / 100);

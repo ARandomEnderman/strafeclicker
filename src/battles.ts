@@ -21,7 +21,7 @@ export interface Battle {
   createdAt: number;
   startAt: number | null;
   /** rounds[round][slot] once it has started. */
-  rounds: { drop: Drop; value: number }[][] | null;
+  rounds: { drop: Drop; value: number; reel?: { ids: string[]; stop: number } }[][] | null;
   totals: number[] | null;
   winner: number | null;
 }

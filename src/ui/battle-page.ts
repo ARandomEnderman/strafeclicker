@@ -1,9 +1,9 @@
 import { battleById, onBattles, type Battle } from "../battles";
 import { getCase, getItem, imageOf } from "../catalog";
 import { serverNow } from "../live";
-import { BATTLE_ROUND_MS, BATTLE_SPIN_MS, pickWeighted } from "../odds";
+import { BATTLE_ROUND_MS, BATTLE_SPIN_MS, BATTLE_WIN_AT, battleReel } from "../odds";
 import { battleAction, getState, holdToastsFor, InsufficientFunds, ServerError } from "../state";
-import type { Case, Drop, Item, Tier } from "../types";
+import type { Drop, Item } from "../types";
 import { h, money, toast } from "./dom";
 import { displayName } from "./item-card";
 import { icon } from "./icons";
@@ -15,16 +15,7 @@ import { playReveal, playTick } from "./sound";
 // the same moment.
 
 const TILE = 96; // px per reel tile
-const REEL_LEN = 32;
-const WIN_AT = 27;
 const EASING = "cubic-bezier(0.075, 0.82, 0.165, 1)";
-const FILLER_WEIGHT: Record<Tier, number> = { milspec: 1250, restricted: 250, classified: 50, covert: 10, gold: 2 };
-
-function filler(c: Case): Item {
-  const tiers = (Object.keys(c.contents) as Tier[]).filter((t) => c.contents[t].length).map((t) => [t, FILLER_WEIGHT[t]] as [Tier, number]);
-  const pool = c.contents[pickWeighted(tiers, Math.random())];
-  return getItem(pool[Math.floor(Math.random() * pool.length)]);
-}
 
 function tile(item: Item, image: string) {
   return h("div", { class: "bt-tile", style: `--rarity:${item.color}` }, h("img", { src: image, alt: "", loading: "lazy" }));
@@ -180,18 +171,16 @@ export function battlePage(id: number) {
     const spin = (r: number, elapsed: number) => {
       const c = getCase(b.cases[r])!;
       rounds[r].forEach((x, i) => {
+        // The server sends each strip (battles from before it did get one made here).
+        const reel = x.reel ?? battleReel(c, x.drop.itemId, Math.random);
         const strip = h("div", { class: "bt-strip-v" });
-        for (let k = 0; k < REEL_LEN; k++) {
-          if (k === WIN_AT) strip.append(tile(getItem(x.drop.itemId), imageOf(x.drop)));
-          else {
-            const f = filler(c);
-            strip.append(tile(f, f.image));
-          }
-        }
+        reel.ids.forEach((itemId, k) => {
+          const item = getItem(itemId);
+          strip.append(tile(item, k === BATTLE_WIN_AT ? imageOf(x.drop) : item.image));
+        });
         reelWraps[i].replaceChildren(strip, h("div", { class: "bt-marker" }));
         const hgt = reelWraps[i].clientHeight || 240;
-        const slack = 0.15 + Math.random() * 0.7;
-        const end = hgt / 2 - (WIN_AT + slack) * TILE;
+        const end = hgt / 2 - (BATTLE_WIN_AT + reel.stop) * TILE;
         const anim = strip.animate([{ transform: `translateY(${hgt / 2 - 2.5 * TILE}px)` }, { transform: `translateY(${end}px)` }], {
           duration: BATTLE_SPIN_MS,
           easing: EASING,

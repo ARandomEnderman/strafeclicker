@@ -291,3 +291,23 @@ export const BATTLE_MAX_ROUNDS = 10;
 /** Each round: the reels spin for BATTLE_SPIN_MS, then a pause before the next. */
 export const BATTLE_SPIN_MS = 4000;
 export const BATTLE_ROUND_MS = 5500;
+
+/** Battle reels: tiles per strip and the one the winning item sits on. */
+export const BATTLE_REEL_LEN = 32;
+export const BATTLE_WIN_AT = 27;
+const BATTLE_FILLER_WEIGHT = { milspec: 1250, restricted: 250, classified: 50, covert: 10, gold: 2 };
+
+/**
+ * One battle reel, made by the server so every viewer sees the same strip: the item id
+ * on each tile (the winner at BATTLE_WIN_AT) and where on the winning tile the marker
+ * stops (0–1 from its top edge). `r` returns uniform floats in [0, 1).
+ */
+export function battleReel(c, winnerId, r) {
+  const tiers = TIERS.filter((t) => c.contents[t]?.length).map((t) => [t, BATTLE_FILLER_WEIGHT[t]]);
+  const ids = Array.from({ length: BATTLE_REEL_LEN }, (_, k) => {
+    if (k === BATTLE_WIN_AT) return winnerId;
+    const pool = c.contents[pickWeighted(tiers, r())];
+    return pool[Math.floor(r() * pool.length)];
+  });
+  return { ids, stop: Math.round((0.15 + r() * 0.7) * 1000) / 1000 };
+}

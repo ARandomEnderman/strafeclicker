@@ -60,3 +60,6 @@ export const BATTLE_SIZES: number[];
 export const BATTLE_MAX_ROUNDS: number;
 export const BATTLE_SPIN_MS: number;
 export const BATTLE_ROUND_MS: number;
+export const BATTLE_REEL_LEN: number;
+export const BATTLE_WIN_AT: number;
+export function battleReel(c: Case, winnerId: string, r: () => number): { ids: string[]; stop: number };
