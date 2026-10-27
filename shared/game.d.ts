@@ -93,3 +93,8 @@ export type TowerDifficulty = "easy" | "medium" | "hard" | "expert";
 export const TOWER_DIFFICULTIES: Record<TowerDifficulty, { name: string; doors: number; ts: number }>;
 export const TOWER_MAX_MULT: number;
 export function towerMultiplier(difficulty: TowerDifficulty, floors: number): number;
+export const RACE_BOTS: string[];
+export const RACE_BET_MS: number;
+export const RACE_RUN_MS: number;
+export const RACE_RESULT_MS: number;
+export const RACE_STEPS: number;

@@ -21,6 +21,7 @@ A CS2 case-opening simulator. Play money only: no deposits, no withdrawals, noth
 - **Friends**: add people by username from the friends button in the top bar; they accept or decline. Friends see your friends-only battles and show as online when they have the site open.
 - **Profiles**: click any player's name (live wins, flashbang, battles, friends, trades) for a mini profile: display name, @username, join date, cases opened, battles won, achievements and best item, with Add friend / Trade / Profile buttons. Friends (and you) also see online status, balance and inventory worth, and the profile page (`#/u/<username>`) shows their whole inventory. Your own profile is where you set a display name (up to 24 characters); the username stays your login and what friends add you by. Friends' online status updates live.
 - **Trade**: swap items and cash with friends. Pick from both inventories, add cash on either side, send the offer; they accept or decline, you can cancel. Nothing is held while an offer is open: on accept the server checks both sides still have everything and moves it all in one transaction, or the offer fails. The Trade tab shows a red count of offers waiting for you.
+- **Bot race**: one shared race for everyone. Each round the five bots get fresh chances, shown as odds that pay back 99%; 20 s of betting, then a race of about 10 s that looks the same on every screen (the server picks the winner by those chances and scripts every bot's path), then the result.
 - **Towers**: an endless climb. Each floor has 4 / 3 / 2 / 3 doors with 1 / 1 / 1 / 2 Ts (Easy / Medium / Hard / Expert); pick a safe door to go up, cash out whenever you like. After k floors the multiplier is 0.99 / (chance per floor)^k, capped at 1,000,000x. The Ts are placed only once you've picked, so nothing about the floors ahead exists to be found out.
 - **Keno**: a 7×7 grid. Pick 1–10 tiles, the server draws 10 of the 49, and you're paid by how many of yours were hit (`KENO_TABLES` in `shared/game.js`; each row pays back about 99%).
 - **Daily spin**: a free wheel once every 24 hours paying $0.25 to $100 into your balance (about $2.27 a day on average; prizes in `DAILY_PRIZES` in `shared/game.js`). A red dot in the sidebar shows when it's ready.
@@ -139,6 +140,7 @@ No `git` on the box? Download the code instead:
 | `POST /api/spin` | The daily spin |
 | `POST /api/keno` `{bet, picks}` | A keno round (picks are tile numbers 0–48) |
 | `POST /api/towers` `{action: "start", bet, difficulty}` / `pick` `{door}` / `cashout` / `state` | Towers |
+| `POST /api/race` `{bot, bet}` | Bet on a bot (0–4) this round; round state comes over SSE as `race` events |
 | `POST /api/reset` | Wipe your balance, items and upgrades (keeps the login) |
 
 POST bodies must be `application/json`, which also stops other sites from posting forms to it.

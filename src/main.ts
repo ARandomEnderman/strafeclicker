@@ -28,6 +28,8 @@ import { adminPage } from "./ui/admin-page";
 import { spinPage } from "./ui/spin-page";
 import { kenoPage } from "./ui/keno-page";
 import { towersPage } from "./ui/towers-page";
+import { racePage } from "./ui/race-page";
+import "./race";
 import "./jackpot";
 import "./roulette";
 import { battlesPage } from "./ui/battles-page";
@@ -54,12 +56,16 @@ const MAIN_NAV: NavItem[] = [
   { route: "clicker", href: "#/clicker", label: "Clicker", icon: "clicker" },
   { route: "cases", href: "#/", label: "Cases", icon: "cases" },
   { route: "battles", href: "#/battles", label: "Case battles", icon: "battles" },
+  { route: "upgrader", href: "#/upgrader", label: "Upgrader", icon: "upgrader" },
+];
+/** The casino games, shown as a compact grid of tiles so the sidebar keeps room for the feed. */
+const GAMES_NAV: NavItem[] = [
   { route: "coinflip", href: "#/coinflip", label: "Coinflip", icon: "coins" },
   { route: "jackpot", href: "#/jackpot", label: "Jackpot", icon: "jackpot" },
-  { route: "upgrader", href: "#/upgrader", label: "Upgrader", icon: "upgrader" },
   { route: "plinko", href: "#/plinko", label: "Plinko", icon: "plinko" },
   { route: "flashbang", href: "#/flashbang", label: "Flashbang", icon: "flashbang" },
   { route: "roulette", href: "#/roulette", label: "Roulette", icon: "roulette" },
+  { route: "race", href: "#/race", label: "Bot race", icon: "race" },
   { route: "bhop", href: "#/bhop", label: "B-hop", icon: "bhop" },
   { route: "defuse", href: "#/defuse", label: "Defuse", icon: "bomb" },
   { route: "keno", href: "#/keno", label: "Keno", icon: "keno" },
@@ -109,6 +115,11 @@ function sidebar() {
     { class: "sidebar", id: "sidebar" },
     h("a", { class: "logo", href: "#/" }, "STRAFE", h("span", null, "CLICKER")),
     h("nav", { class: "side-nav" }, ...MAIN_NAV.map((n) => navLink(n))),
+    h(
+      "nav",
+      { class: "side-games", "aria-label": "Games" },
+      ...GAMES_NAV.map((n) => h("a", { href: n.href, "data-route": n.route, class: "side-link game-tile", title: n.label }, icon(n.icon, 18), h("span", null, n.label))),
+    ),
     feedPanel(),
     h(
       "nav",
@@ -229,6 +240,7 @@ function route() {
   else if (page === "spin") view = spinPage();
   else if (page === "keno") view = kenoPage();
   else if (page === "towers") view = towersPage();
+  else if (page === "race") view = racePage();
   else if (page === "admin" && getState().isAdmin) view = adminPage();
   else if (page === "coinflip") view = arg ? coinflipView(Number(arg)) : coinflipPage(new URLSearchParams(query).get("code"));
   else if (page === "battles") view = arg ? battlePage(Number(arg)) : battlesPage(new URLSearchParams(query).get("code"));

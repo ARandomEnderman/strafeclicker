@@ -48,7 +48,7 @@ export function rigReport(settings) {
     { game: "coinflipBot", rig: r("coinflipBot"), rtp: pct(1 - r("coinflipBot") / 2), note: `Against a bot you win ${pct(0.5 - r("coinflipBot") / 2)}% of flips. Player-vs-player flips are always 50/50.` },
     { game: "towers", rig: r("towers"), rtp: pct(0.99 * (1 - r("towers")) ** 5), note: `Shown for 5 floors; ${pct(r("towers"))}% of safe picks get a T moved behind them.` },
     { game: "keno", rig: r("keno"), rtp: r("keno") ? null : 99, note: `${pct(r("keno"))}% of rounds are drawn twice and the draw with fewer hits counts. 99% with no rig.` },
-    { game: "race", rig: r("race"), rtp: null, note: "Applies once the bot race is built." },
+    { game: "race", rig: r("race"), rtp: pct(0.99 * (1 - r("race"))), note: `Up to this for a lone bettor: ${pct(r("race"))}% of races go to the bot that pays the players least. Odds pay back 99% with no rig.` },
     { game: "blackjack", rig: r("blackjack"), rtp: null, note: "Applies once Blackjack is built." },
     { game: "dailySpin", rig: r("dailySpin"), rtp: null, note: `Free, so no payback: worth ${money(dailyEv(r("dailySpin")))} a day on average (${money(dailyEv(0))} with no rig). The rig makes the top four prizes rarer.` },
     { game: "battles / jackpot / coinflip (players)", rig: null, rtp: 100, note: "Player against player: nothing to rig, there's no house." },

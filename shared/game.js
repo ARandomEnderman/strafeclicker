@@ -409,3 +409,15 @@ export function towerMultiplier(difficulty, floors) {
   const p = (d.doors - d.ts) / d.doors;
   return floors <= 0 ? 1 : Math.min(TOWER_MAX_MULT, Math.floor((0.99 / p ** floors) * 100 + 1e-9) / 100);
 }
+
+// ---------- bot race ----------
+// Five bots race in one shared round. Each round they get new chances to win (shown as
+// odds paying 0.99 / chance), bets are taken for RACE_BET_MS, the race runs for up to
+// RACE_RUN_MS, then the result shows for RACE_RESULT_MS.
+
+export const RACE_BOTS = ["Alpha", "Bravo", "Charlie", "Delta", "Echo"];
+export const RACE_BET_MS = 20_000;
+export const RACE_RUN_MS = 11_000;
+export const RACE_RESULT_MS = 4000;
+/** Progress checkpoints per bot path, evenly spaced in time over its finish time. */
+export const RACE_STEPS = 24;
