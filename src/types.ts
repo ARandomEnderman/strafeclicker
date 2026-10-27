@@ -100,6 +100,8 @@ export interface Account {
   };
   /** Achievement id -> time unlocked (ms). */
   achievements: Record<string, number>;
+  /** Achievement id -> time its reward was claimed (ms). */
+  claimed: Record<string, number>;
   /** Present once, right after achievements were unlocked. */
   unlocked?: string[];
 }

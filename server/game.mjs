@@ -55,6 +55,8 @@ const freshStats = () => ({
   games: {},
   /** Achievement id -> time unlocked. */
   achievements: {},
+  /** Achievement id -> time its reward was claimed. */
+  claimed: {},
 });
 
 export class GameError extends Error {
@@ -82,6 +84,13 @@ const rowToItem = (r) => ({
   source: r.source,
   obtainedAt: r.obtained_at,
 });
+
+function loadStats(json) {
+  const raw = JSON.parse(json);
+  // Before rewards had to be claimed they were paid on unlock: count those as claimed.
+  if (raw.achievements && !raw.claimed) raw.claimed = { ...raw.achievements };
+  return { ...freshStats(), ...raw };
+}
 
 /** The parts of an owned item the feed needs to draw it. */
 const dropOf = (it) => ({ itemId: it.itemId, phase: it.phase, wear: it.wear, stattrak: it.stattrak });
@@ -175,7 +184,7 @@ export class Game {
       balanceCents: r.balance_cents,
       lockedCents: this.#lockedCents(r.id),
       perks: { ...NO_PERKS, ...JSON.parse(r.perks) },
-      stats: { ...freshStats(), ...JSON.parse(r.stats) },
+      stats: loadStats(r.stats),
       inventory: this.q.items.all(r.id).map(rowToItem),
     };
   }
@@ -238,17 +247,30 @@ export class Game {
     return out;
   }
 
-  /** Record newly met achievements and pay their rewards. Returns the new ids. */
+  /** Record newly met achievements (their rewards wait to be claimed). Returns the new ids. */
   #unlockAchievements(a) {
     const view = this.#view(a);
     const subject = { ...view, inventoryValue: a.inventory.reduce((sum, it) => sum + this.#price(it), 0) };
     const ids = newlyMet(subject, a.stats.achievements);
     const now = Date.now();
-    for (const id of ids) {
-      a.stats.achievements[id] = now;
-      a.balanceCents += cents(ACHIEVEMENTS.find((x) => x.id === id).reward);
-    }
+    for (const id of ids) a.stats.achievements[id] = now;
     return ids;
+  }
+
+  /** Collect the reward of one unlocked achievement, or of all of them (id omitted). */
+  claim(userId, id) {
+    return this.#act(userId, (a) => {
+      const ready = ACHIEVEMENTS.filter((x) => a.stats.achievements[x.id] && !a.stats.claimed[x.id] && (id == null || x.id === id));
+      if (!ready.length) throw new GameError("nothing", id == null ? "Nothing to claim" : "That reward isn't ready to claim");
+      const now = Date.now();
+      let total = 0;
+      for (const x of ready) {
+        a.stats.claimed[x.id] = now;
+        total += cents(x.reward);
+      }
+      a.balanceCents += total;
+      return { claimed: ready.map((x) => x.id), reward: total / 100 };
+    });
   }
 
   /**
@@ -340,6 +362,7 @@ export class Game {
         offlineEarned: (s.offlineCents ?? 0) / 100,
       },
       achievements: s.achievements,
+      claimed: s.claimed,
     };
   }
 
@@ -522,7 +545,7 @@ export class Game {
       a.inventory = [];
       a.balanceCents = cents(STARTING_BALANCE);
       // Achievements stay unlocked so their rewards can't be farmed by resetting.
-      a.stats = { ...freshStats(), achievements: a.stats.achievements };
+      a.stats = { ...freshStats(), achievements: a.stats.achievements, claimed: a.stats.claimed };
       a.perks = { ...NO_PERKS };
       return {};
     });

@@ -336,6 +336,7 @@ async function readJson(req) {
 const actions = {
   click: (userId, body) => game.click(userId, body.clicks, body.times),
   plinko: (userId, body) => plinko(game, userId, body),
+  claim: (userId, body) => game.claim(userId, body.id == null ? null : String(body.id)),
   flashbang: (userId, body) => {
     if (body.action === "bet") return flashbang.bet(userId, body);
     if (body.action === "cancel") return flashbang.cancel(userId);

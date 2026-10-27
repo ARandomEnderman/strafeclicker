@@ -56,7 +56,15 @@ function navLink(n: NavItem, extra?: Node) {
 /** Left column: logo, games, the live big-wins feed, and account pages at the bottom. */
 function sidebar() {
   const invCount = h("span", { class: "badge" });
-  const sync = () => (invCount.textContent = String(getState().inventory.length));
+  // Unclaimed achievement rewards.
+  const toClaim = h("span", { class: "badge ping", hidden: true });
+  const sync = () => {
+    invCount.textContent = String(getState().inventory.length);
+    const a = getState();
+    const n = Object.keys(a.achievements).filter((id) => !a.claimed[id]).length;
+    toClaim.hidden = !n;
+    toClaim.textContent = String(n);
+  };
   subscribe(sync);
   sync();
   return h(
@@ -65,7 +73,11 @@ function sidebar() {
     h("a", { class: "logo", href: "#/" }, "STRAFE", h("span", null, "CLICKER")),
     h("nav", { class: "side-nav" }, ...MAIN_NAV.map((n) => navLink(n))),
     feedPanel(),
-    h("nav", { class: "side-nav bottom" }, ...BOTTOM_NAV.map((n) => navLink(n, n.route === "inventory" ? invCount : undefined))),
+    h(
+      "nav",
+      { class: "side-nav bottom" },
+      ...BOTTOM_NAV.map((n) => navLink(n, n.route === "inventory" ? invCount : n.route === "achievements" ? toClaim : undefined)),
+    ),
   );
 }
 
@@ -234,7 +246,7 @@ function showUnlocked(ids: string[]) {
   }
   for (const id of ids) {
     const a = ACHIEVEMENTS.find((x) => x.id === id);
-    if (a) toast(`Achievement unlocked: ${a.name} (+${money(a.reward)})`, "achievement", 5000);
+    if (a) toast(`Achievement unlocked: ${a.name}. Claim ${money(a.reward)} in Achievements.`, "achievement", 5000);
   }
 }
 

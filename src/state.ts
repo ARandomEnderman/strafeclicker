@@ -181,6 +181,11 @@ export async function flashbangAction<T = object>(action: "bet" | "cancel" | "ca
   return post<T>("flashbang", { action, ...body });
 }
 
+/** Collect an achievement's reward, or every ready one (no id). */
+export async function claimAchievement(id?: string) {
+  return post<{ claimed: string[]; reward: number }>("claim", { id });
+}
+
 export async function friendsAction(action: "list" | "request" | "accept" | "remove", username?: string) {
   return post<{
     friends: { user: string; online: boolean }[];
