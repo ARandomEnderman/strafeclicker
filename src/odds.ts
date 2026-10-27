@@ -19,6 +19,7 @@ export {
   perkValue,
   phaseEntries,
   pickTier,
+  pickWeighted,
   priceKey,
   tierOdds,
   upgradeChance,

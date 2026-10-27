@@ -1,16 +1,34 @@
 import type { Case, Item, OwnedItem } from "../types";
 import { caseEV, casePrice, getItem, keyCost, openCost, priceOf, priceRange } from "../catalog";
 import { onPricesForPage } from "../live";
-import { PERKS, TIER_INFO, needsKey, perkValue, pickTier, tierLabel, tierOdds } from "../odds";
+import { PERKS, TIER_INFO, needsKey, perkValue, pickWeighted, tierLabel, tierOdds } from "../odds";
 import { renderSkin } from "../skin-renderer";
 import { getState, InsufficientFunds, openCases, sell, ServerError } from "../state";
 import { h, money, toast } from "./dom";
 import { displayName, dropCard, itemPreviewCard } from "./item-card";
 import { playTick, playReveal } from "./sound";
 
-const REEL_LENGTH = 60;
-const WIN_INDEX = 52;
-const SPIN_MS = 6500;
+// The reel copies CS2's own case-opening popup (panorama popup_capability_decodable.js/.css):
+// 38 tiles, the scroll starts on tile 35 and stops on the dropped item at tile 3, a random
+// 10–90% across it, over 6 s with cubic-bezier(0.075, 0.82, 0.165, 1), then the item is
+// revealed. CS2 lays tiles out right-to-left; ours go left-to-right, so its tile i is our 37 - i.
+// Our tiles are narrower than CS2's, so PAD extra filler tiles on each side keep the
+// strip full edge to edge; the 32-tile trip from start to winner is unchanged.
+const CS2_TILES = 38;
+const PAD = 8;
+const REEL_LENGTH = CS2_TILES + 2 * PAD;
+const WIN_INDEX = PAD + (CS2_TILES - 1 - 3);
+const START_INDEX = PAD + (CS2_TILES - 1 - 35);
+const SPIN_MS = 6000;
+const SPIN_EASING = "cubic-bezier(0.075, 0.82, 0.165, 1)";
+/** CS2's tick-sound timetable in seconds, exactly as shipped (including its out-of-order 1.351). */
+const TICK_TIMES = [
+  0.0, 0.063, 0.125, 0.188, 0.25, 0.313, 0.375, 0.438, 0.5, 0.563, 0.625, 0.688, 0.75, 0.813, 0.875, 0.938, 1.0, 1.063, 1.125, 1.188,
+  1.25, 1.313, 1.375, 1.483, 1.351, 1.62, 1.701, 1.786, 1.872, 2.003, 2.154, 2.313, 2.466, 2.615, 2.773, 2.941, 3.104, 3.339, 3.63,
+  3.953, 4.385, 5.004,
+];
+/** CS2's per-item display weights for filler tiles, by rarity (Mil-Spec / High Grade first). */
+const FILLER_WEIGHT = { milspec: 1250, restricted: 250, classified: 50, covert: 10, gold: 0 } as const;
 
 let fast = false;
 
@@ -101,8 +119,8 @@ export function casePage(c: Case) {
       if (reels.children.length !== won.length) makeReels(won.length);
       const wraps = [...reels.children] as HTMLElement[];
       wraps.forEach((wrap, i) => fillReel(wrap.firstElementChild as HTMLElement, c, getItem(won[i].itemId)));
-      if (!fast) await Promise.all(wraps.map((wrap, i) => animate(wrap.firstElementChild as HTMLElement, wrap, i === 0)));
-      else wraps.forEach((wrap) => snapTo(wrap.firstElementChild as HTMLElement, wrap));
+      if (!fast) await Promise.all(wraps.map((wrap, i) => animate(wrap.firstElementChild as HTMLElement, i === 0)));
+      else wraps.forEach((wrap) => snapTo(wrap.firstElementChild as HTMLElement));
       wraps.forEach((wrap) => ensureLanded(wrap.firstElementChild as HTMLElement, wrap));
       const best = won.map((w) => getItem(w.itemId)).sort((a, b) => TIER_RANK[b.tier] - TIER_RANK[a.tier])[0];
       playReveal(best.tier);
@@ -206,20 +224,24 @@ function stat(label: string, value: string) {
   return h("div", { class: "stat" }, h("span", null, label), h("b", null, value));
 }
 
-/** Random filler drawn with the real odds, so the reel looks like a real one. */
+/**
+ * Filler is drawn like CS2 does it: every item in the case (never the gold special item)
+ * weighted by its rarity, so a tile is only gold when you actually won one.
+ */
 function fillReel(reel: HTMLElement, c: Case, winner: Item | null) {
   resetReel(reel);
+  const pool: [string, number][] = Object.values(c.contents)
+    .flat()
+    .map((id) => [id, FILLER_WEIGHT[getItem(id).tier]] as [string, number])
+    .filter(([, w]) => w > 0);
   const tiles: HTMLElement[] = [];
   for (let i = 0; i < REEL_LENGTH; i++) {
-    let item: Item;
-    if (winner && i === WIN_INDEX) item = winner;
-    else {
-      const pool = c.contents[pickTier(c, Math.random())];
-      item = getItem(pool[Math.floor(Math.random() * pool.length)]);
-    }
+    const item = winner && i === WIN_INDEX ? winner : getItem(pickWeighted(pool, Math.random()));
     tiles.push(reelTile(item, c));
   }
   reel.replaceChildren(...tiles);
+  // Idle reels rest on the start tile, where the spin begins.
+  requestAnimationFrame(() => reel.isConnected && !reel.getAnimations().length && (reel.style.transform = `translateX(${xFor(reel, START_INDEX, 0.5)}px)`));
 }
 
 function reelTile(item: Item, c: Case) {
@@ -244,12 +266,6 @@ const markerCentre = (wrap: HTMLElement) => {
   return m.left + m.width / 2;
 };
 
-/** How far tile i's centre is to the right of the marker, as currently drawn. */
-function tileOffset(reel: HTMLElement, wrap: HTMLElement, i: number) {
-  const t = (reel.children[i] as HTMLElement).getBoundingClientRect();
-  return t.left + t.width / 2 - markerCentre(wrap);
-}
-
 const currentX = (reel: HTMLElement) => new DOMMatrixReadOnly(getComputedStyle(reel).transform).m41;
 
 function resetReel(reel: HTMLElement) {
@@ -258,15 +274,16 @@ function resetReel(reel: HTMLElement) {
   if (reel.parentElement) reel.parentElement.scrollLeft = 0;
 }
 
-/** Translation that puts the winning tile under the marker, nudged by jitter (±0.42 tile). */
-function winX(reel: HTMLElement, wrap: HTMLElement, jitter: number) {
-  const width = (reel.children[WIN_INDEX] as HTMLElement).getBoundingClientRect().width;
-  return currentX(reel) - tileOffset(reel, wrap, WIN_INDEX) - jitter * width * 0.42;
+/** Translation that puts the marker `fraction` of the way across tile i (0 = its left edge). */
+function xFor(reel: HTMLElement, i: number, fraction: number) {
+  const wrap = reel.parentElement as HTMLElement;
+  const t = (reel.children[i] as HTMLElement).getBoundingClientRect();
+  return currentX(reel) - (t.left + t.width * fraction - markerCentre(wrap));
 }
 
-function snapTo(reel: HTMLElement, wrap: HTMLElement) {
+function snapTo(reel: HTMLElement) {
   resetReel(reel);
-  reel.style.transform = `translateX(${winX(reel, wrap, 0)}px)`;
+  reel.style.transform = `translateX(${xFor(reel, WIN_INDEX, 0.5)}px)`;
 }
 
 /** Last line of defence: if the reel came to rest off the winning tile, move it there. */
@@ -275,38 +292,27 @@ function ensureLanded(reel: HTMLElement, wrap: HTMLElement) {
   const m = markerCentre(wrap);
   if (m >= t.left && m <= t.right) return;
   console.warn("Reel stopped off the winning tile; snapping it into place", { tileLeft: t.left, tileRight: t.right, marker: m });
-  reel.style.transform = `translateX(${winX(reel, wrap, 0)}px)`;
+  reel.style.transform = `translateX(${xFor(reel, WIN_INDEX, 0.5)}px)`;
 }
 
-async function animate(reel: HTMLElement, wrap: HTMLElement, sound = true): Promise<void> {
+async function animate(reel: HTMLElement, sound = true): Promise<void> {
   resetReel(reel);
-  const target = winX(reel, wrap, Math.random() * 2 - 1);
-  const first = (reel.children[0] as HTMLElement).getBoundingClientRect();
-  const pitch = (reel.children[1] as HTMLElement).getBoundingClientRect().left - first.left;
-  const markerInReel = markerCentre(wrap) - first.left;
+  const start = xFor(reel, START_INDEX, 0.5);
+  // CS2: Math.floor(Math.random() * 81 + 10) / 100, i.e. 10%–90% across the tile.
+  const slack = Math.floor(Math.random() * 81 + 10) / 100;
+  const target = xFor(reel, WIN_INDEX, slack);
 
-  const anim = reel.animate([{ transform: "translateX(0px)" }, { transform: `translateX(${target}px)` }], {
+  const anim = reel.animate([{ transform: `translateX(${start}px)` }, { transform: `translateX(${target}px)` }], {
     duration: SPIN_MS,
-    easing: "cubic-bezier(0.08, 0.6, 0.1, 1)",
+    easing: SPIN_EASING,
     fill: "forwards",
   });
-
-  let lastTile = -1;
-  let raf = 0;
-  const tick = () => {
-    const tileUnderMarker = Math.floor((markerInReel - currentX(reel)) / pitch);
-    if (tileUnderMarker !== lastTile) {
-      if (lastTile !== -1 && sound) playTick();
-      lastTile = tileUnderMarker;
-    }
-    raf = requestAnimationFrame(tick);
-  };
-  raf = requestAnimationFrame(tick);
+  const ticks = sound ? TICK_TIMES.map((t) => setTimeout(playTick, t * 1000)) : [];
   // If the tab is hidden the animation can stall; finish it rather than hang.
   const guard = setTimeout(() => anim.finish(), SPIN_MS + 2000);
   await anim.finished.catch(() => undefined);
   clearTimeout(guard);
-  cancelAnimationFrame(raf);
+  ticks.forEach(clearTimeout);
 
   reel.style.transform = `translateX(${target}px)`;
   anim.cancel();
