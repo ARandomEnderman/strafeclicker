@@ -29,7 +29,9 @@ import { spinPage } from "./ui/spin-page";
 import { kenoPage } from "./ui/keno-page";
 import { towersPage } from "./ui/towers-page";
 import { racePage } from "./ui/race-page";
+import { blackjackPage } from "./ui/blackjack-page";
 import "./race";
+import "./blackjack";
 import "./jackpot";
 import "./roulette";
 import { battlesPage } from "./ui/battles-page";
@@ -70,6 +72,7 @@ const GAMES_NAV: NavItem[] = [
   { route: "defuse", href: "#/defuse", label: "Defuse", icon: "bomb" },
   { route: "keno", href: "#/keno", label: "Keno", icon: "keno" },
   { route: "towers", href: "#/towers", label: "Towers", icon: "towers" },
+  { route: "blackjack", href: "#/blackjack", label: "Blackjack", icon: "blackjack" },
 ];
 const BOTTOM_NAV: NavItem[] = [
   { route: "inventory", href: "#/inventory", label: "Inventory", icon: "inventory" },
@@ -241,6 +244,7 @@ function route() {
   else if (page === "keno") view = kenoPage();
   else if (page === "towers") view = towersPage();
   else if (page === "race") view = racePage();
+  else if (page === "blackjack") view = blackjackPage();
   else if (page === "admin" && getState().isAdmin) view = adminPage();
   else if (page === "coinflip") view = arg ? coinflipView(Number(arg)) : coinflipPage(new URLSearchParams(query).get("code"));
   else if (page === "battles") view = arg ? battlePage(Number(arg)) : battlesPage(new URLSearchParams(query).get("code"));

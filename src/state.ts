@@ -296,6 +296,11 @@ export async function playKeno(bet: number, picks: number[]): Promise<KenoResult
   return { ...r, reveal: hidePayout(r.payout) };
 }
 
+export async function blackjackAction(action: "bet" | "hit" | "stand" | "double", bet?: number) {
+  await flushClicks();
+  return post("blackjack", { action, bet });
+}
+
 export async function raceBet(bot: number, bet: number) {
   await flushClicks();
   return post("race", { bot, bet });

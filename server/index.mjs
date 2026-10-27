@@ -39,6 +39,7 @@ import { Coinflip } from "./games/coinflip.mjs";
 import { Jackpot } from "./games/jackpot.mjs";
 import { keno } from "./games/keno.mjs";
 import { Race } from "./games/race.mjs";
+import { Blackjack } from "./games/blackjack.mjs";
 import { Battles } from "./games/battles.mjs";
 import { Friends } from "./friends.mjs";
 import { Trades } from "./trades.mjs";
@@ -270,6 +271,8 @@ battles.start();
 const trades = new Trades(game, db, friends, { toUser });
 const coinflip = new Coinflip(game, db, friends, { broadcastPer, toUser });
 coinflip.start();
+const blackjack = new Blackjack(game, db, { broadcastPer, toUser });
+blackjack.start();
 const profiles = new Profiles(game, db, friends, isOnline);
 const admin = new Admin({
   db,
@@ -317,6 +320,7 @@ function events(req, res) {
   res.userId = sessionUser(req);
   res.write(`event: battles\ndata: ${JSON.stringify(battles.list(res.userId))}\n\n`);
   res.write(`event: flips\ndata: ${JSON.stringify(coinflip.list(res.userId))}\n\n`);
+  res.write(`event: bj\ndata: ${JSON.stringify(blackjack.view(res.userId))}\n\n`);
   const wasOnline = res.userId != null && isOnline(res.userId);
   clients.add(res);
   if (res.userId != null && !wasOnline) presenceChanged(res.userId);
@@ -502,6 +506,13 @@ const actions = {
   spin: (userId) => game.dailySpin(userId),
   keno: (userId, body) => keno(game, userId, body),
   race: (userId, body) => race.bet(userId, body),
+  blackjack: (userId, body) => {
+    if (body.action === "bet") return blackjack.bet(userId, body);
+    if (body.action === "hit") return blackjack.hit(userId);
+    if (body.action === "stand") return blackjack.stand(userId);
+    if (body.action === "double") return blackjack.double(userId);
+    throw new GameError("bad_input", "Unknown action");
+  },
   jackpot: (userId, body) => (body.action === "withdraw" ? jackpot.withdraw(userId) : jackpot.deposit(userId, body)),
   coinflip: (userId, body) => {
     if (body.action === "create") return coinflip.create(userId, body);
@@ -665,6 +676,7 @@ for (const sig of ["SIGINT", "SIGTERM"]) {
     roulette.stop();
     jackpot.stop();
     race.stop();
+    blackjack.stop();
     void steam.stop().finally(() => {
       db.close();
       process.exit(0);

@@ -421,3 +421,14 @@ export const RACE_RUN_MS = 11_000;
 export const RACE_RESULT_MS = 4000;
 /** Progress checkpoints per bot path, evenly spaced in time over its finish time. */
 export const RACE_STEPS = 24;
+
+// ---------- Blackjack ----------
+// Shared tables of up to BJ_SEATS players. Bets are taken for BJ_BET_MS after the first
+// one, then everyone plays their hand at the same time within BJ_PLAY_MS, the dealer
+// draws one card every BJ_DEALER_CARD_MS, and the result shows for BJ_RESULT_MS.
+
+export const BJ_SEATS = 4;
+export const BJ_BET_MS = 12_000;
+export const BJ_PLAY_MS = 30_000;
+export const BJ_DEALER_CARD_MS = 800;
+export const BJ_RESULT_MS = 6000;

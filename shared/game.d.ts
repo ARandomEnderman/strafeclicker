@@ -98,3 +98,8 @@ export const RACE_BET_MS: number;
 export const RACE_RUN_MS: number;
 export const RACE_RESULT_MS: number;
 export const RACE_STEPS: number;
+export const BJ_SEATS: number;
+export const BJ_BET_MS: number;
+export const BJ_PLAY_MS: number;
+export const BJ_DEALER_CARD_MS: number;
+export const BJ_RESULT_MS: number;

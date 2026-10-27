@@ -23,6 +23,17 @@ function plinkoRtp(rows, risk, rig) {
   return dist.reduce((s, p, k) => s + p * PLINKO_TABLES[rows][risk][k], 0);
 }
 
+/** Blackjack payback with basic strategy (no splits), simulated at a few rig levels. */
+const BJ_RTP = [[0, 0.99], [0.1, 0.9505], [0.25, 0.9009], [0.5, 0.8202], [1, 0.6823]];
+function blackjackRtp(rig) {
+  for (let i = 1; i < BJ_RTP.length; i++) {
+    const [r0, v0] = BJ_RTP[i - 1];
+    const [r1, v1] = BJ_RTP[i];
+    if (rig <= r1) return v0 + ((rig - r0) / (r1 - r0)) * (v1 - v0);
+  }
+  return BJ_RTP.at(-1)[1];
+}
+
 const pct = (x) => Math.round(x * 1000) / 10;
 const money = (x) => `$${x.toFixed(2)}`;
 /** Average daily spin prize when the top half of the prizes are (1 - rig) as likely. */
@@ -49,7 +60,7 @@ export function rigReport(settings) {
     { game: "towers", rig: r("towers"), rtp: pct(0.99 * (1 - r("towers")) ** 5), note: `Shown for 5 floors; ${pct(r("towers"))}% of safe picks get a T moved behind them.` },
     { game: "keno", rig: r("keno"), rtp: r("keno") ? null : 99, note: `${pct(r("keno"))}% of rounds are drawn twice and the draw with fewer hits counts. 99% with no rig.` },
     { game: "race", rig: r("race"), rtp: pct(0.99 * (1 - r("race"))), note: `Up to this for a lone bettor: ${pct(r("race"))}% of races go to the bot that pays the players least. Odds pay back 99% with no rig.` },
-    { game: "blackjack", rig: r("blackjack"), rtp: null, note: "Applies once Blackjack is built." },
+    { game: "blackjack", rig: r("blackjack"), rtp: pct(blackjackRtp(r("blackjack"))), note: `With perfect basic strategy; real players do worse. ${pct(r("blackjack"))}% of the dealer's draws are the best of three cards. About 99% with no rig.` },
     { game: "dailySpin", rig: r("dailySpin"), rtp: null, note: `Free, so no payback: worth ${money(dailyEv(r("dailySpin")))} a day on average (${money(dailyEv(0))} with no rig). The rig makes the top four prizes rarer.` },
     { game: "battles / jackpot / coinflip (players)", rig: null, rtp: 100, note: "Player against player: nothing to rig, there's no house." },
   ];
