@@ -91,12 +91,12 @@ export const PERKS = {
     unit: "per click",
     levels: [
       { value: 0.05, cost: 0 },
-      { value: 0.1, cost: 5 },
-      { value: 0.2, cost: 25 },
-      { value: 0.35, cost: 100 },
-      { value: 0.5, cost: 300 },
-      { value: 0.75, cost: 800 },
-      { value: 1, cost: 2000 },
+      { value: 0.1, cost: 25 },
+      { value: 0.2, cost: 125 },
+      { value: 0.35, cost: 500 },
+      { value: 0.5, cost: 1500 },
+      { value: 0.75, cost: 4000 },
+      { value: 1, cost: 10000 },
     ],
   },
 };
