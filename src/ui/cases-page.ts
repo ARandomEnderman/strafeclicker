@@ -1,4 +1,5 @@
 import { caseEV, getCatalog, openCost } from "../catalog";
+import { onPricesForPage } from "../live";
 import { h, money } from "./dom";
 
 type Sort = "new" | "cheap" | "pricey" | "rtp";
@@ -49,6 +50,7 @@ export function casesPage() {
     );
 
   draw();
+  onPricesForPage(draw);
   return h(
     "section",
     { class: "page" },

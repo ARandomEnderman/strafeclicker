@@ -4,14 +4,17 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node server/index.mjs --dev",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview",
+    "start": "node server/index.mjs",
     "typecheck": "tsc --noEmit",
     "data": "node scripts/build-data.mjs"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
     "vite": "^6.4.5"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

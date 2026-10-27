@@ -7,6 +7,9 @@ import { casePage } from "./ui/case-page";
 import { inventoryPage } from "./ui/inventory-page";
 import { fairPage } from "./ui/fair-page";
 import { setSound, soundEnabled } from "./ui/sound";
+import { clearPageListeners, onPrices, startLive } from "./live";
+import { countdown } from "./ui/countdown";
+import { showInventoryChange } from "./ui/price-popup";
 
 const app = document.getElementById("app")!;
 
@@ -37,6 +40,7 @@ function header() {
       h("a", { href: "#/inventory", "data-route": "inventory" }, "Inventory ", invCount),
       h("a", { href: "#/fair", "data-route": "fair" }, "Fairness"),
     ),
+    countdown(),
     h(
       "div",
       { class: "balance" },
@@ -53,7 +57,7 @@ function footer() {
     "footer",
     { class: "footer" },
     h("span", null, "Simulator only. Play money, no deposits, no withdrawals, nothing is real. Not affiliated with Valve."),
-    h("span", null, `Prices: ${getCatalog().sources.prices}, ${new Date(getCatalog().generatedAt).toLocaleDateString()}.`),
+    h("span", null, `Prices: ${getCatalog().sources.prices}, refreshed by the server every minute.`),
     h(
       "button",
       {
@@ -75,6 +79,7 @@ function route() {
   const [, page, arg] = location.hash.replace(/^#/, "").split("/");
   let view: HTMLElement;
   let active = page || "cases";
+  clearPageListeners();
   if (page === "case" && arg && getCase(arg)) {
     view = casePage(getCase(arg)!);
     active = "cases";
@@ -97,6 +102,8 @@ async function boot() {
   app.replaceChildren(header(), main, footer(), h("div", { id: "toasts" }));
   window.addEventListener("hashchange", route);
   route();
+  onPrices(showInventoryChange);
+  startLive();
 }
 
 boot();

@@ -702,3 +702,310 @@ nav a.active {
 [hidden] {
   display: none !important;
 }
+
+/* ---------- countdown ---------- */
+
+.countdown {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  column-gap: 8px;
+  padding: 6px 10px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-2);
+  min-width: 132px;
+}
+.cd-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+.cd-time {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.cd-bar {
+  grid-column: 1 / -1;
+  height: 2px;
+  margin-top: 4px;
+  border-radius: 1px;
+  background: var(--line);
+  overflow: hidden;
+}
+.cd-bar i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: width 0.25s linear;
+}
+.countdown.offline .cd-time {
+  color: var(--down);
+}
+.countdown.offline .cd-bar i {
+  background: var(--down);
+}
+
+/* ---------- deltas ---------- */
+
+.delta {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.delta-up {
+  color: var(--up);
+}
+.delta-down {
+  color: var(--down);
+}
+.delta-flat {
+  color: var(--muted);
+}
+.delta.compact {
+  font-size: 12px;
+}
+
+/* ---------- modals ---------- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(5, 6, 9, 0.7);
+  animation: fade 0.15s ease-out;
+}
+.modal {
+  width: min(440px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px;
+  animation: pop 0.2s ease-out;
+}
+.modal.wide {
+  width: min(860px, 100%);
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.modal-head h2 {
+  margin: 0;
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.item-card.clickable {
+  cursor: pointer;
+}
+.item-card.clickable:hover {
+  border-color: #3a4259;
+}
+
+/* ---------- inventory change popup ---------- */
+
+.popup-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 16px;
+}
+.popup-label,
+.popup-was {
+  color: var(--muted);
+  font-size: 12px;
+}
+.popup-value {
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.movers {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.movers-head,
+.movers-more {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+.mover {
+  display: grid;
+  grid-template-columns: 8px 1fr auto;
+  grid-template-areas: "dot name delta" "dot prices delta";
+  align-items: center;
+  column-gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-3);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.mover:hover {
+  border-color: #3a4259;
+}
+.mover-dot {
+  grid-area: dot;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--rarity);
+}
+.mover-name {
+  grid-area: name;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mover-prices {
+  grid-area: prices;
+  color: var(--muted);
+  font-size: 12px;
+}
+.mover .delta {
+  grid-area: delta;
+}
+
+/* ---------- price chart ---------- */
+
+.chart-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+}
+.chart-controls .sort {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chart-controls .range {
+  margin-left: auto;
+}
+.chart-plot {
+  position: relative;
+  min-height: 260px;
+}
+.chart-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.chart-svg .grid {
+  stroke: var(--line);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+.chart-svg .tick {
+  fill: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.chart-svg .line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.chart-svg .line.dashed {
+  stroke-dasharray: 4 4;
+  opacity: 0.7;
+}
+.chart-svg .area {
+  fill: var(--accent);
+  opacity: 0.1;
+}
+.chart-svg .end-dot {
+  fill: var(--accent);
+  stroke: var(--bg-2);
+  stroke-width: 2;
+}
+.chart-svg .crosshair {
+  stroke: var(--muted);
+  stroke-width: 1;
+}
+.chart-svg rect:focus {
+  outline: none;
+}
+.chart-tip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 12px));
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--bg-3);
+  border: 1px solid var(--line);
+  white-space: nowrap;
+  font-size: 12px;
+}
+.chart-tip b {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.chart-tip span {
+  color: var(--muted);
+}
+.chart-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+.chart-table {
+  margin-top: 12px;
+}
+.chart-table summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.chart-table table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.chart-table th,
+.chart-table td {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.chart-table th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .countdown {
+    order: 3;
+    min-width: 0;
+    flex: 1;
+  }
+  .chart-controls .range {
+    margin-left: 0;
+  }
+  .popup-value {
+    font-size: 32px;
+  }
+}

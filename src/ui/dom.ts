@@ -22,6 +22,8 @@ export function h<K extends keyof HTMLElementTagNameMap>(
   return el;
 }
 
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 export const money = (n: number) => usd.format(n);
 
@@ -31,4 +33,18 @@ export function toast(text: string, kind: "info" | "error" = "info") {
   host.append(el);
   setTimeout(() => el.classList.add("out"), 2600);
   setTimeout(() => el.remove(), 3000);
+}
+
+/** Signed change with an arrow, so direction never relies on color alone. */
+export function deltaLine(before: number, after: number, compact = false) {
+  const d = round2(after - before);
+  const pct = before > 0 ? (d / before) * 100 : 0;
+  const dir = d > 0 ? "up" : d < 0 ? "down" : "flat";
+  const arrow = d > 0 ? "▲" : d < 0 ? "▼" : "•";
+  return h(
+    "span",
+    { class: `delta delta-${dir}${compact ? " compact" : ""}` },
+    `${arrow} ${d > 0 ? "+" : ""}${money(d)}`,
+    compact ? null : ` (${pct > 0 ? "+" : ""}${pct.toFixed(2)}%)`,
+  );
 }

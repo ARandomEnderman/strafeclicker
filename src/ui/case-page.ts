@@ -1,5 +1,6 @@
 import type { Case, Item, OwnedItem } from "../types";
-import { caseEV, getItem, openCost, pickTier, priceOf, priceRange, tierOdds } from "../catalog";
+import { caseEV, casePrice, getItem, openCost, pickTier, priceOf, priceRange, tierOdds } from "../catalog";
+import { onPricesForPage } from "../live";
 import { TIER_INFO } from "../odds";
 import { renderSkin } from "../skin-renderer";
 import { getState, InsufficientFunds, openCase, sell } from "../state";
@@ -14,14 +15,29 @@ const SPIN_MS = 6500;
 let fast = false;
 
 export function casePage(c: Case) {
-  const cost = openCost(c);
-  const ev = caseEV(c);
-
   const reel = h("div", { class: "reel" });
   const reelWrap = h("div", { class: "reel-wrap" }, reel, h("div", { class: "reel-marker" }));
   const result = h("div", { class: "result" });
-  const openBtn = h("button", { class: "btn btn-primary btn-lg", onclick: () => spin() }, `Open for ${money(cost)}`);
+  const openBtn = h("button", { class: "btn btn-primary btn-lg", onclick: () => spin() });
+  const stats = h("div", { class: "case-stats" });
+  const contentsEl = h("div", { class: "contents" });
   fillReel(reel, c, null);
+
+  // Everything price-dependent is redrawn when the server pushes new prices.
+  const drawPrices = () => {
+    const cost = openCost(c);
+    const ev = caseEV(c);
+    openBtn.textContent = `Open for ${money(cost)}`;
+    stats.replaceChildren(
+      stat("Case", money(casePrice(c))),
+      stat("Key", money(cost - casePrice(c))),
+      stat("Expected value", money(ev)),
+      stat("RTP", `${((ev / cost) * 100).toFixed(1)}%`),
+    );
+    contentsEl.replaceChildren(...contents(c));
+  };
+  drawPrices();
+  onPricesForPage(drawPrices);
 
   async function spin() {
     let won: OwnedItem;
@@ -42,6 +58,7 @@ export function casePage(c: Case) {
   }
 
   function showResult(won: OwnedItem) {
+    const cost = openCost(c);
     const value = priceOf(won);
     const inInv = () => getState().inventory.some((i) => i.uid === won.uid);
     const sellBtn = h(
@@ -87,14 +104,7 @@ export function casePage(c: Case) {
         "div",
         null,
         h("h1", null, c.name),
-        h(
-          "div",
-          { class: "case-stats" },
-          stat("Case", money(c.price)),
-          stat("Key", money(cost - c.price)),
-          stat("Expected value", money(ev)),
-          stat("RTP", `${((ev / cost) * 100).toFixed(1)}%`),
-        ),
+        stats,
         h(
           "div",
           { class: "case-actions" },
@@ -110,7 +120,7 @@ export function casePage(c: Case) {
     ),
     reelWrap,
     result,
-    contents(c),
+    contentsEl,
   );
 }
 
@@ -188,10 +198,9 @@ function animate(reel: HTMLElement, wrap: HTMLElement): Promise<void> {
 }
 
 function contents(c: Case) {
-  return h(
-    "div",
-    { class: "contents" },
+  return [
     h("h2", null, "Contents & odds"),
+    h("p", { class: "hint" }, "Click any item to see its price history."),
     ...tierOdds(c)
       .slice()
       .reverse()
@@ -218,5 +227,5 @@ function contents(c: Case) {
           ),
         );
       }),
-  );
+  ];
 }

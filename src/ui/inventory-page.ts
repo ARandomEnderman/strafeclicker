@@ -1,5 +1,6 @@
 import { getItem, priceOf, round2 } from "../catalog";
 import { getState, sell } from "../state";
+import { onPricesForPage } from "../live";
 import { h, money, toast } from "./dom";
 import { dropCard } from "./item-card";
 
@@ -83,5 +84,12 @@ export function inventoryPage() {
     );
 
   draw();
-  return h("section", { class: "page" }, h("h1", null, "Inventory"), body);
+  onPricesForPage(draw);
+  return h(
+    "section",
+    { class: "page" },
+    h("h1", null, "Inventory"),
+    h("p", { class: "hint" }, "Prices follow the market live. Click an item to see its price history."),
+    body,
+  );
 }

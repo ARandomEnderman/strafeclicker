@@ -1,14 +1,9 @@
 export type Tier = "milspec" | "restricted" | "classified" | "covert" | "gold";
 export type WearKey = "FN" | "MW" | "FT" | "WW" | "BS";
-/** "-" is the price key for items without wear (vanilla knives). */
-export type PriceKey = WearKey | "-";
-/** [normal, stattrak] in USD; stattrak is null when the item can't be StatTrak. */
-export type PriceTable = Partial<Record<PriceKey, [number, number | null]>>;
 
 export interface Phase {
   name: string;
   image: string;
-  prices: PriceTable;
 }
 
 export interface Item {
@@ -21,11 +16,12 @@ export interface Item {
   color: string;
   minFloat: number | null;
   maxFloat: number | null;
+  /** Wears this skin can come in; empty for vanilla knives. */
+  wears: WearKey[];
   stattrak: boolean;
   paintIndex: string | null;
   pattern: string | null;
   image: string;
-  prices?: PriceTable;
   phases?: Phase[];
 }
 
@@ -34,17 +30,31 @@ export interface Case {
   name: string;
   image: string;
   released: string | null;
-  price: number;
   rareLabel: string;
   contents: Record<Tier, string[]>;
 }
 
 export interface Catalog {
-  generatedAt: string;
   sources: Record<string, string>;
   keyPrice: number;
   cases: Case[];
   items: Record<string, Item>;
+}
+
+/**
+ * Flat price map from the server, USD:
+ *   "<itemId>|<phase or ''>|<wear or '-'>|<0|1 StatTrak>" and "case|<caseId>"
+ */
+export type Prices = Record<string, number>;
+
+export interface ServerStatus {
+  now: number;
+  version: number;
+  lastUpdateAt: number | null;
+  nextUpdateAt: number | null;
+  intervalMs: number;
+  changed: number;
+  error: string | null;
 }
 
 /** A specific rolled instance of an item. */

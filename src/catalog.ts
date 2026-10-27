@@ -1,21 +1,52 @@
-import type { Case, Catalog, Drop, Item, PriceTable, Tier } from "./types";
+import type { Case, Catalog, Drop, Item, Prices, Tier } from "./types";
 import { PHASE_WEIGHTS, STATTRAK_ODDS, TIERS, TIER_ODDS, WEAR_BUCKETS, wearOf } from "./odds";
 
 let catalog: Catalog;
+let prices: Prices = {};
+let pricesVersion = 0;
 
 export async function loadCatalog(): Promise<Catalog> {
-  const res = await fetch(`${import.meta.env.BASE_URL}data/catalog.json`);
-  if (!res.ok) throw new Error(`catalog.json: HTTP ${res.status}`);
-  catalog = await res.json();
+  const [cat, p] = await Promise.all([getJson<Catalog>("/api/catalog"), getJson<PricesResponse>("/api/prices")]);
+  catalog = cat;
+  applyPrices(p);
   return catalog;
+}
+
+async function getJson<T>(url: string): Promise<T> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+  return res.json();
+}
+
+interface PricesResponse {
+  version: number;
+  full: boolean;
+  prices: Prices;
+}
+
+/** Pull whatever changed since our version. Returns false if we were already current. */
+export async function refreshPrices(serverVersion: number): Promise<boolean> {
+  if (serverVersion === pricesVersion) return false;
+  applyPrices(await getJson<PricesResponse>(`/api/prices?since=${pricesVersion}`));
+  return true;
+}
+
+function applyPrices(p: PricesResponse) {
+  prices = p.full ? p.prices : { ...prices, ...p.prices };
+  pricesVersion = p.version;
+  evCache.clear();
 }
 
 export const getCatalog = () => catalog;
 export const getItem = (id: string): Item => catalog.items[id];
 export const getCase = (id: string): Case | undefined => catalog.cases.find((c) => c.id === id);
-export const openCost = (c: Case) => round2(c.price + catalog.keyPrice);
+export const casePrice = (c: Case) => prices[`case|${c.id}`] ?? 0;
+export const openCost = (c: Case) => round2(casePrice(c) + catalog.keyPrice);
 
 export const round2 = (n: number) => Math.round(n * 100) / 100;
+
+export const priceKey = (d: Pick<Drop, "itemId" | "phase" | "wear" | "stattrak">) =>
+  `${d.itemId}|${d.phase ?? ""}|${d.wear ?? "-"}|${d.stattrak ? 1 : 0}`;
 
 /** Tiers present in a case, with odds renormalised if a tier is empty (some early cases). */
 export function tierOdds(c: Case): [Tier, number][] {
@@ -72,16 +103,17 @@ export function resolveDrop(c: Case, r: number[]): Drop {
   };
 }
 
-function priceTable(item: Item, phase: string | null): PriceTable {
-  if (item.phases) return (item.phases.find((p) => p.name === phase) ?? item.phases[0]).prices;
-  return item.prices ?? {};
+export function priceOf(d: Pick<Drop, "itemId" | "phase" | "wear" | "stattrak">): number {
+  return prices[priceKey(d)] ?? 0;
 }
 
-export function priceOf(d: Pick<Drop, "itemId" | "phase" | "wear" | "stattrak">): number {
-  const table = priceTable(getItem(d.itemId), d.phase);
-  const row = table[d.wear ?? "-"] ?? Object.values(table)[0];
-  if (!row) return 0;
-  return (d.stattrak ? row[1] : null) ?? row[0];
+/** Every priced variant of an item. */
+export function variants(item: Item): Pick<Drop, "itemId" | "phase" | "wear" | "stattrak">[] {
+  const out = [];
+  for (const phase of item.phases?.map((p) => p.name) ?? [null])
+    for (const stattrak of item.stattrak ? [false, true] : [false])
+      for (const wear of item.wears.length ? item.wears : [null]) out.push({ itemId: item.id, phase, wear, stattrak });
+  return out;
 }
 
 /** Expected market value of one item drawn from this item's distribution. */
@@ -132,8 +164,7 @@ export function caseEV(c: Case): number {
 
 /** Lowest and highest market price an item can sell for. */
 export function priceRange(item: Item): [number, number] {
-  const tables = item.phases ? item.phases.map((p) => p.prices) : [item.prices ?? {}];
-  const all = tables.flatMap((t) => Object.values(t).flatMap((row) => (row ?? []).filter((v): v is number => v != null)));
+  const all = variants(item).map(priceOf);
   return [Math.min(...all), Math.max(...all)];
 }
 
