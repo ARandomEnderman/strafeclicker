@@ -260,7 +260,9 @@ main {
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
 }
-.menu-btn {
+/* Only for small screens, where the sidebar becomes a drawer. (.topbar for
+   specificity: .icon-btn sets display too.) */
+.topbar .menu-btn {
   display: none;
 }
 .wallet {
@@ -345,7 +347,7 @@ a.wallet-item:hover {
     z-index: 15;
     background: rgba(0, 0, 0, 0.5);
   }
-  .menu-btn {
+  .topbar .menu-btn {
     display: inline-grid;
   }
   .topbar {
