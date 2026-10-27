@@ -103,6 +103,7 @@ export function casePage(c: Case) {
       wraps.forEach((wrap, i) => fillReel(wrap.firstElementChild as HTMLElement, c, getItem(won[i].itemId)));
       if (!fast) await Promise.all(wraps.map((wrap, i) => animate(wrap.firstElementChild as HTMLElement, wrap, i === 0)));
       else wraps.forEach((wrap) => snapTo(wrap.firstElementChild as HTMLElement, wrap));
+      wraps.forEach((wrap) => ensureLanded(wrap.firstElementChild as HTMLElement, wrap));
       const best = won.map((w) => getItem(w.itemId)).sort((a, b) => TIER_RANK[b.tier] - TIER_RANK[a.tier])[0];
       playReveal(best.tier);
       showResult(won);
@@ -207,8 +208,7 @@ function stat(label: string, value: string) {
 
 /** Random filler drawn with the real odds, so the reel looks like a real one. */
 function fillReel(reel: HTMLElement, c: Case, winner: Item | null) {
-  reel.style.transition = "none";
-  reel.style.transform = "translateX(0)";
+  resetReel(reel);
   const tiles: HTMLElement[] = [];
   for (let i = 0; i < REEL_LENGTH; i++) {
     let item: Item;
@@ -236,42 +236,80 @@ function reelTile(item: Item, c: Case) {
   );
 }
 
-function targetOffset(reel: HTMLElement, wrap: HTMLElement, jitter: number) {
-  const tile = reel.children[WIN_INDEX] as HTMLElement;
-  return tile.offsetLeft + tile.offsetWidth / 2 - wrap.clientWidth / 2 + jitter * tile.offsetWidth * 0.42;
+// Positions are measured as drawn (getBoundingClientRect) rather than with offsetLeft,
+// which engines disagree on inside transformed or scrolled containers.
+
+const markerCentre = (wrap: HTMLElement) => {
+  const m = wrap.querySelector(".reel-marker")!.getBoundingClientRect();
+  return m.left + m.width / 2;
+};
+
+/** How far tile i's centre is to the right of the marker, as currently drawn. */
+function tileOffset(reel: HTMLElement, wrap: HTMLElement, i: number) {
+  const t = (reel.children[i] as HTMLElement).getBoundingClientRect();
+  return t.left + t.width / 2 - markerCentre(wrap);
+}
+
+const currentX = (reel: HTMLElement) => new DOMMatrixReadOnly(getComputedStyle(reel).transform).m41;
+
+function resetReel(reel: HTMLElement) {
+  reel.getAnimations().forEach((a) => a.cancel());
+  reel.style.transform = "translateX(0px)";
+  if (reel.parentElement) reel.parentElement.scrollLeft = 0;
+}
+
+/** Translation that puts the winning tile under the marker, nudged by jitter (±0.42 tile). */
+function winX(reel: HTMLElement, wrap: HTMLElement, jitter: number) {
+  const width = (reel.children[WIN_INDEX] as HTMLElement).getBoundingClientRect().width;
+  return currentX(reel) - tileOffset(reel, wrap, WIN_INDEX) - jitter * width * 0.42;
 }
 
 function snapTo(reel: HTMLElement, wrap: HTMLElement) {
-  reel.style.transform = `translateX(${-targetOffset(reel, wrap, 0)}px)`;
+  resetReel(reel);
+  reel.style.transform = `translateX(${winX(reel, wrap, 0)}px)`;
 }
 
-function animate(reel: HTMLElement, wrap: HTMLElement, sound = true): Promise<void> {
-  const target = targetOffset(reel, wrap, Math.random() * 2 - 1);
-  const pitch = (reel.children[1] as HTMLElement).offsetLeft - (reel.children[0] as HTMLElement).offsetLeft;
-  void reel.offsetWidth; // flush the reset before starting the transition
-  reel.style.transition = `transform ${SPIN_MS}ms cubic-bezier(0.08, 0.6, 0.1, 1)`;
-  reel.style.transform = `translateX(${-target}px)`;
+/** Last line of defence: if the reel came to rest off the winning tile, move it there. */
+function ensureLanded(reel: HTMLElement, wrap: HTMLElement) {
+  const t = (reel.children[WIN_INDEX] as HTMLElement).getBoundingClientRect();
+  const m = markerCentre(wrap);
+  if (m >= t.left && m <= t.right) return;
+  console.warn("Reel stopped off the winning tile; snapping it into place", { tileLeft: t.left, tileRight: t.right, marker: m });
+  reel.style.transform = `translateX(${winX(reel, wrap, 0)}px)`;
+}
 
-  return new Promise((resolve) => {
-    let lastTile = -1;
-    let raf = 0;
-    const tick = () => {
-      const x = -new DOMMatrixReadOnly(getComputedStyle(reel).transform).m41;
-      const tileUnderMarker = Math.floor((x + wrap.clientWidth / 2) / pitch);
-      if (tileUnderMarker !== lastTile) {
-        if (lastTile !== -1 && sound) playTick();
-        lastTile = tileUnderMarker;
-      }
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    const done = () => {
-      cancelAnimationFrame(raf);
-      resolve();
-    };
-    reel.addEventListener("transitionend", done, { once: true });
-    setTimeout(done, SPIN_MS + 300); // in case transitionend never fires (tab hidden)
+async function animate(reel: HTMLElement, wrap: HTMLElement, sound = true): Promise<void> {
+  resetReel(reel);
+  const target = winX(reel, wrap, Math.random() * 2 - 1);
+  const first = (reel.children[0] as HTMLElement).getBoundingClientRect();
+  const pitch = (reel.children[1] as HTMLElement).getBoundingClientRect().left - first.left;
+  const markerInReel = markerCentre(wrap) - first.left;
+
+  const anim = reel.animate([{ transform: "translateX(0px)" }, { transform: `translateX(${target}px)` }], {
+    duration: SPIN_MS,
+    easing: "cubic-bezier(0.08, 0.6, 0.1, 1)",
+    fill: "forwards",
   });
+
+  let lastTile = -1;
+  let raf = 0;
+  const tick = () => {
+    const tileUnderMarker = Math.floor((markerInReel - currentX(reel)) / pitch);
+    if (tileUnderMarker !== lastTile) {
+      if (lastTile !== -1 && sound) playTick();
+      lastTile = tileUnderMarker;
+    }
+    raf = requestAnimationFrame(tick);
+  };
+  raf = requestAnimationFrame(tick);
+  // If the tab is hidden the animation can stall; finish it rather than hang.
+  const guard = setTimeout(() => anim.finish(), SPIN_MS + 2000);
+  await anim.finished.catch(() => undefined);
+  clearTimeout(guard);
+  cancelAnimationFrame(raf);
+
+  reel.style.transform = `translateX(${target}px)`;
+  anim.cancel();
 }
 
 function contents(c: Case) {

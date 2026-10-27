@@ -348,6 +348,8 @@ nav a.active {
 .reel-wrap {
   position: relative;
   overflow: hidden;
+  /* clip (unlike hidden) can't be scrolled at all, so the strip can't drift */
+  overflow: clip;
   height: 168px;
   border-radius: var(--radius);
   background: var(--bg-2);
@@ -372,6 +374,9 @@ nav a.active {
 }
 .reel-tile {
   flex: 0 0 150px;
+  /* Keep every tile exactly 150px; otherwise a long name or a loading image can widen it. */
+  min-width: 0;
+  overflow: hidden;
   height: 146px;
   border-radius: 8px;
   background: linear-gradient(180deg, var(--bg-3), color-mix(in srgb, var(--rarity) 22%, var(--bg-3)));
