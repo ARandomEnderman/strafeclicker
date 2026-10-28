@@ -1,4 +1,5 @@
 import { onServerEvent, serverNow } from "./live";
+import { setCaseSale } from "./catalog";
 import { setClickBoost } from "./state";
 import { h, toast } from "./ui/dom";
 import { icon } from "./ui/icons";
@@ -7,7 +8,7 @@ import { icon } from "./ui/icons";
 // (each with a countdown).
 
 export interface SiteEvent {
-  type: "cashback" | "clickBoost" | "missionBoost";
+  type: "cashback" | "clickBoost" | "missionBoost" | "luckyHour" | "caseSale" | "marketSale" | "sellBonus" | "rainStorm";
   value: number;
   endsAt: number;
 }
@@ -32,6 +33,21 @@ const EVENT_TEXT: Record<SiteEvent["type"], (v: number) => string> = {
   cashback: (v) => `Cashback event: ${v}% of every losing bet comes back`,
   clickBoost: (v) => `Click frenzy: the clicker pays ${v}x`,
   missionBoost: (v) => `Mission bonus: daily mission rewards are ${v}x`,
+  luckyHour: (v) => `Lucky hour: every win pays ${v}% more profit`,
+  caseSale: (v) => `Case sale: ${v}% off every case`,
+  marketSale: (v) => `Market sale: ${v}% off the marketplace`,
+  sellBonus: (v) => `Sell bonus: selling items pays ${v}% more`,
+  rainStorm: (v) => `Rain storm: the house rains $${v} on everyone online every 5 minutes`,
+};
+const EVENT_SHORT: Record<SiteEvent["type"], (v: number) => string> = {
+  cashback: (v) => `${v}% cashback`,
+  clickBoost: (v) => `${v}x clicker`,
+  missionBoost: (v) => `${v}x missions`,
+  luckyHour: (v) => `Lucky hour +${v}%`,
+  caseSale: (v) => `Cases -${v}%`,
+  marketSale: (v) => `Market -${v}%`,
+  sellBonus: (v) => `Selling +${v}%`,
+  rainStorm: (v) => `$${v} rain storm`,
 };
 const left = (ms: number) => {
   const s = Math.max(0, Math.ceil(ms / 1000));
@@ -45,15 +61,27 @@ function draw() {
   timers.length = 0;
   if (state.maintenance) parts.push(h("div", { class: "site-note maint" }, icon("admin", 16), h("span", null, "Paused for maintenance: no new bets or openings for now. Cash-outs, selling and trading still work.")));
   if (state.announcement) parts.push(h("div", { class: "site-note" }, icon("announce", 16), h("span", null, state.announcement)));
-  for (const e of state.events) {
-    if (e.endsAt <= serverNow()) continue;
+  const live = state.events.filter((e) => e.endsAt > serverNow());
+  const timer = (e: SiteEvent) => {
     const t = h("b", { class: "site-event-left", "data-ends": String(e.endsAt) }, left(e.endsAt - serverNow()));
     timers.push(t);
-    parts.push(h("div", { class: "site-note event" }, icon("gift", 16), h("span", null, EVENT_TEXT[e.type](e.value)), t));
-  }
+    return t;
+  };
+  // One event gets the full sentence; several share one row of chips.
+  if (live.length === 1) parts.push(h("div", { class: "site-note event" }, icon("gift", 16), h("span", null, EVENT_TEXT[live[0].type](live[0].value)), timer(live[0])));
+  else if (live.length)
+    parts.push(
+      h(
+        "div",
+        { class: "site-note event multi" },
+        icon("gift", 16),
+        ...live.map((e) => h("span", { class: "site-event-chip", title: EVENT_TEXT[e.type](e.value) }, EVENT_SHORT[e.type](e.value), timer(e))),
+      ),
+    );
   banner.replaceChildren(...parts);
   banner.hidden = !parts.length;
   setClickBoost(activeEvent("clickBoost")?.value ?? 1);
+  setCaseSale(activeEvent("caseSale")?.value ?? 0);
 }
 
 // Countdowns, and dropping events that ran out.

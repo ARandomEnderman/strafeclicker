@@ -3,7 +3,7 @@
 
 import { BHOP_DIFFICULTIES, DAILY_PRIZES, FB_MAX, RACE_BOTS, PLINKO_TABLES, UPGRADE_RTP, floatInWear, priceKey } from "../shared/game.js";
 import { GameError, cents } from "./game.mjs";
-import { EVENT_TYPES, RIGGABLE } from "./settings.mjs";
+import { EVENT_TYPES, RAIN_STORM_MS, RIGGABLE } from "./settings.mjs";
 
 export const ADMIN_USERNAME = "admin";
 
@@ -108,6 +108,9 @@ export class Admin {
       ban: db.prepare("UPDATE users SET banned = ? WHERE id = ?"),
       dropSessions: db.prepare("DELETE FROM sessions WHERE user_id = ?"),
     };
+    // A rain storm that was running before a restart picks up again.
+    this.stormAt = Date.now();
+    setInterval(() => this.#storm(), 10_000).unref();
   }
 
   /** Throws a plain 404 unless userId is the admin account. */
@@ -247,9 +250,25 @@ export class Admin {
     this.settings.set("events", events);
     this.broadcast("site", this.settings.public());
     this.broadcast("eventfx", { type: body.type, value, minutes });
-    const what = body.type === "cashback" ? `${value}% of every loss back` : body.type === "clickBoost" ? `${value}x clicker earnings` : `${value}x daily mission rewards`;
-    this.chat.system(`Event started: ${t.name}, ${what} for ${minutes} minutes`);
+    this.chat.system(`Event started: ${t.name}, ${t.what(value)} for ${minutes} minutes`);
+    if (body.type === "rainStorm") {
+      this.stormAt = 0;
+      setTimeout(() => this.#storm(), 3000);
+    }
     return { events: this.settings.public().events };
+  }
+
+  /** A rain storm's next rain, when one is due (checked every few seconds, and right after it starts). */
+  #storm() {
+    const ev = this.settings.event("rainStorm");
+    if (!ev || Date.now() - (this.stormAt ?? 0) < RAIN_STORM_MS) return;
+    this.stormAt = Date.now();
+    const admin = this.q.byName.get(ADMIN_USERNAME);
+    try {
+      if (admin) this.chat.houseRain(admin.id, ev.value);
+    } catch {
+      // Nobody online to catch it: try again next time.
+    }
   }
 
   endEvent(type) {

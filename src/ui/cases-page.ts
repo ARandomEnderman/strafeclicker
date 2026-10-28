@@ -1,5 +1,5 @@
 import type { Case } from "../types";
-import { getCatalog, openableCases, openCost } from "../catalog";
+import { caseSalePct, fullOpenCost, getCatalog, openableCases, openCost } from "../catalog";
 import { onPricesForPage } from "../live";
 import { h, money } from "./dom";
 
@@ -30,7 +30,7 @@ export function casesPage(kind: Case["kind"] = "case") {
           { class: "case-card", href: `#/case/${c.id}` },
           h("img", { src: c.image, alt: "", loading: "lazy" }),
           h("div", { class: "case-name" }, c.name),
-          h("div", { class: "case-foot" }, h("span", { class: "case-cost" }, money(cost))),
+          h("div", { class: "case-foot" }, caseSalePct() ? h("s", { class: "case-was" }, money(fullOpenCost(c))) : "", h("span", { class: "case-cost" }, money(cost))),
         ),
       ),
     );

@@ -15,6 +15,11 @@ const EVENTS: Record<string, { title: string; icon: IconName; text: (v: number, 
   cashback: { title: "Cashback event", icon: "coins", color: "#3ecf8e", text: (v, m) => `${v}% of every losing bet comes back for ${m} minutes` },
   clickBoost: { title: "Click frenzy", icon: "clicker", color: "#f5a524", text: (v, m) => `The clicker pays ${v}x for ${m} minutes` },
   missionBoost: { title: "Mission bonus", icon: "missions", color: "#a66ae0", text: (v, m) => `Daily mission rewards are ${v}x for ${m} minutes` },
+  luckyHour: { title: "Lucky hour", icon: "star", color: "#4cc3ff", text: (v, m) => `Every win pays ${v}% more profit for ${m} minutes` },
+  caseSale: { title: "Case sale", icon: "cases", color: "#eb4b4b", text: (v, m) => `${v}% off every case for ${m} minutes` },
+  marketSale: { title: "Market sale", icon: "store", color: "#e4ae39", text: (v, m) => `${v}% off the marketplace for ${m} minutes` },
+  sellBonus: { title: "Sell bonus", icon: "coins", color: "#3ecf8e", text: (v, m) => `Selling items pays ${v}% more for ${m} minutes` },
+  rainStorm: { title: "Rain storm", icon: "rain", color: "#5b8cff", text: (v, m) => `The house rains $${v} on everyone every 5 minutes for ${m} minutes` },
 };
 
 /** A full-screen splash: flash, ring, sparks flying out, a big title. */

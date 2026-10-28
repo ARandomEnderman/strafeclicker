@@ -345,6 +345,13 @@ export class Game {
       a.balanceCents += back;
       a.stats.cashbackCents = (a.stats.cashbackCents ?? 0) + back;
     }
+    // Lucky hour: a winning bet's profit gets a share on top.
+    const lucky = this.settings?.event("luckyHour");
+    if (lucky && ev.type === "game" && ev.stakeCents > 0 && ev.payoutCents > ev.stakeCents) {
+      const bonus = Math.floor(((ev.payoutCents - ev.stakeCents) * lucky.value) / 100);
+      a.balanceCents += bonus;
+      a.stats.luckyCents = (a.stats.luckyCents ?? 0) + bonus;
+    }
     // The biggest single win, for the profile.
     if (ev.stakeCents > 0 && ev.payoutCents > ev.stakeCents && ev.payoutCents > (a.stats.bestWin?.cents ?? 0)) {
       a.stats.bestWin = { cents: ev.payoutCents, game: ev.game, mult: Math.round((ev.payoutCents / ev.stakeCents) * 100) / 100 };
@@ -466,7 +473,13 @@ export class Game {
     if (!c) throw new GameError("unknown_case", "No such case", 404);
     const price = this.market.prices()[`case|${c.id}`];
     if (price == null) throw new GameError("unavailable", `${c.name} isn't on the market right now`);
-    return { c, costCents: cents(price) + (needsKey(c) ? cents(keyPrice) : 0) };
+    return { c, costCents: this.#onSale(cents(price) + (needsKey(c) ? cents(keyPrice) : 0)) };
+  }
+
+  /** A case opening's cost with a running case sale taken off. */
+  #onSale(costCents) {
+    const sale = this.settings?.event("caseSale")?.value ?? 0;
+    return Math.round((costCents * (100 - sale)) / 100);
   }
 
   /** Roll one drop from a case (not owned by anyone yet). */
@@ -621,7 +634,7 @@ export class Game {
       if (!(n >= 1 && n <= max)) throw new GameError("bad_count", `You can open up to ${max} at once`);
       const casePrice = this.market.prices()[`case|${c.id}`];
       if (casePrice == null) throw new GameError("unavailable", "This container isn't on the market right now");
-      const cost = (cents(casePrice) + (needsKey(c) ? cents(keyPrice) : 0)) * n;
+      const cost = this.#onSale(cents(casePrice) + (needsKey(c) ? cents(keyPrice) : 0)) * n;
       if (spendable(a) < cost) throw new GameError("insufficient", "Not enough balance");
 
       const rig = this.rig("cases");
@@ -679,6 +692,8 @@ export class Game {
         changes.removed.push(it.uid);
         return false;
       });
+      // Sell bonus event: the house adds a share on top.
+      total = Math.round((total * (100 + (this.settings?.event("sellBonus")?.value ?? 0))) / 100);
       a.balanceCents += total;
       return { sold: total / 100 };
     });

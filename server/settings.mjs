@@ -16,12 +16,23 @@ const DEFAULTS = { rig: 0, rigGames: {}, maintenance: false, announcement: null,
  *   cashback       percent of every losing bet's loss paid straight back
  *   clickBoost     multiplier on clicker earnings
  *   missionBoost   multiplier on daily mission rewards
+ *   luckyHour      percent added to the profit of every winning bet
+ *   caseSale       percent off every case opening (battles too)
+ *   marketSale     percent off every marketplace listing
+ *   sellBonus      percent added to what selling items pays
+ *   rainStorm      USD the house rains on everyone online every RAIN_STORM_MS
  */
 export const EVENT_TYPES = {
-  cashback: { name: "Cashback", min: 1, max: 100 },
-  clickBoost: { name: "Click frenzy", min: 1.5, max: 20 },
-  missionBoost: { name: "Mission bonus", min: 1.5, max: 10 },
+  cashback: { name: "Cashback", min: 1, max: 100, what: (v) => `${v}% of every loss back` },
+  clickBoost: { name: "Click frenzy", min: 1.5, max: 20, what: (v) => `${v}x clicker earnings` },
+  missionBoost: { name: "Mission bonus", min: 1.5, max: 10, what: (v) => `${v}x daily mission rewards` },
+  luckyHour: { name: "Lucky hour", min: 1, max: 100, what: (v) => `every win pays ${v}% more profit` },
+  caseSale: { name: "Case sale", min: 1, max: 90, what: (v) => `${v}% off every case` },
+  marketSale: { name: "Market sale", min: 1, max: 90, what: (v) => `${v}% off the marketplace` },
+  sellBonus: { name: "Sell bonus", min: 1, max: 50, what: (v) => `selling items pays ${v}% more` },
+  rainStorm: { name: "Rain storm", min: 1, max: 1_000_000, what: (v) => `the house rains $${v} on everyone every 5 minutes` },
 };
+export const RAIN_STORM_MS = 5 * 60_000;
 
 /** Games the rig applies to (player-vs-player games have no house to favour). */
 export const RIGGABLE = ["cases", "upgrader", "plinko", "flashbang", "roulette", "bhop", "defuse", "towers", "keno", "race", "bombplant", "blackjack", "poker", "coinflipBot", "rpsBot", "dailySpin"];

@@ -42,7 +42,13 @@ export const getCase = (id: string): Case | undefined => catalog.cases.find((c) 
 /** Market price of the container itself; null when it has no listing (then it can't be opened). */
 export const casePrice = (c: Case): number | null => prices[`case|${c.id}`] ?? null;
 export const keyCost = (c: Case) => (needsKey(c) ? catalog.keyPrice : 0);
-export const openCost = (c: Case) => round2((casePrice(c) ?? 0) + keyCost(c));
+/** Percent off case openings while a case sale event runs (set by site.ts). */
+let caseSale = 0;
+export const setCaseSale = (pct: number) => (caseSale = pct);
+export const caseSalePct = () => caseSale;
+export const openCost = (c: Case) => round2((((casePrice(c) ?? 0) + keyCost(c)) * (100 - caseSale)) / 100);
+/** What an opening costs without the sale. */
+export const fullOpenCost = (c: Case) => round2((casePrice(c) ?? 0) + keyCost(c));
 /** Containers that can be opened right now. */
 export const openableCases = () => catalog.cases.filter((c) => casePrice(c) != null);
 

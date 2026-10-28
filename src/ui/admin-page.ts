@@ -266,6 +266,11 @@ export function adminPage() {
     { type: "cashback", name: "Cashback", what: "% of every loss back", value: 20, step: "1" },
     { type: "clickBoost", name: "Click frenzy", what: "x clicker earnings", value: 3, step: "0.5" },
     { type: "missionBoost", name: "Mission bonus", what: "x mission rewards", value: 2, step: "0.5" },
+    { type: "luckyHour", name: "Lucky hour", what: "% extra profit on every win", value: 25, step: "1" },
+    { type: "caseSale", name: "Case sale", what: "% off every case", value: 25, step: "1" },
+    { type: "marketSale", name: "Market sale", what: "% off the marketplace", value: 20, step: "1" },
+    { type: "sellBonus", name: "Sell bonus", what: "% extra when selling items", value: 10, step: "1" },
+    { type: "rainStorm", name: "Rain storm", what: "$ rained on everyone every 5 min", value: 50, step: "1" },
   ];
   const eventsSection = () => {
     const o = ov!;

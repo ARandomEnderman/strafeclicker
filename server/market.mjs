@@ -45,6 +45,7 @@ export class Market {
    */
   constructor(game, settings) {
     this.game = game;
+    this.settings = settings;
     // The seed secret lives in the settings so shops survive a restart.
     if (!settings.get("marketSeed")) settings.set("marketSeed", randomBytes(16).toString("hex"));
     this.secret = settings.get("marketSeed");
@@ -92,7 +93,10 @@ export class Market {
   #priced(o) {
     const value = this.game.priceOf(o);
     const list = Math.round(value * (1 + MARKET_FEE) * 100) / 100;
-    return { ...o, value, list, price: Math.max(value, Math.round(value * (1 + MARKET_FEE - o.discount) * 100) / 100) };
+    const price = Math.max(value, Math.round(value * (1 + MARKET_FEE - o.discount) * 100) / 100);
+    // A market sale (an admin event) may go below the market price: the house pays for it.
+    const sale = this.settings.event("marketSale")?.value ?? 0;
+    return { ...o, value, list, price: sale ? Math.round(price * (100 - sale)) / 100 : price };
   }
 
   view(userId) {

@@ -6665,6 +6665,33 @@ body.rain-shake .shell {
   margin-left: auto;
   font-variant-numeric: tabular-nums;
 }
+.site-note.multi {
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.site-event-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(62, 207, 142, 0.14);
+  border: 1px solid rgba(62, 207, 142, 0.35);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.site-event-chip .site-event-left {
+  margin-left: 0;
+  opacity: 0.75;
+  font-weight: 600;
+}
+.case-was {
+  margin-right: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
 .admin-event-name {
   min-width: 110px;
 }
@@ -6737,8 +6764,7 @@ body.rain-shake .shell {
   color: var(--muted);
   font-size: 12px;
 }
-.mk-deal,
-.mk-premium {
+.mk-deal {
   position: absolute;
   top: 8px;
   padding: 2px 7px;
@@ -6750,14 +6776,6 @@ body.rain-shake .shell {
   left: 8px;
   background: var(--up);
   color: #0b2418;
-}
-.mk-premium {
-  right: 8px;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  background: rgba(230, 180, 34, 0.2);
-  color: #f2c94c;
 }
 .mk-card.sold {
   opacity: 0.55;

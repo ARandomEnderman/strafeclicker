@@ -30,7 +30,6 @@ export function marketPage() {
       "div",
       { class: `mk-card${o.sold ? " sold" : ""}${deal ? " deal" : ""}`, style: `--rarity:${item.color}` },
       deal ? h("span", { class: "mk-deal" }, `Deal -${Math.round((1 - o.price / o.list) * 100)}%`) : "",
-      o.value >= 1000 ? h("span", { class: "mk-premium" }, icon("crown", 12), " Premium") : "",
       h("img", { src: imageOf(o), alt: "", loading: "lazy" }),
       h("div", { class: "mk-weapon" }, n.weapon),
       h("div", { class: "mk-finish" }, n.finish),

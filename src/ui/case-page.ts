@@ -1,5 +1,5 @@
 import type { Case, Item, OwnedItem } from "../types";
-import { casePrice, getItem, keyCost, openCost, priceOf, priceRange } from "../catalog";
+import { casePrice, caseSalePct, getItem, keyCost, openCost, priceOf, priceRange } from "../catalog";
 import { onPricesForPage } from "../live";
 import { PERKS, TIER_INFO, needsKey, perkValue, pickWeighted, tierLabel, tierOdds } from "../odds";
 import { renderSkin } from "../skin-renderer";
@@ -60,6 +60,7 @@ export function casePage(c: Case) {
       ...[
         stat(c.kind === "case" ? "Case" : "Capsule", price == null ? "—" : money(price)),
         needsKey(c) ? stat("Key", money(keyCost(c))) : null,
+        caseSalePct() ? stat("Case sale", `-${caseSalePct()}%`) : null,
       ].filter((el) => el != null),
     );
     contentsEl.replaceChildren(...contents(c));
