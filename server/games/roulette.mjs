@@ -81,6 +81,11 @@ export class Roulette {
       const pick = nums.filter((n) => paid(n) === least);
       this.number = pick[randomInt(pick.length)];
     }
+    // The admin can set the next number (once).
+    if (this.forced != null) {
+      this.number = this.forced;
+      this.forced = null;
+    }
     // Where on the winning tile the marker stops (0–1), the same for everyone.
     this.stopAt = Math.round((0.1 + Math.random() * 0.8) * 1000) / 1000;
     this.spinAt = Date.now();

@@ -80,6 +80,11 @@ export class BombPlant {
       const pick = BP_OUTCOMES.filter((o) => this.#paid(o) === least);
       this.outcome = pick[randomInt(pick.length)];
     }
+    // The admin can set how the next round ends (once).
+    if (this.forced) {
+      this.outcome = this.forced;
+      this.forced = null;
+    }
     this.startAt = Date.now();
     this.timers = [setTimeout(() => this.#settle(), BP_RUN_MS)];
     this.#publish();

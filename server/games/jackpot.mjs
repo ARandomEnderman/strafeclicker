@@ -121,6 +121,11 @@ export class Jackpot {
     return out;
   }
 
+  /** Who's in the current pot (for the admin panel). */
+  players() {
+    return this.#players().map((p) => ({ userId: p.userId, user: p.user, name: p.name, value: p.valueCents / 100 }));
+  }
+
   /** Maintenance: a pot that hasn't spun yet goes back to everyone in it. Returns how many players. */
   refundPending() {
     if ((this.phase !== "waiting" && this.phase !== "open") || !this.deposits.length) return 0;
@@ -148,6 +153,18 @@ export class Jackpot {
   #spin() {
     const total = this.deposits.reduce((s, d) => s + d.valueCents, 0);
     this.ticket = randomInt(total);
+    // The admin can hand this pot to someone in it: a random ticket of theirs wins.
+    if (this.forced != null && this.deposits.some((d) => d.userId === this.forced)) {
+      let start = 0;
+      const ranges = [];
+      for (const d of this.deposits) {
+        if (d.userId === this.forced) ranges.push([start, d.valueCents]);
+        start += d.valueCents;
+      }
+      const [s0, len] = ranges[randomInt(ranges.length)];
+      this.ticket = s0 + randomInt(len);
+    }
+    this.forced = null;
     // The deposit holding that ticket wins; tickets run in deposit order.
     let acc = 0;
     const holder = this.deposits.find((d) => (acc += d.valueCents) > this.ticket);

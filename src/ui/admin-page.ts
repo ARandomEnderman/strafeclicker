@@ -33,6 +33,14 @@ interface Overview {
   rigGames: string[];
   report: ReportRow[];
   events: { type: string; value: number; endsAt: number }[];
+  forced: Forced["forced"];
+  jackpotPlayers: Forced["jackpotPlayers"];
+  players: Forced["players"];
+}
+interface Forced {
+  forced: { flashbang: number | null; roulette: number | null; race: number | null; bombplant: string | null; jackpot: string | null };
+  jackpotPlayers: { user: string; name: string; value: number }[];
+  players: { user: string; drop?: string; upgrade?: string }[];
 }
 interface AdminUser {
   id: number;
@@ -182,6 +190,57 @@ export function adminPage() {
         h("b", null, "Flashbang"),
         h("button", { class: "btn", onclick: () => void run(() => adminAction("pop"), "Popped") }, "Pop the current round now"),
       ),
+    );
+  };
+
+  // ---------- forcing outcomes ----------
+  const forceSection = () => {
+    const o = ov!;
+    const apply = (r: Forced | null) => {
+      if (!r) return;
+      Object.assign(ov!, r);
+      draw();
+    };
+    const force = (game: string, value: string | number | null) => run(() => adminAction<Forced>("force", { game, value }), value == null ? "Cleared" : "Set for the next round").then(apply);
+    const queued = (v: string | number | null, label?: string) => (v == null ? h("span", { class: "admin-muted" }, "random") : h("span", { class: "admin-bad" }, `Next: ${label ?? v}`));
+    const select = (options: [string, string][]) => h("select", { class: "search admin-force-sel" }, ...options.map(([v, l]) => h("option", { value: v }, l))) as HTMLSelectElement;
+    const row = (name: string, input: HTMLInputElement | HTMLSelectElement, game: string, current: string | number | null, label?: string) =>
+      h(
+        "div",
+        { class: "admin-row" },
+        h("b", { class: "admin-event-name" }, name),
+        input,
+        h("button", { class: "btn btn-primary", onclick: () => void force(game, input.value) }, "Set"),
+        queued(current, label),
+        current != null ? h("button", { class: "btn btn-ghost btn-sm", onclick: () => void force(game, null) }, "Clear") : "",
+      );
+    const ROUL = Array.from({ length: 15 }, (_, n): [string, string] => [String(n), `${n} (${n === 0 ? "green, 14x" : n <= 7 ? "T" : "CT"})`]);
+    const BOTS: [string, string][] = ["Alpha", "Bravo", "Charlie", "Delta", "Echo"].map((b, i) => [String(i), b]);
+    const ENDS: [string, string][] = [
+      ["A-boom", "A, explodes"],
+      ["A-defuse", "A, defused"],
+      ["B-boom", "B, explodes"],
+      ["B-defuse", "B, defused"],
+    ];
+    const f = o.forced;
+    return section(
+      "Rig the next round",
+      h("p", { class: "hint" }, "Decide how the next round of a shared game ends. Used once, then it's random again (and the rig setting applies). Nobody is told."),
+      row("Flashbang pop", decimalInput({ class: "admin-num", placeholder: "e.g. 1.00" }), "flashbang", f.flashbang, f.flashbang != null ? `${f.flashbang.toFixed(2)}x` : undefined),
+      row("Roulette", select(ROUL), "roulette", f.roulette, f.roulette != null ? ROUL[f.roulette][1] : undefined),
+      row("Bot race winner", select(BOTS), "race", f.race, f.race != null ? BOTS[f.race][1] : undefined),
+      row("Bomb plant", select(ENDS), "bombplant", f.bombplant, ENDS.find((e) => e[0] === f.bombplant)?.[1]),
+      o.jackpotPlayers.length
+        ? row("Jackpot winner", select(o.jackpotPlayers.map((p) => [p.user, `${p.name} (${money(p.value)} in)`])), "jackpot", f.jackpot)
+        : h("div", { class: "admin-row" }, h("b", { class: "admin-event-name" }, "Jackpot winner"), h("span", { class: "admin-muted" }, "Nobody's in the pot right now (refresh once someone deposits)."), f.jackpot ? queued(f.jackpot) : ""),
+      o.players.length
+        ? h(
+            "div",
+            { class: "admin-row admin-forced-players" },
+            h("b", { class: "admin-event-name" }, "Rigged players"),
+            ...o.players.map((p) => h("span", { class: "admin-chip" }, `${p.user}: ${p.drop ? `next drop ${p.drop}` : `next upgrade ${p.upgrade === "win" ? "wins" : "loses"}`}`)),
+          )
+        : "",
     );
   };
 
@@ -490,6 +549,7 @@ export function adminPage() {
                     "Money",
                   ),
                   h("button", { class: "btn btn-sm", onclick: () => openGiveItem(u.user) }, "Give item"),
+                  h("button", { class: "btn btn-sm", onclick: () => openGiveItem(u.user, true) }, "Rig"),
                   h(
                     "button",
                     {
@@ -525,7 +585,8 @@ export function adminPage() {
 
   // Give item: search the catalog, pick wear / StatTrak.
   const giveBox = h("div", { class: "admin-give", hidden: true });
-  const openGiveItem = (user: string) => {
+  /** Give an item now, or (rig) set what this player's next case opening drops and how their next upgrade goes. */
+  const openGiveItem = (user: string, rig = false) => {
     let picked: Item | null = null;
     let wear = "";
     let st = false;
@@ -538,11 +599,23 @@ export function adminPage() {
         h("b", null, picked.name),
         ...(picked.wears.length ? [h("select", { class: "search", onchange: (e: Event) => (wear = (e.target as HTMLSelectElement).value) }, ...picked.wears.map((w) => h("option", { value: w, selected: w === wear }, w)))] : []),
         ...(picked.stattrak ? [h("label", { class: "admin-check" }, h("input", { type: "checkbox", onchange: (e: Event) => (st = (e.target as HTMLInputElement).checked) }), "StatTrak")] : []),
-        h(
-          "button",
-          { class: "btn btn-primary", onclick: async () => (await run(() => adminAction("item", { username: user, itemId: picked!.id, wear, stattrak: st }), `Gave ${picked!.name} to ${user}`)) && void loadUsers() },
-          `Give to ${user}`,
-        ),
+        rig
+          ? h(
+              "button",
+              {
+                class: "btn btn-primary",
+                onclick: async () => {
+                  const r = await run(() => adminAction<Forced>("forcePlayer", { username: user, item: { itemId: picked!.id, wear, stattrak: st } }), `${user}'s next case drops ${picked!.name}`);
+                  if (r) (Object.assign(ov!, r), draw());
+                },
+              },
+              `Make it ${user}'s next drop`,
+            )
+          : h(
+              "button",
+              { class: "btn btn-primary", onclick: async () => (await run(() => adminAction("item", { username: user, itemId: picked!.id, wear, stattrak: st }), `Gave ${picked!.name} to ${user}`)) && void loadUsers() },
+              `Give to ${user}`,
+            ),
       );
     };
     q.addEventListener("input", () => {
@@ -569,7 +642,41 @@ export function adminPage() {
     });
     giveBox.hidden = false;
     giveBox.replaceChildren(
-      h("div", { class: "admin-row" }, h("b", null, `Give an item to ${user}`), h("button", { class: "btn btn-ghost btn-sm", onclick: () => (giveBox.hidden = true) }, "Close")),
+      h("div", { class: "admin-row" }, h("b", null, rig ? `Rig ${user}` : `Give an item to ${user}`), h("button", { class: "btn btn-ghost btn-sm", onclick: () => (giveBox.hidden = true) }, "Close")),
+      ...(rig
+        ? [
+            h(
+              "div",
+              { class: "admin-row" },
+              h("span", { class: "admin-muted" }, "Next upgrade:"),
+              ...(["win", "lose"] as const).map((w) =>
+                h(
+                  "button",
+                  {
+                    class: "btn btn-sm",
+                    onclick: async () => {
+                      const r = await run(() => adminAction<Forced>("forcePlayer", { username: user, upgrade: w }), `${user}'s next upgrade will ${w}`);
+                      if (r) (Object.assign(ov!, r), draw());
+                    },
+                  },
+                  w === "win" ? "Wins" : "Loses",
+                ),
+              ),
+              h(
+                "button",
+                {
+                  class: "btn btn-sm btn-ghost",
+                  onclick: async () => {
+                    const r = await run(() => adminAction<Forced>("forcePlayer", { username: user, clear: true }), `Cleared ${user}'s rigging`);
+                    if (r) (Object.assign(ov!, r), draw());
+                  },
+                },
+                "Clear",
+              ),
+            ),
+            h("p", { class: "hint" }, "Or search an item below to make it their next case drop (whatever case they open)."),
+          ]
+        : []),
       q,
       results,
       opts,
@@ -583,6 +690,7 @@ export function adminPage() {
       h("div", { class: "admin-top" }, h("h1", null, icon("admin", 22), " Admin"), h("button", { class: "btn btn-ghost", onclick: () => void load() }, "Refresh")),
       rigSection(),
       siteSection(),
+      forceSection(),
       eventsSection(),
       chatSection(),
       promoSection(),

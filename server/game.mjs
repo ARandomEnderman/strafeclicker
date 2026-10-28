@@ -121,6 +121,9 @@ export class Game {
     this.locks = new Map();
     /** fn(a, event) for every bet, case opening and click batch (see track). */
     this.trackers = [];
+    /** Admin overrides, used once: userId -> the drop their next case opening gives / whether their next upgrade wins. */
+    this.forcedDrops = new Map();
+    this.forcedUpgrades = new Map();
     this.q = {
       user: db.prepare("SELECT id, username, display_name, created_at, balance_cents, perks, stats, last_active FROM users WHERE id = ?"),
       rename: db.prepare("UPDATE users SET display_name = ? WHERE id = ?"),
@@ -623,7 +626,10 @@ export class Game {
 
       const rig = this.rig("cases");
       const roll = () => resolveDrop(c, (id) => this.#item(id), randomFloats(7));
-      const items = Array.from({ length: n }, () => {
+      const forced = this.forcedDrops.get(a.id);
+      this.forcedDrops.delete(a.id);
+      const items = Array.from({ length: n }, (_, k) => {
+        if (k === 0 && forced) return this.#newOwned(forced, c.id);
         let drop = roll();
         // The rig re-rolls that share of Classified-and-up drops.
         if (rig > 0 && RARE_TIERS.has(this.#item(drop.itemId).tier) && randomFloats(1)[0] < rig) drop = roll();
@@ -706,7 +712,9 @@ export class Game {
 
       const [roll, floatR] = randomFloats(2);
       // The rig shrinks the real chance below the one shown.
-      const won = roll < chance * (1 - this.rig("upgrader"));
+      const forced = this.forcedUpgrades.get(a.id);
+      this.forcedUpgrades.delete(a.id);
+      const won = forced ?? roll < chance * (1 - this.rig("upgrader"));
       const gone = new Set(picked);
       a.inventory = a.inventory.filter((it) => !gone.has(it.uid));
       changes.removed = picked;

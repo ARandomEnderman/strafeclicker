@@ -318,6 +318,8 @@ settings.onChange((key, on) => {
 // The admin panel's events use the chat (announcements, house rain) and who's online.
 admin.chat = chat;
 admin.onlineIds = onlineIds;
+// ...and forcing outcomes needs the shared-round games.
+Object.assign(admin, { roulette, race, bombplant, jackpot });
 
 /** Someone came online or went offline: refresh their friends' lists. */
 function presenceChanged(userId) {
@@ -556,6 +558,8 @@ const actions = {
       : a === "eventEnd" ? admin.endEvent(body.type)
       : a === "houseRain" ? chat.houseRain(userId, body.amount)
       : a === "caseDrop" ? admin.caseDrop(body.caseId)
+      : a === "force" ? admin.forceRound(body)
+      : a === "forcePlayer" ? admin.forcePlayer(body.username, body)
       : null;
     if (!r) throw new GameError("bad_input", "Unknown action");
     return { ...r, account: game.view(userId) };

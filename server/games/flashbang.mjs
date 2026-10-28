@@ -97,7 +97,9 @@ export class Flashbang {
 
   #run() {
     this.phase = "running";
-    this.crash = drawCrash(this.game.rig("flashbang"));
+    // The admin can set where the next round pops (once); otherwise it's drawn.
+    this.crash = this.forced ?? drawCrash(this.game.rig("flashbang"));
+    this.forced = null;
     this.startAt = Date.now();
     this.q.open.run(this.round);
     for (const b of this.bets) b.status = "open";

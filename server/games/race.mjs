@@ -108,6 +108,11 @@ export class Race {
       const pick = RACE_BOTS.map((_, i) => i).filter((i) => paid(i) === least);
       this.winner = pick[randomInt(pick.length)];
     }
+    // The admin can pick the next winner (once).
+    if (this.forced != null) {
+      this.winner = this.forced;
+      this.forced = null;
+    }
     this.race = script(this.winner);
     this.phase = "racing";
     this.startAt = Date.now();

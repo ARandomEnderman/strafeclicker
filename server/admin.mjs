@@ -1,7 +1,7 @@
 // Admin panel backend. Only the account whose username is exactly "admin" (same
 // case) gets in; everyone else gets a 404 as if the endpoint didn't exist.
 
-import { BHOP_DIFFICULTIES, DAILY_PRIZES, PLINKO_TABLES, UPGRADE_RTP, floatInWear, priceKey } from "../shared/game.js";
+import { BHOP_DIFFICULTIES, DAILY_PRIZES, FB_MAX, RACE_BOTS, PLINKO_TABLES, UPGRADE_RTP, floatInWear, priceKey } from "../shared/game.js";
 import { GameError, cents } from "./game.mjs";
 import { EVENT_TYPES, RIGGABLE } from "./settings.mjs";
 
@@ -150,6 +150,7 @@ export class Admin {
       },
       rigGames: RIGGABLE,
       report: rigReport(this.settings),
+      ...this.forcedView(),
     };
   }
 
@@ -271,6 +272,75 @@ export class Admin {
     }
     this.chat.system(`Case drop: ${ids.length} player${ids.length === 1 ? "" : "s"} online each got a free ${c.name}`);
     return { count: ids.length };
+  }
+
+  // ---------- forcing outcomes ----------
+
+  /** Set the result of the next round of a shared game (used once, overrides the rig). */
+  forceRound(body) {
+    const g = String(body.game ?? "");
+    const v = body.value;
+    if (v == null || v === "") {
+      if (g === "flashbang") this.flashbang.forced = null;
+      else if (g === "roulette") this.roulette.forced = null;
+      else if (g === "race") this.race.forced = null;
+      else if (g === "bombplant") this.bombplant.forced = null;
+      else if (g === "jackpot") this.jackpot.forced = null;
+      else throw new GameError("bad_input", "Unknown game");
+      return this.forcedView();
+    }
+    if (g === "flashbang") {
+      const x = Math.round(Number(v) * 100) / 100;
+      if (!(x >= 1 && x <= FB_MAX)) throw new GameError("bad_input", `Pick 1.00x to ${FB_MAX}x`);
+      this.flashbang.forced = x;
+    } else if (g === "roulette") {
+      const n = Number(v);
+      if (!(Number.isInteger(n) && n >= 0 && n < 15)) throw new GameError("bad_input", "Pick a number 0 to 14");
+      this.roulette.forced = n;
+    } else if (g === "race") {
+      const n = Number(v);
+      if (!(Number.isInteger(n) && n >= 0 && n < RACE_BOTS.length)) throw new GameError("bad_input", "Pick a bot");
+      this.race.forced = n;
+    } else if (g === "bombplant") {
+      const [site, result] = String(v).split("-");
+      if (!["A", "B"].includes(site) || !["boom", "defuse"].includes(result)) throw new GameError("bad_input", "Pick an ending");
+      this.bombplant.forced = { site, result };
+    } else if (g === "jackpot") {
+      const id = this.#userId(v);
+      if (!this.jackpot.players().some((p) => p.userId === id)) throw new GameError("bad_input", "They're not in the pot");
+      this.jackpot.forced = id;
+    } else throw new GameError("bad_input", "Unknown game");
+    return this.forcedView();
+  }
+
+  /** A player's next case drop (an item variant) and / or next upgrade (win / lose); null clears. */
+  forcePlayer(username, body) {
+    const id = this.#userId(username);
+    if (body.clear) {
+      this.game.forcedDrops.delete(id);
+      this.game.forcedUpgrades.delete(id);
+    }
+    if (body.item?.itemId) this.game.forcedDrops.set(id, makeDrop(this.game, body.item));
+    if (body.upgrade === "win" || body.upgrade === "lose") this.game.forcedUpgrades.set(id, body.upgrade === "win");
+    return this.forcedView();
+  }
+
+  forcedView() {
+    const name = (id) => this.q.name.get(id)?.username ?? "?";
+    return {
+      forced: {
+        flashbang: this.flashbang.forced ?? null,
+        roulette: this.roulette.forced ?? null,
+        race: this.race.forced ?? null,
+        bombplant: this.bombplant.forced ? `${this.bombplant.forced.site}-${this.bombplant.forced.result}` : null,
+        jackpot: this.jackpot.forced != null ? name(this.jackpot.forced) : null,
+      },
+      jackpotPlayers: this.jackpot.players().map(({ userId, ...p }) => p),
+      players: [
+        ...[...this.game.forcedDrops].map(([id, d]) => ({ user: name(id), drop: `${d.stattrak ? "StatTrak " : ""}${this.game.item(d.itemId)?.name ?? d.itemId}${d.wear ? ` (${d.wear})` : ""}` })),
+        ...[...this.game.forcedUpgrades].map(([id, w]) => ({ user: name(id), upgrade: w ? "win" : "lose" })),
+      ],
+    };
   }
 
   /** End the current flashbang round right now. */
