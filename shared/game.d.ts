@@ -114,3 +114,15 @@ export const POKER_HANDS: { id: string; name: string; pay: number }[];
 export const POKER_RANKS: string[];
 export const POKER_SUITS: string[];
 export function pokerHand(cards: PokerCard[]): { id: string; name: string; pay: number } | null;
+export interface BpOutcome {
+  site: "A" | "B";
+  result: "boom" | "defuse";
+}
+export const BP_BET_MS: number;
+export const BP_RUN_MS: number;
+export const BP_RESULT_MS: number;
+export const BP_ARRIVE_MS: number;
+export const BP_PLANT_MS: number;
+export const BP_END_MS: number;
+export const BP_PICKS: Record<string, { label: string; pays: number; wins: (o: BpOutcome) => boolean }>;
+export const BP_OUTCOMES: BpOutcome[];

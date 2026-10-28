@@ -72,6 +72,7 @@ export function rigReport(settings) {
     { game: "towers", rig: r("towers"), rtp: pct(0.99 * (1 - r("towers")) ** 5), note: `Shown for 5 floors; ${pct(r("towers"))}% of safe picks get a T moved behind them.` },
     { game: "keno", rig: r("keno"), rtp: r("keno") ? null : 99, note: `${pct(r("keno"))}% of rounds are drawn twice and the draw with fewer hits counts. 99% with no rig.` },
     { game: "race", rig: r("race"), rtp: pct(0.99 * (1 - r("race"))), note: `Up to this for a lone bettor: ${pct(r("race"))}% of races go to the bot that pays the players least. Odds pay back 99% with no rig.` },
+    { game: "bombplant", rig: r("bombplant"), rtp: pct(0.99 * (1 - r("bombplant"))), note: `Up to this for a lone bettor: ${pct(r("bombplant"))}% of rounds end the way that pays the players least. 99% with no rig.` },
     { game: "blackjack", rig: r("blackjack"), rtp: pct(interp(BJ_RTP, r("blackjack"))), note: `With perfect basic strategy; real players do worse. ${pct(r("blackjack"))}% of the dealer's draws are the best of three cards. About 99% with no rig.` },
     { game: "poker", rig: r("poker"), rtp: pct(interp(POKER_RTP, r("poker"))), note: `Jacks or Better 9/6, with perfect play (a simple strategy gets about 97%). ${pct(r("poker"))}% of draws also try the next cards and keep the worse hand. 99.5% with no rig.` },
     { game: "dailySpin", rig: r("dailySpin"), rtp: null, note: `Free, so no payback: worth ${money(dailyEv(r("dailySpin")))} a day on average (${money(dailyEv(0))} with no rig). The rig makes the top four prizes rarer.` },

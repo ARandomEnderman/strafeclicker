@@ -5834,3 +5834,192 @@ body.rain-shake .shell {
     font-size: 12px;
   }
 }
+
+/* ---------- bomb plant ---------- */
+
+.bp-stage {
+  margin-top: 16px;
+  padding: 14px;
+}
+.bp-map {
+  display: block;
+  width: 100%;
+  max-width: 720px;
+  margin: 10px auto 0;
+  border-radius: 10px;
+  background: #2a2419;
+}
+.bp-floor {
+  fill: #c9a96b;
+  stroke: #9c7f49;
+  stroke-width: 1.5;
+}
+.bp-site {
+  fill: rgba(80, 50, 20, 0.35);
+  font: 900 46px/1 system-ui, sans-serif;
+}
+.bp-spawn {
+  fill: rgba(80, 50, 20, 0.5);
+  font: 800 9px/1 system-ui, sans-serif;
+  letter-spacing: 0.1em;
+}
+.bp-t circle {
+  fill: #e0a43a;
+  stroke: #5b3a07;
+  stroke-width: 2;
+}
+.bp-t text,
+.bp-ct text {
+  fill: #1a1203;
+  font: 900 9px/1 system-ui, sans-serif;
+}
+.bp-ct circle {
+  fill: #5d95e0;
+  stroke: #12305c;
+  stroke-width: 2;
+}
+.bp-ct text {
+  fill: #0a1a33;
+  font-size: 6.5px;
+}
+.bp-ring {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 3;
+  transform-box: fill-box;
+}
+.bp-bomb-body {
+  fill: #3a3f2a;
+  stroke: #12140c;
+}
+.bp-bomb-led {
+  fill: #ff3b3b;
+  animation: bp-led 0.6s steps(2) infinite;
+}
+.bp-bomb-glow {
+  fill: rgba(255, 59, 59, 0.25);
+  animation: bp-glow 1s ease-in-out infinite;
+}
+@keyframes bp-led {
+  50% {
+    opacity: 0.2;
+  }
+}
+@keyframes bp-glow {
+  50% {
+    opacity: 0.3;
+  }
+}
+.bp-boom {
+  fill: rgba(255, 140, 30, 0.75);
+  stroke: rgba(255, 230, 150, 0.9);
+  stroke-width: 4;
+}
+.bp-bombtimer {
+  height: 6px;
+  max-width: 720px;
+  margin: 8px auto 0;
+  border-radius: 3px;
+  background: var(--bg-3);
+  overflow: hidden;
+}
+.bp-bombtimer i {
+  display: block;
+  height: 100%;
+  background: var(--down);
+}
+.bp-status.boom {
+  color: #ff9a3c;
+}
+.bp-status.defuse {
+  color: #6aa8ff;
+}
+.bp-chip {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 22px;
+  border-radius: 5px;
+  font-weight: 800;
+  font-size: 12px;
+}
+.bp-chip.boom {
+  background: rgba(255, 140, 30, 0.25);
+  color: #ff9a3c;
+}
+.bp-chip.defuse {
+  background: rgba(93, 149, 224, 0.25);
+  color: #6aa8ff;
+}
+/* Site | How it ends on one row, the four combined bets on the next. */
+.bp-board {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+.bp-board > :last-child {
+  grid-column: 1 / -1;
+}
+.bp-board > :last-child .bp-picks {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (max-width: 700px) {
+  .bp-board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .bp-board > :last-child .bp-picks {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.bp-picks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.bp-pick {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 12px;
+  white-space: nowrap;
+  font-size: 13px;
+  min-width: 0;
+}
+.bp-pick b {
+  color: var(--accent);
+}
+.bp-pick.boom,
+.bp-pick[class*="-boom"] {
+  border-left: 3px solid #ff9a3c;
+}
+.bp-pick.defuse,
+.bp-pick[class*="-defuse"] {
+  border-left: 3px solid #6aa8ff;
+}
+.bp-pick.won {
+  box-shadow: 0 0 0 2px var(--up);
+}
+.bp-betlist {
+  margin-top: 18px;
+}
+.bp-betlist h2 {
+  font-size: 15px;
+}
+.bp-bets {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 560px;
+}
+.bp-bet-pick {
+  margin-left: auto;
+  margin-right: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.rl-bet-row.lost {
+  opacity: 0.5;
+}
+

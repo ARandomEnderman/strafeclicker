@@ -35,6 +35,7 @@ import { Bhop } from "./games/bhop.mjs";
 import { Defuse } from "./games/defuse.mjs";
 import { Towers } from "./games/towers.mjs";
 import { Poker } from "./games/poker.mjs";
+import { BombPlant } from "./games/bombplant.mjs";
 import { Roulette } from "./games/roulette.mjs";
 import { Coinflip } from "./games/coinflip.mjs";
 import { Jackpot } from "./games/jackpot.mjs";
@@ -260,6 +261,8 @@ const jackpot = new Jackpot(game, db, { broadcast, toUser });
 jackpot.start();
 const race = new Race(game, db, { broadcast, toUser });
 race.start();
+const bombplant = new BombPlant(game, db, { broadcast, toUser });
+bombplant.start();
 const bhop = new Bhop(game, db);
 const defuse = new Defuse(game, db);
 const towers = new Towers(game, db);
@@ -326,6 +329,7 @@ function events(req, res) {
   res.write(`event: roulette\ndata: ${JSON.stringify(roulette.state())}\n\n`);
   res.write(`event: jackpot\ndata: ${JSON.stringify(jackpot.state())}\n\n`);
   res.write(`event: race\ndata: ${JSON.stringify(race.state())}\n\n`);
+  res.write(`event: bombplant\ndata: ${JSON.stringify(bombplant.state())}\n\n`);
   // Server-settled results (a flashbang auto cash-out, a pop) reach the player this way.
   res.userId = sessionUser(req);
   res.write(`event: battles\ndata: ${JSON.stringify(battles.list(res.userId))}\n\n`);
@@ -442,6 +446,7 @@ const STARTS = {
   poker: (b) => b.action === "deal",
   keno: true,
   race: true,
+  bombplant: true,
   blackjack: (b) => b.action === "bet",
   spin: true,
 };
@@ -528,6 +533,7 @@ const actions = {
   spin: (userId) => game.dailySpin(userId),
   keno: (userId, body) => keno(game, userId, body),
   race: (userId, body) => race.bet(userId, body),
+  bombplant: (userId, body) => bombplant.bet(userId, body),
   blackjack: (userId, body) => {
     if (body.action === "bet") return blackjack.bet(userId, body);
     if (body.action === "hit") return blackjack.hit(userId);
@@ -705,6 +711,7 @@ for (const sig of ["SIGINT", "SIGTERM"]) {
     roulette.stop();
     jackpot.stop();
     race.stop();
+    bombplant.stop();
     blackjack.stop();
     leaderboard.stop();
     void steam.stop().finally(() => {

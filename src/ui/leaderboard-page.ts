@@ -44,6 +44,7 @@ const GAMES: Record<string, string> = {
   race: "Bot race",
   blackjack: "Blackjack",
   poker: "Video poker",
+  bombplant: "Bomb plant",
   coinflip: "Coinflip",
   jackpot: "Jackpot",
   battle: "Case battle",

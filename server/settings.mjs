@@ -11,7 +11,7 @@
 const DEFAULTS = { rig: 0, rigGames: {}, maintenance: false, announcement: null, lbPrizes: { daily: [25, 10, 5], weekly: [100, 50, 25] }, rainMin: 1 };
 
 /** Games the rig applies to (player-vs-player games have no house to favour). */
-export const RIGGABLE = ["cases", "upgrader", "plinko", "flashbang", "roulette", "bhop", "defuse", "towers", "keno", "race", "blackjack", "poker", "coinflipBot", "dailySpin"];
+export const RIGGABLE = ["cases", "upgrader", "plinko", "flashbang", "roulette", "bhop", "defuse", "towers", "keno", "race", "bombplant", "blackjack", "poker", "coinflipBot", "dailySpin"];
 
 export class Settings {
   /** @param {import("node:sqlite").DatabaseSync} db */

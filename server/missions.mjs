@@ -14,6 +14,7 @@ const NAMES = {
   keno: "Keno",
   blackjack: "Blackjack",
   poker: "Video poker",
+  bombplant: "Bomb plant",
   towers: "Towers",
   defuse: "Defuse",
   bhop: "B-hop",
@@ -32,7 +33,7 @@ const KINDS = [
   { kind: "cases", tiers: [[5, 100], [15, 250], [40, 500]], label: (m) => `Open ${m.target} cases` },
   { kind: "clicks", tiers: [[300, 100], [1000, 250], [2500, 500]], label: (m) => `Click ${m.target.toLocaleString("en-US")} times on the clicker` },
   { kind: "wager", tiers: [[2500, 100], [10000, 250], [30000, 500]], label: (m) => `Wager ${usd(m.target)} in total`, money: true },
-  ...["plinko", "roulette", "keno", "blackjack", "poker", "towers", "defuse", "bhop", "flashbang", "race"].map((game) => ({
+  ...["plinko", "roulette", "keno", "blackjack", "poker", "towers", "defuse", "bhop", "flashbang", "race", "bombplant"].map((game) => ({
     kind: `play:${game}`,
     game,
     tiers: [[5, 100], [12, 250], [25, 500]],

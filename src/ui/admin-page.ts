@@ -68,6 +68,7 @@ const GAME_NAMES: Record<string, string> = {
   race: "Bot race",
   blackjack: "Blackjack",
   poker: "Video poker",
+  bombplant: "Bomb plant",
   coinflipBot: "Coinflip vs bot",
   dailySpin: "Daily spin",
   battle: "Case battles",

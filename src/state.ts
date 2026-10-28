@@ -321,6 +321,11 @@ export async function blackjackAction(action: "bet" | "hit" | "stand" | "double"
   return post("blackjack", { action, bet });
 }
 
+export async function bombPlantBet(pick: string, bet: number) {
+  await flushClicks();
+  return post("bombplant", { pick, bet });
+}
+
 export async function raceBet(bot: number, bet: number) {
   await flushClicks();
   return post("race", { bot, bet });

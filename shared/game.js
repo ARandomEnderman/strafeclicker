@@ -484,3 +484,33 @@ export function pokerHand(cards) {
   else if (groups[0].n === 2 && groups[0].rank >= 11) id = "jacks";
   return id ? POKER_HANDS.find((x) => x.id === id) : null;
 }
+
+// ---------- Bomb plant ----------
+// One shared round: the T plants at A or B, then the CTs retake and the bomb either
+// explodes or is defused, four equally likely outcomes. Bet on the site, on how it ends,
+// or on both at once. Bets are taken for BP_BET_MS, the round plays for BP_RUN_MS (the
+// same on every screen), then the result shows for BP_RESULT_MS.
+
+export const BP_BET_MS = 20_000;
+export const BP_RUN_MS = 10_000;
+export const BP_RESULT_MS = 4000;
+/** Inside the round (ms): the T reaches the site, the bomb is planted, the round ends. */
+export const BP_ARRIVE_MS = 3000;
+export const BP_PLANT_MS = 4200;
+export const BP_END_MS = 8800;
+export const BP_PICKS = {
+  A: { label: "A site", pays: 1.98, wins: (o) => o.site === "A" },
+  B: { label: "B site", pays: 1.98, wins: (o) => o.site === "B" },
+  boom: { label: "Explodes", pays: 1.98, wins: (o) => o.result === "boom" },
+  defuse: { label: "Defused", pays: 1.98, wins: (o) => o.result === "defuse" },
+  "A-boom": { label: "A + explodes", pays: 3.96, wins: (o) => o.site === "A" && o.result === "boom" },
+  "A-defuse": { label: "A + defused", pays: 3.96, wins: (o) => o.site === "A" && o.result === "defuse" },
+  "B-boom": { label: "B + explodes", pays: 3.96, wins: (o) => o.site === "B" && o.result === "boom" },
+  "B-defuse": { label: "B + defused", pays: 3.96, wins: (o) => o.site === "B" && o.result === "defuse" },
+};
+export const BP_OUTCOMES = [
+  { site: "A", result: "boom" },
+  { site: "A", result: "defuse" },
+  { site: "B", result: "boom" },
+  { site: "B", result: "defuse" },
+];
