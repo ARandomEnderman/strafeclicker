@@ -30,7 +30,11 @@ export function upgraderPage() {
   const selected = new Set<string>();
   let target: Variant | null = null;
   let spinning = false;
-  let rotation = 0;
+  // The win zone starts at the bottom of the ring (180°) and runs clockwise; the arrow rests there.
+  const START_DEG = 180;
+  let rotation = START_DEG;
+  /** The last spin's chance, so its zone stays on the ring (with the arrow on it) until you pick again. */
+  let landed: number | null = null;
 
   const inputSlot = h("div", { class: "upg-slot" });
   const targetSlot = h("div", { class: "upg-slot" });
@@ -57,9 +61,16 @@ export function upgraderPage() {
   arc.setAttribute("class", "upg-arc");
   const pointer = document.createElementNS(svgNS, "g");
   pointer.setAttribute("class", "upg-pointer");
+  // An arrowhead straddling the ring and pointing at the centre, drawn at the top and
+  // rotated into place; a thin needle runs from it towards the middle.
+  const needle = document.createElementNS(svgNS, "path");
+  needle.setAttribute("d", "M110 34 L110 56");
+  needle.setAttribute("class", "upg-needle");
   const tri = document.createElementNS(svgNS, "path");
-  tri.setAttribute("d", "M110 4 L102 22 L118 22 Z");
-  pointer.append(tri);
+  tri.setAttribute("d", "M110 38 L96 2 L110 10 L124 2 Z");
+  tri.setAttribute("class", "upg-arrow");
+  pointer.append(needle, tri);
+  pointer.style.transform = `rotate(${START_DEG}deg)`;
   svg.append(track, arc, pointer);
   const centre = h("div", { class: "upg-centre" });
   dial.append(svg, centre);
@@ -67,14 +78,19 @@ export function upgraderPage() {
   const arcPath = (fraction: number) => {
     if (fraction <= 0) return "";
     const a = Math.min(fraction, 0.9999) * 2 * Math.PI;
-    const x = 110 + 92 * Math.sin(a);
-    const y = 110 - 92 * Math.cos(a);
-    return `M110 18 A92 92 0 ${a > Math.PI ? 1 : 0} 1 ${x.toFixed(2)} ${y.toFixed(2)}`;
+    const end = a + (START_DEG * Math.PI) / 180;
+    const x = 110 + 92 * Math.sin(end);
+    const y = 110 - 92 * Math.cos(end);
+    return `M110 202 A92 92 0 ${a > Math.PI ? 1 : 0} 1 ${x.toFixed(2)} ${y.toFixed(2)}`;
   };
 
   const drawDial = () => {
     const c = chance();
-    arc.setAttribute("d", arcPath(chanceOk(c) ? c : 0));
+    if (target || selected.size) {
+      landed = null;
+      dial.classList.remove("won", "lost");
+    }
+    arc.setAttribute("d", arcPath(landed ?? (chanceOk(c) ? c : 0)));
     const mult = target && inputValue() > 0 ? priceOf(target) / inputValue() : 0;
     centre.replaceChildren(
       h("b", null, target && selected.size ? `${(c * 100).toFixed(2)}%` : "–"),
@@ -216,7 +232,8 @@ export function upgraderPage() {
     // The server only says won or lost; land the pointer somewhere that matches.
     const winDeg = result.chance * 360;
     const land = result.won ? winDeg * (0.1 + 0.8 * Math.random()) : winDeg + (360 - winDeg) * (0.05 + 0.9 * Math.random());
-    rotation = Math.ceil(rotation / 360) * 360 + 360 * 5 + land;
+    dial.classList.remove("won", "lost");
+    rotation = Math.ceil((rotation - START_DEG) / 360) * 360 + START_DEG + 360 * 5 + land;
     pointer.style.transition = `transform ${SPIN_MS}ms cubic-bezier(0.15, 0.85, 0.2, 1)`;
     pointer.style.transform = `rotate(${rotation}deg)`;
     await new Promise((r) => setTimeout(r, SPIN_MS + 100));
@@ -229,6 +246,8 @@ export function upgraderPage() {
       showOutcome(true, result.item, staked);
     } else showOutcome(false, null, staked);
     target = null;
+    dial.classList.add(result.won ? "won" : "lost");
+    landed = result.chance;
     redraw();
   }
 

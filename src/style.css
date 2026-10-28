@@ -1460,8 +1460,26 @@ a.wallet-item:hover {
   transform-origin: 110px 110px;
   transform-box: view-box;
 }
-.upg-pointer path {
-  fill: var(--text);
+.upg-arrow {
+  fill: #fff;
+  stroke: rgba(0, 0, 0, 0.45);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.55));
+  transition: fill 0.2s, filter 0.2s;
+}
+.upg-needle {
+  stroke: rgba(255, 255, 255, 0.5);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.upg-dial.won .upg-arrow {
+  fill: var(--up);
+  filter: drop-shadow(0 0 10px var(--up));
+}
+.upg-dial.lost .upg-arrow {
+  fill: var(--down);
+  filter: drop-shadow(0 0 10px var(--down));
 }
 .upg-centre {
   position: absolute;
