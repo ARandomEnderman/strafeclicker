@@ -246,6 +246,7 @@ export class Admin {
     events.push({ type: body.type, value, endsAt: Date.now() + minutes * 60_000 });
     this.settings.set("events", events);
     this.broadcast("site", this.settings.public());
+    this.broadcast("eventfx", { type: body.type, value, minutes });
     const what = body.type === "cashback" ? `${value}% of every loss back` : body.type === "clickBoost" ? `${value}x clicker earnings` : `${value}x daily mission rewards`;
     this.chat.system(`Event started: ${t.name}, ${what} for ${minutes} minutes`);
     return { events: this.settings.public().events };
@@ -265,7 +266,8 @@ export class Admin {
     for (const id of ids) {
       const { account } = this.game.act(id, (a, changes) => {
         const [owned] = this.game.grant(a, changes, [this.game.rollDrop(c)], c.id);
-        this.toUser(id, "notice", { text: `Case drop: you got ${this.game.item(owned.itemId).name} from a free ${c.name}` });
+        // Sent before the account update, so the page can hide the item until its reel lands.
+        this.toUser(id, "casedrop", { caseId: c.id, item: owned });
         return {};
       });
       this.toUser(id, "account", account);

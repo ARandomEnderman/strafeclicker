@@ -107,6 +107,9 @@ const ago = (t: number | null) => {
   return m < 1 ? "now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`;
 };
 
+/** The case last picked for a case drop (kept while the panel redraws). */
+let dropCase = "";
+
 export function adminPage() {
   const root = h("div", { class: "admin" });
   let ov: Overview | null = null;
@@ -306,8 +309,41 @@ export function adminPage() {
       );
     });
     const rainAmount = decimalInput({ class: "admin-num", value: "100" });
-    const cases = [...openableCases()].sort((a, b) => openCost(a) - openCost(b));
-    const caseSel = h("select", { class: "search" }, ...cases.map((c) => h("option", { value: c.id }, `${c.name} (${money(openCost(c))})`))) as HTMLSelectElement;
+    // Case drop: a searchable grid of cases; click one, then drop it on everyone.
+    const cases = [...openableCases()].sort((a, b) => openCost(b) - openCost(a));
+    let pickedCase = dropCase && cases.some((c) => c.id === dropCase) ? dropCase : (cases[0]?.id ?? "");
+    const caseGrid = h("div", { class: "admin-case-grid" });
+    const dropBtn = h("button", { class: "btn btn-primary" });
+    const caseSearch = h("input", { class: "search", placeholder: "Search cases and capsules" }) as HTMLInputElement;
+    const drawCases = () => {
+      const q = caseSearch.value.toLowerCase().trim();
+      caseGrid.replaceChildren(
+        ...cases
+          .filter((c) => !q || c.name.toLowerCase().includes(q))
+          .map((c) =>
+            h(
+              "button",
+              {
+                type: "button",
+                class: `admin-case${c.id === pickedCase ? " picked" : ""}`,
+                onclick: () => {
+                  pickedCase = dropCase = c.id;
+                  drawCases();
+                },
+              },
+              h("img", { src: c.image, alt: "", loading: "lazy" }),
+              h("span", { class: "admin-case-name" }, c.name),
+              h("b", null, money(openCost(c))),
+            ),
+          ),
+      );
+      const c = cases.find((x) => x.id === pickedCase);
+      dropBtn.textContent = c ? `Drop a free ${c.name} on everyone online` : "Pick a case";
+      dropBtn.disabled = !c;
+    };
+    caseSearch.addEventListener("input", drawCases);
+    dropBtn.addEventListener("click", () => void run(() => adminAction<{ count: number }>("caseDrop", { caseId: pickedCase })).then((r) => r && toast(`Dropped a case on ${r.count} player${r.count === 1 ? "" : "s"}`)));
+    drawCases();
     return section(
       "Events",
       h("p", { class: "hint" }, "Timed events show a banner with a countdown to everyone and are announced in the chat. One-off events happen right away; the house pays, not your balance."),
@@ -323,11 +359,10 @@ export function adminPage() {
       ),
       h(
         "div",
-        { class: "admin-row" },
-        h("b", { class: "admin-event-name" }, "Case drop"),
-        caseSel,
-        h("span", { class: "admin-muted" }, "everyone online gets one free opening"),
-        h("button", { class: "btn btn-primary", onclick: () => void run(() => adminAction<{ count: number }>("caseDrop", { caseId: caseSel.value })).then((r) => r && toast(`Dropped a case on ${r.count} player${r.count === 1 ? "" : "s"}`)) }, "Drop"),
+        { class: "admin-casedrop" },
+        h("div", { class: "admin-row" }, h("b", { class: "admin-event-name" }, "Case drop"), h("span", { class: "admin-muted" }, "Everyone online gets one free opening, with the case reel on their screen."), caseSearch),
+        caseGrid,
+        h("div", { class: "admin-row" }, dropBtn),
       ),
     );
   };

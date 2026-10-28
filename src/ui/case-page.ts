@@ -7,6 +7,7 @@ import { getState, holdToastsFor, InsufficientFunds, openCases, sell, ServerErro
 import { h, money, toast } from "./dom";
 import { icon } from "./icons";
 import { displayName, dropCard, itemPreviewCard } from "./item-card";
+import { openModal } from "./modal";
 import { onLeave } from "./page";
 import { playTick, playReveal } from "./sound";
 
@@ -366,4 +367,23 @@ function contents(c: Case) {
         );
       }),
   ];
+}
+
+/**
+ * The case-opening reel in a popup, for an item that was already won elsewhere (an admin
+ * case drop). Resolves once the reel has landed and the item is shown.
+ */
+export async function reelPopup(c: Case, drop: OwnedItem, title: string) {
+  const reel = h("div", { class: "reel" });
+  const wrap = h("div", { class: "reel-wrap" }, reel, h("div", { class: "reel-marker" }));
+  const result = h("div", { class: "drop-popup-result" });
+  openModal(title, h("div", { class: "drop-popup" }, h("div", { class: "drop-popup-case" }, h("img", { src: c.image, alt: "" }), h("b", null, c.name)), wrap, result), { wide: true });
+  const item = getItem(drop.itemId);
+  fillReel(reel, c, item);
+  // Let the popup lay out before measuring the tiles.
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  await animate(reel);
+  ensureLanded(reel, wrap);
+  playReveal(item.tier);
+  result.replaceChildren(dropCard(drop, { size: "lg" }), h("p", { class: "hint" }, "It's in your inventory."));
 }

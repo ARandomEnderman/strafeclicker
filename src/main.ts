@@ -41,6 +41,7 @@ import { marketPage } from "./ui/market-page";
 import { bracketView, bracketsPage } from "./ui/bracket-page";
 import "./brackets";
 import "./tags";
+import "./ui/event-fx";
 import "./race";
 import "./bombplant";
 import "./rps";
