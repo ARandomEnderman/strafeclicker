@@ -130,18 +130,20 @@ export const perkValue = (perks, id) => PERKS[id].levels[perks?.[id] ?? 0].value
 export const offlinePerHour = (perks) => perkValue(perks, "clickPower") * CLICK_CPS_LIMIT * 60 * perkValue(perks, "offlineIncome");
 
 /**
- * The daily spin's prizes and the login streak bonus grow with click power, so they stay
- * worth having: (click power / starting click power)², 1x at the start up to 400x.
+ * The daily spin's prizes grow with click power, so they stay worth having:
+ * (click power / starting click power)², 1x at the start up to 400x.
  */
 export const rewardScale = (perks) => (perkValue(perks, "clickPower") / PERKS.clickPower.levels[0].value) ** 2;
 
 // ---------- login streak ----------
 // The first visit of each day (UTC) pays STREAK_USD × the streak's length (up to
-// STREAK_MAX_DAYS) × rewardScale. Missing a day starts it over.
+// STREAK_MAX_DAYS) × click power over the starting click power (1x to 20x): a week in
+// a row pays $525 a day from the start. Missing a day starts it over.
 
-export const STREAK_USD = 1;
+export const STREAK_USD = 75;
 export const STREAK_MAX_DAYS = 30;
-export const streakReward = (perks, days) => STREAK_USD * Math.min(days, STREAK_MAX_DAYS) * rewardScale(perks);
+export const streakReward = (perks, days) =>
+  STREAK_USD * Math.min(days, STREAK_MAX_DAYS) * (perkValue(perks, "clickPower") / PERKS.clickPower.levels[0].value);
 export const utcDay = (t = Date.now()) => Math.floor(t / 86_400_000);
 
 /** Upgrader: chance = (your value / target price) × UPGRADE_RTP, kept inside these bounds. */
