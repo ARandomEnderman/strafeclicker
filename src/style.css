@@ -6677,3 +6677,98 @@ body.rain-shake .shell {
   background: var(--bg-3);
   font-size: 12px;
 }
+
+/* ---------- marketplace ---------- */
+
+.mk-grid {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  margin-top: 12px;
+}
+.mk-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--rarity) 14%, var(--bg-2)), var(--bg-2) 60%);
+  border: 1px solid var(--line);
+  border-bottom: 3px solid var(--rarity);
+}
+.mk-card.empty {
+  justify-content: center;
+  align-items: center;
+  min-height: 240px;
+  color: var(--muted);
+}
+.mk-card img {
+  width: 100%;
+  height: 120px;
+  object-fit: contain;
+  margin: 8px 0;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.45));
+}
+.mk-weapon {
+  color: var(--muted);
+  font-size: 12px;
+}
+.mk-finish {
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mk-wear {
+  min-height: 17px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.mk-price {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 6px 0 8px;
+}
+.mk-price b {
+  color: var(--up);
+  font-size: 17px;
+}
+.mk-price s {
+  color: var(--muted);
+  font-size: 12px;
+}
+.mk-deal,
+.mk-premium {
+  position: absolute;
+  top: 8px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+}
+.mk-deal {
+  left: 8px;
+  background: var(--up);
+  color: #0b2418;
+}
+.mk-premium {
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(230, 180, 34, 0.2);
+  color: #f2c94c;
+}
+.mk-card.sold {
+  opacity: 0.55;
+}
+.mk-sold {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--up);
+  font-weight: 700;
+}
+.mk-clock {
+  font-variant-numeric: tabular-nums;
+}

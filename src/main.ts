@@ -37,6 +37,7 @@ import { pokerPage } from "./ui/poker-page";
 import { bombplantPage } from "./ui/bombplant-page";
 import { rpsPage, rpsView } from "./ui/rps-page";
 import { clanView, clansPage } from "./ui/clans-page";
+import { marketPage } from "./ui/market-page";
 import { bracketView, bracketsPage } from "./ui/bracket-page";
 import "./brackets";
 import "./tags";
@@ -73,6 +74,7 @@ const MAIN_NAV: NavItem[] = [
   { route: "battles", href: "#/battles", label: "Case battles", icon: "battles" },
   { route: "brackets", href: "#/brackets", label: "Brackets", icon: "bracket" },
   { route: "upgrader", href: "#/upgrader", label: "Upgrader", icon: "upgrader" },
+  { route: "market", href: "#/market", label: "Marketplace", icon: "store" },
 ];
 /** The casino games: a group in the sidebar that folds up when there isn't room. */
 const GAMES_NAV: NavItem[] = [
@@ -352,6 +354,7 @@ function route() {
   else if (page === "poker") view = pokerPage();
   else if (page === "bombplant") view = bombplantPage();
   else if (page === "brackets") view = arg ? bracketView(Number(arg)) : bracketsPage(new URLSearchParams(query).get("code"));
+  else if (page === "market") view = marketPage();
   else if (page === "clans") view = arg ? clanView(Number(arg)) : clansPage();
   else if (page === "rps") view = arg ? rpsView(Number(arg)) : rpsPage(new URLSearchParams(query).get("code"));
   else if (page === "missions") view = missionsPage();

@@ -48,6 +48,7 @@ import { Chat } from "./chat.mjs";
 import { Leaderboard } from "./leaderboard.mjs";
 import { Promos } from "./promos.mjs";
 import { Clans } from "./clans.mjs";
+import { Market } from "./market.mjs";
 import { Battles } from "./games/battles.mjs";
 import { Friends } from "./friends.mjs";
 import { Trades } from "./trades.mjs";
@@ -293,6 +294,7 @@ const chat = new Chat(db, game, settings, { broadcastPer, broadcast, toUser, onl
 const leaderboard = new Leaderboard(db, game, settings, { toUser, announce: (text) => chat.system(text) });
 leaderboard.start();
 const promos = new Promos(db, game);
+const shop = new Market(game, settings);
 const clans = new Clans(db, game, { broadcast, toUser, isOnline, onMembership: (id) => toUser(id, "chat", chat.history(id)) });
 chat.clans = clans;
 const profiles = new Profiles(game, db, friends, isOnline);
@@ -474,6 +476,7 @@ const STARTS = {
   towers: (b) => b.action === "start",
   poker: (b) => b.action === "deal",
   keno: true,
+  market: (b) => b.action === "buy",
   race: true,
   bombplant: true,
   blackjack: (b) => b.action === "bet",
@@ -511,6 +514,7 @@ const actions = {
   },
   leaderboard: (userId) => ({ board: leaderboard.view(userId, auth.usernameOf(userId)) }),
   promo: (userId, body) => promos.redeem(userId, body.code),
+  market: (userId, body) => (body.action === "buy" ? shop.buy(userId, body) : shop.view(userId)),
   missions: (userId, body) => game.claimMission(userId, body.id == null ? null : String(body.id)),
   flashbang: (userId, body) => {
     if (body.action === "bet") return flashbang.bet(userId, body);

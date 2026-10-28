@@ -280,6 +280,23 @@ export async function clansAction<T>(action: string, body: object = {}) {
   return post<T>("clans", { action, ...body });
 }
 
+export interface MarketSlot {
+  slot: number;
+  itemId: string;
+  phase: string | null;
+  wear: string | null;
+  stattrak: boolean;
+  discount: number;
+  /** Market value, the listed price (value + fee) and what it costs now (after any deal). */
+  value: number;
+  list: number;
+  price: number;
+  sold: boolean;
+}
+export async function marketAction(action: "view" | "buy", body: object = {}) {
+  return post<{ refreshAt: number; slots: (MarketSlot | null)[]; item?: unknown; price?: number }>("market", { action, ...body });
+}
+
 export async function setShowcase(uids: string[], banner: string) {
   return post("profile", { action: "showcase", uids, banner });
 }

@@ -9,7 +9,7 @@
 //   rainMin      smallest /rain allowed (USD)
 //   events       timed events the admin started: [{ type, value, endsAt }] (see EVENT_TYPES)
 
-const DEFAULTS = { rig: 0, rigGames: {}, maintenance: false, announcement: null, lbPrizes: { daily: [25, 10, 5], weekly: [100, 50, 25] }, rainMin: 1, events: [] };
+const DEFAULTS = { rig: 0, rigGames: {}, maintenance: false, announcement: null, lbPrizes: { daily: [25, 10, 5], weekly: [100, 50, 25] }, rainMin: 1, events: [], marketSeed: null };
 
 /**
  * Timed events, each with what `value` means:
