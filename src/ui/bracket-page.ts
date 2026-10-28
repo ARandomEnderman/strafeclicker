@@ -216,6 +216,89 @@ function matchEl(b: Bracket, m: BracketMatch, game: BracketGame, mySeat: number 
   return h("div", { class: `br-match ${m.status}` }, row(m.a, 0), row(m.b, 1), status ? h("div", { class: "br-match-status" }, status) : "", ...controls);
 }
 
+/**
+ * A classic printed bracket: the first half of the field on the left playing towards
+ * the middle, the second half mirrored on the right, the final in the centre with the
+ * winner under it, and elbow lines joining every match to the one its winner goes to.
+ */
+function bracketTree(b: Bracket, mySeat: number | null) {
+  const S = b.stages.length;
+  const tbd = () => h("div", { class: "br-match pending" }, h("div", { class: "br-player" }, h("span", { class: "br-name" }, "TBD")), h("div", { class: "br-player" }, h("span", { class: "br-name" }, "TBD")));
+  const els = new Map<string, HTMLElement>();
+  const matchAt = (i: number, k: number) => {
+    const m = b.rounds[i]?.[k];
+    const el = m ? matchEl(b, m, b.stages[i].game, mySeat) : tbd();
+    el.dataset.side = "";
+    els.set(`${i}-${k}`, el);
+    return el;
+  };
+  const count = (i: number) => b.size / 2 ** (i + 1);
+  const column = (i: number, ks: number[], side: "left" | "right") =>
+    h(
+      "div",
+      { class: `br-col ${side}` },
+      ...ks.map((k) => {
+        const el = matchAt(i, k);
+        el.dataset.side = side;
+        return h("div", { class: "br-slot" }, el);
+      }),
+    );
+  const half = (i: number, side: "left" | "right") => {
+    const n = count(i);
+    const ks = Array.from({ length: n / 2 }, (_, j) => (side === "left" ? j : n / 2 + j));
+    return column(i, ks, side);
+  };
+  const champ = b.champion != null ? b.players[b.champion] : null;
+  const winnerBox = h("div", { class: `br-winner${champ ? " set" : ""}` }, h("span", { class: "br-winner-name" }, champ ? champ.name : ""), h("span", { class: "br-winner-label" }, "Winner"));
+  const final = matchAt(S - 1, 0);
+  final.dataset.side = "final";
+  const centre = h("div", { class: "br-col centre" }, h("div", { class: "br-slot" }, h("div", { class: "br-final" }, final, winnerBox)));
+  const heads = [
+    ...Array.from({ length: S - 1 }, (_, i) => stageLabel(b, i)),
+    stageLabel(b, S - 1),
+    ...Array.from({ length: S - 1 }, (_, i) => stageLabel(b, S - 2 - i)),
+  ];
+  const cols = [...Array.from({ length: S - 1 }, (_, i) => half(i, "left")), centre, ...Array.from({ length: S - 1 }, (_, i) => half(S - 2 - i, "right"))];
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "br-lines");
+  // Equal columns that share the width; below ~130px each the tree scrolls sideways instead.
+  const grid = h("div", { class: "br-grid", style: `grid-template-columns: repeat(${cols.length}, minmax(0, 1fr))` }, ...heads.map((t) => h("div", { class: "br-col-head" }, t)), ...cols);
+  const el = h("div", { class: "br-tree" }, h("div", { class: "br-canvas", style: `min-width: ${cols.length * 130 + (cols.length - 1) * 22}px` }, svg as unknown as HTMLElement, grid));
+
+  /** Measure the matches and draw the joining lines (after the tree is on screen). */
+  const drawLines = () => {
+    const box = svg.parentElement!.getBoundingClientRect();
+    svg.setAttribute("width", String(box.width));
+    svg.setAttribute("height", String(box.height));
+    svg.replaceChildren();
+    const line = (d: string, lit: boolean) => {
+      const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      p.setAttribute("d", d);
+      p.setAttribute("class", lit ? "lit" : "");
+      svg.append(p);
+    };
+    for (let i = 0; i < S - 1; i++) {
+      for (let k = 0; k < count(i); k++) {
+        const from = els.get(`${i}-${k}`)?.getBoundingClientRect();
+        const to = els.get(`${i + 1}-${Math.floor(k / 2)}`)?.getBoundingClientRect();
+        if (!from || !to) continue;
+        const left = els.get(`${i}-${k}`)!.dataset.side === "left";
+        const x1 = (left ? from.right : from.left) - box.left;
+        const y1 = from.top + from.height / 2 - box.top;
+        const x2 = (left ? to.left : to.right) - box.left;
+        const y2 = to.top + to.height / 2 - box.top;
+        const xm = (x1 + x2) / 2;
+        // Lit once the match is decided: that's the winner's path.
+        line(`M${x1} ${y1} H${xm} V${y2} H${x2}`, b.rounds[i]?.[k]?.status === "done");
+      }
+    }
+    const f = final.getBoundingClientRect();
+    const w = winnerBox.getBoundingClientRect();
+    line(`M${f.left + f.width / 2 - box.left} ${f.bottom - box.top} V${w.top - box.top}`, !!champ);
+  };
+  return { el, drawLines };
+}
+
 export function bracketView(id: number) {
   const root = h("div", { class: "br-view" });
   let lastKey = "";
@@ -239,15 +322,8 @@ export function bracketView(id: number) {
       if (b.mine) actions.push(h("button", { class: "btn", onclick: () => void act("bots", { id }) }, icon("box", 14), " Fill with bots and start"));
       if (mySeat >= 0) actions.push(h("button", { class: "btn btn-ghost", onclick: () => confirm(b.mine ? "Cancel this bracket? Everyone gets their fee back." : "Leave? You get your fee back.") && void act("leave", { id }).then((r) => r && b.mine && (location.hash = "#/brackets")) }, b.mine ? "Cancel" : "Leave"));
     }
-    const columns = b.stages.map((s, i) => {
-      const matches = b.rounds[i] ?? Array.from({ length: b.size / 2 ** (i + 1) }, () => null);
-      return h(
-        "div",
-        { class: "br-col" },
-        h("div", { class: "br-col-head" }, stageLabel(b, i)),
-        ...matches.map((m) => (m ? matchEl(b, m, s.game, mySeat >= 0 ? mySeat : null) : h("div", { class: "br-match pending" }, h("div", { class: "br-player" }, h("span", { class: "br-name" }, "TBD")), h("div", { class: "br-player" }, h("span", { class: "br-name" }, "TBD"))))),
-      );
-    });
+    const tree = bracketTree(b, mySeat >= 0 ? mySeat : null);
+    requestAnimationFrame(tree.drawLines);
     root.replaceChildren(
       h("div", { class: "bt-crumbs" }, h("a", { href: "#/brackets" }, "Brackets"), h("h1", null, `${b.size}-player bracket · ${money(b.pot)} pot`)),
       h("p", { class: "hint" }, `${money(b.fee)} entry${b.code ? ` · Code ${b.code}` : ""}`),
@@ -263,10 +339,13 @@ export function bracketView(id: number) {
           )
         : "",
       actions.length ? h("div", { class: "bt-actions" }, ...actions) : "",
-      h("div", { class: "br-tree" }, ...columns),
+      tree.el,
     );
   };
   onLeave(onBrackets(draw));
+  const onResize = () => draw();
+  window.addEventListener("resize", onResize);
+  onLeave(() => window.removeEventListener("resize", onResize));
   // Animations follow the clock: redraw a few times a second while it's running.
   const tick = setInterval(() => {
     const b = bracketById(id);
