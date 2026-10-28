@@ -68,11 +68,11 @@ export const PERKS = {
     name: "Offline income",
     unit: "per hour away",
     levels: [
-      { value: 0.25, cost: 0 },
-      { value: 0.5, cost: 15 },
-      { value: 1, cost: 60 },
-      { value: 2, cost: 200 },
-      { value: 4, cost: 600 },
+      { value: 2.5, cost: 0 },
+      { value: 5, cost: 15 },
+      { value: 10, cost: 60 },
+      { value: 20, cost: 200 },
+      { value: 40, cost: 600 },
     ],
   },
   battleRounds: {
