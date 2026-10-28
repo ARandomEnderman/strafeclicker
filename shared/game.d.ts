@@ -7,7 +7,7 @@ export const TIERS: Tier[];
 export const STATTRAK_ODDS: number;
 export const WEAR_BUCKETS: { key: WearKey; name: string; min: number; max: number; weight: number }[];
 export const PHASE_WEIGHTS: Record<string, number>;
-export type PerkId = "multiOpen" | "clickPower" | "offlineIncome" | "battleRounds";
+export type PerkId = "multiOpen" | "clickPower" | "offlineIncome" | "battleRounds" | "maxBet";
 export type PerkLevels = Record<PerkId, number>;
 export const PERKS: Record<PerkId, { name: string; unit: string; levels: { value: number; cost: number }[] }>;
 export const NO_PERKS: PerkLevels;

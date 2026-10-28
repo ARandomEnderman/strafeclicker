@@ -1,5 +1,5 @@
-import { BET_MAX, BET_MIN } from "../odds";
-import { displayBalance } from "../state";
+import { BET_MIN, perkValue } from "../odds";
+import { displayBalance, getState } from "../state";
 import { decimalInput, h, parseDecimal } from "./dom";
 import { icon } from "./icons";
 
@@ -15,7 +15,8 @@ export function betInput(onChange?: () => void, label = "Bet amount") {
   }
   const input = decimalInput({ class: "bet-field", value: saved.toFixed(2), "aria-label": "Bet amount" });
 
-  const clamp = (v: number) => Math.round(Math.min(BET_MAX, Math.max(BET_MIN, v)) * 100) / 100;
+  // Up to the account's max bet (the upgrade tree raises it).
+  const clamp = (v: number) => Math.round(Math.min(perkValue(getState().perks, "maxBet"), Math.max(BET_MIN, v)) * 100) / 100;
   const set = (v: number) => {
     input.value = clamp(v).toFixed(2);
     save();

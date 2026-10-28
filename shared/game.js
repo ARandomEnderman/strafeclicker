@@ -88,6 +88,19 @@ export const PERKS = {
       { value: 35, cost: 5000 },
     ],
   },
+  maxBet: {
+    name: "Max bet",
+    unit: "largest bet",
+    levels: [
+      { value: 10_000, cost: 0 },
+      { value: 25_000, cost: 250 },
+      { value: 50_000, cost: 1000 },
+      { value: 100_000, cost: 3000 },
+      { value: 250_000, cost: 10_000 },
+      { value: 1_000_000, cost: 30_000 },
+      { value: Infinity, cost: 100_000 },
+    ],
+  },
   clickPower: {
     name: "Click power",
     unit: "per click",
@@ -103,7 +116,7 @@ export const PERKS = {
   },
 };
 
-export const NO_PERKS = { multiOpen: 0, clickPower: 0, offlineIncome: 0, battleRounds: 0 };
+export const NO_PERKS = { multiOpen: 0, clickPower: 0, offlineIncome: 0, battleRounds: 0, maxBet: 0 };
 
 /** Offline income only counts gaps of at least this long, and pays at most this many hours. */
 export const OFFLINE_MIN_GAP_MS = 5 * 60_000;
@@ -237,6 +250,7 @@ export function variants(item) {
 // ---------- bets (plinko, flashbang, b-hop) ----------
 
 export const BET_MIN = 0.01;
+/** The max bet to start with; the maxBet perk raises it (up to no limit). */
 export const BET_MAX = 10_000;
 
 // ---------- plinko ----------

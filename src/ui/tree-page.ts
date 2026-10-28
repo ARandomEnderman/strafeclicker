@@ -10,35 +10,42 @@ import { onLeave } from "./page";
 // background pans and the wheel zooms. Each node shows its icon and price; hovering
 // shows the details in a tooltip, clicking pins it so the upgrade can be bought there.
 
-// Four branches 90° apart around the centre.
+// Five branches 72° apart around the centre.
 const BRANCHES: { id: PerkId; angle: number; icon: IconName; about: string; effect: (v: number) => string }[] = [
   {
     id: "multiOpen",
-    angle: Math.PI * (3 / 4),
+    angle: -Math.PI / 2 - (4 * Math.PI) / 5,
     icon: "multiOpen",
     about: "Open several of the same case in one go.",
     effect: (v) => `Open ${v} case${v === 1 ? "" : "s"} at once`,
   },
   {
     id: "clickPower",
-    angle: Math.PI / 4,
+    angle: -Math.PI / 2,
     icon: "clickPower",
     about: `What each click on the clicker pays (in full up to ${CLICK_CPS_LIMIT} clicks per second).`,
     effect: (v) => `${money(v)} per click`,
   },
   {
     id: "offlineIncome",
-    angle: -Math.PI * (3 / 4),
+    angle: -Math.PI / 2 + (4 * Math.PI) / 5,
     icon: "offlineIncome",
     about: `Paid when you come back after 5+ minutes away, for up to ${OFFLINE_CAP_HOURS} hours.`,
     effect: (v) => `${money(v)} per hour while away`,
   },
   {
     id: "battleRounds",
-    angle: -Math.PI / 4,
+    angle: -Math.PI / 2 + (2 * Math.PI) / 5,
     icon: "battleRounds",
     about: "How many cases you can put in a case battle you create.",
     effect: (v) => `Up to ${v} cases per battle`,
+  },
+  {
+    id: "maxBet",
+    angle: -Math.PI / 2 - (2 * Math.PI) / 5,
+    icon: "maxBet",
+    about: "The most you can bet on one round of any game.",
+    effect: (v) => (Number.isFinite(v) ? `Bet up to ${money(v)}` : "No max bet"),
   },
 ];
 
@@ -380,7 +387,7 @@ export function treePage() {
     const prev = perk.levels[n.level - 1];
     const st = stateOf(n);
     const affordable = displayBalance() >= lvl.cost;
-    const gain = prev.value ? Math.round((lvl.value / prev.value - 1) * 100) : null;
+    const gain = prev.value && Number.isFinite(lvl.value) ? Math.round((lvl.value / prev.value - 1) * 100) : null;
 
     let action: HTMLElement;
     if (st === "owned") action = h("div", { class: "tip-owned" }, "Owned");
