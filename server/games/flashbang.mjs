@@ -170,6 +170,23 @@ export class Flashbang {
     return out;
   }
 
+  /** Maintenance: hand back every bet that hasn't started riding (this round while waiting, and the next). */
+  refundPending() {
+    const pending = [...(this.phase === "waiting" ? this.bets : []), ...this.next].filter((b) => b.status === "queued");
+    for (const b of pending) {
+      const { account } = this.game.act(b.userId, (a) => {
+        a.balanceCents += b.stakeCents;
+        this.q.status.run("refunded", null, 0, b.id);
+        return {};
+      });
+      this.io.toUser(b.userId, "account", account);
+    }
+    if (this.phase === "waiting") this.bets = this.bets.filter((b) => b.status !== "queued");
+    this.next = [];
+    if (pending.length) this.#publish();
+    return pending.length;
+  }
+
   /** Take back a bet that hasn't started riding yet. */
   cancel(userId) {
     const list = this.phase === "waiting" ? this.bets : this.next;

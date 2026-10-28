@@ -121,6 +121,17 @@ export class Jackpot {
     return out;
   }
 
+  /** Maintenance: a pot that hasn't spun yet goes back to everyone in it. Returns how many players. */
+  refundPending() {
+    if ((this.phase !== "waiting" && this.phase !== "open") || !this.deposits.length) return 0;
+    this.timers.forEach(clearTimeout);
+    const players = this.#players();
+    this.q.clear.run(this.round);
+    for (const p of players) this.#give(p.userId, p.items.map(({ valueCents, ...it }) => it), "refund");
+    this.#reset();
+    return players.length;
+  }
+
   /** Before anyone else has joined (no timer yet), take your items back out. */
   withdraw(userId) {
     if (this.phase !== "waiting") throw new GameError("closed", "The round has started; items stay in until it ends");

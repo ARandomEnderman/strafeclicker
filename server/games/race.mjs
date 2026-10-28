@@ -61,6 +61,7 @@ export class Race {
       settle: db.prepare("UPDATE race_bets SET status = ? WHERE round = ? AND user_id = ? AND status = 'open'"),
       unsettled: db.prepare("SELECT id, user_id, stake_cents FROM race_bets WHERE status = 'open'"),
       refunded: db.prepare("UPDATE race_bets SET status = 'refunded' WHERE id = ?"),
+      refundRound: db.prepare("UPDATE race_bets SET status = 'refunded' WHERE round = ? AND status = 'open'"),
       addRound: db.prepare("INSERT INTO race_rounds (id, winner, odds, at) VALUES (?, ?, ?, ?)"),
       history: db.prepare("SELECT winner, odds FROM race_rounds ORDER BY id DESC LIMIT ?"),
       lastRound: db.prepare("SELECT MAX(id) AS id FROM race_rounds"),
@@ -142,6 +143,25 @@ export class Race {
         this.#open();
       }, RACE_RESULT_MS),
     ];
+  }
+
+  /** Maintenance: hand back every bet on a race that hasn't started. Returns how many. */
+  refundPending() {
+    if (this.phase !== "betting" || !this.bets.length) return 0;
+    const byUser = new Map();
+    for (const b of this.bets) byUser.set(b.userId, (byUser.get(b.userId) ?? 0) + b.stakeCents);
+    for (const [userId, c] of byUser) {
+      const { account } = this.game.act(userId, (a) => {
+        a.balanceCents += c;
+        return {};
+      });
+      this.io.toUser(userId, "account", account);
+    }
+    this.q.refundRound.run(this.round);
+    const n = this.bets.length;
+    this.bets = [];
+    this.#publish();
+    return n;
   }
 
   bet(userId, body) {

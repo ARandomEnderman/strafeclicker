@@ -32,6 +32,7 @@ export class Roulette {
       settle: db.prepare("UPDATE rl_bets SET status = ? WHERE round = ? AND user_id = ? AND status = 'open'"),
       unsettled: db.prepare("SELECT id, user_id, stake_cents FROM rl_bets WHERE status = 'open'"),
       refunded: db.prepare("UPDATE rl_bets SET status = 'refunded' WHERE id = ?"),
+      refundRound: db.prepare("UPDATE rl_bets SET status = 'refunded' WHERE round = ? AND status = 'open'"),
       addRound: db.prepare("INSERT INTO rl_rounds (id, number, at) VALUES (?, ?, ?)"),
       history: db.prepare("SELECT number FROM rl_rounds ORDER BY id DESC LIMIT ?"),
       lastRound: db.prepare("SELECT MAX(id) AS id FROM rl_rounds"),
@@ -117,6 +118,25 @@ export class Roulette {
       }, ROULETTE_RESULT_MS),
     ];
     this.#publish();
+  }
+
+  /** Maintenance: hand back every bet on a spin that hasn't started. Returns how many. */
+  refundPending() {
+    if (this.phase !== "betting" || !this.bets.length) return 0;
+    const byUser = new Map();
+    for (const b of this.bets) byUser.set(b.userId, (byUser.get(b.userId) ?? 0) + b.stakeCents);
+    for (const [userId, c] of byUser) {
+      const { account } = this.game.act(userId, (a) => {
+        a.balanceCents += c;
+        return {};
+      });
+      this.io.toUser(userId, "account", account);
+    }
+    this.q.refundRound.run(this.round);
+    const n = this.bets.length;
+    this.bets = [];
+    this.#publish();
+    return n;
   }
 
   bet(userId, body) {

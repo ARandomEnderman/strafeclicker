@@ -61,7 +61,7 @@ Log in as the account named exactly `admin` (same case) and an **Admin** link ap
   - coinflip against a bot: the bot wins 50% + rig/2.
 
   Player-vs-player games (battles, jackpot, coinflip between players) have no house and aren't affected.
-- **Site**: maintenance mode (no new bets or openings; cash-outs, selling and trading still work), a site-wide announcement banner, and popping the current flashbang round.
+- **Site**: maintenance mode (no new bets or openings; cash-outs, selling and trading still work; turning it on hands back every bet on a flashbang, roulette, bot race, bomb plant, blackjack or jackpot round that hadn't started yet, so nothing placed just before still plays), a site-wide announcement banner, and popping the current flashbang round.
 - **Economy**: players online, total balances and item value, and per game the rounds played, amount wagered and paid out, the house's result and the actual payback; Steam price-collector status.
 - **Events**: timed events everyone sees as a banner with a countdown (and that the chat announces): **Cashback** (a percentage of every losing bet's loss paid straight back), **Click frenzy** (the clicker pays a multiple) and **Mission bonus** (daily mission rewards multiplied), each for 1 minute to 24 hours and endable early. One-off events: **House rain** (an amount split among everyone online, with the full rain effect, paid by the house rather than your balance) and **Case drop** (everyone online gets one free opening of a case you pick).
 - **Chat & rewards**: leaderboard prizes per place for days and weeks, the smallest /rain allowed, and clearing the chat. Single messages are deleted with the bin icon that shows on them in the chat (admin only).

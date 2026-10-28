@@ -307,6 +307,14 @@ const admin = new Admin({
   toUser,
   flashbang,
 });
+// Maintenance on: bets on shared rounds that haven't started yet are handed back, so
+// nothing placed just before the switch still gets played.
+settings.onChange((key, on) => {
+  if (key !== "maintenance" || !on) return;
+  const n = [flashbang, roulette, race, bombplant, blackjack, jackpot].reduce((sum, g) => sum + g.refundPending(), 0);
+  if (n) log(`maintenance: refunded ${n} pending bet${n === 1 ? "" : "s"}`);
+});
+
 // The admin panel's events use the chat (announcements, house rain) and who's online.
 admin.chat = chat;
 admin.onlineIds = onlineIds;

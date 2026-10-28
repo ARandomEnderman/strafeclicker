@@ -101,6 +101,26 @@ export class Blackjack {
     return t.shoe.pop();
   }
 
+  /** Maintenance: tables still taking bets give the stakes back and don't deal. Returns how many. */
+  refundPending() {
+    let n = 0;
+    for (const t of this.tables.values()) {
+      if (t.phase !== "betting") continue;
+      for (const s of t.seats) {
+        const { account } = this.game.act(s.userId, (a) => {
+          a.balanceCents += s.stakeCents;
+          return {};
+        });
+        this.q.settle.run("refunded", s.betId);
+        this.io.toUser(s.userId, "account", account);
+        n++;
+      }
+      this.#reset(t);
+    }
+    if (n) this.publish();
+    return n;
+  }
+
   // ---------- player actions ----------
 
   bet(userId, body) {
