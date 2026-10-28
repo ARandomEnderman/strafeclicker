@@ -539,7 +539,7 @@ const actions = {
     if (body.action === "showcase") return game.setShowcase(userId, body);
     return { profile: profiles.get(userId, body.username), account: game.view(userId) };
   },
-  password: async (userId, body, req) => ({ ...(await auth.changePassword(userId, body.current, body.next, cookieValue(req, SESSION_COOKIE))), account: game.view(userId) }),
+  password: async (userId, body, req) => ({ ...(await auth.changePassword(userId, body.next, cookieValue(req, SESSION_COOKIE))), account: game.view(userId) }),
   admin: async (userId, body) => {
     admin.check(userId);
     if (body.action === "password") return { ...(await auth.resetPassword(body.username, body.password)), account: game.view(userId) };

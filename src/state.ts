@@ -301,8 +301,8 @@ export async function setShowcase(uids: string[], banner: string) {
   return post("profile", { action: "showcase", uids, banner });
 }
 
-export async function changePassword(current: string, next: string) {
-  return post("password", { current, next });
+export async function changePassword(next: string) {
+  return post("password", { next });
 }
 
 export async function renameMe(name: string) {

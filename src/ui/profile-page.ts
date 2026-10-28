@@ -104,7 +104,6 @@ export function profilePage(username: string) {
   // Your own profile: change your password (other devices get logged out).
   const passwordForm = () => {
     const field = (placeholder: string, autocomplete: string) => h("input", { class: "search", type: "password", placeholder, autocomplete, maxlength: "200" }) as HTMLInputElement;
-    const current = field("Current password", "current-password");
     const next = field("New password (8+ characters)", "new-password");
     const again = field("New password again", "new-password");
     return h(
@@ -115,9 +114,9 @@ export function profilePage(username: string) {
           e.preventDefault();
           if (next.value !== again.value) return toast("The new passwords don't match", "error");
           try {
-            await changePassword(current.value, next.value);
+            await changePassword(next.value);
             toast("Password changed. Other devices were logged out.");
-            current.value = next.value = again.value = "";
+            next.value = again.value = "";
           } catch (err) {
             if (err instanceof ServerError) toast(err.message, "error");
             else throw err;
@@ -125,7 +124,7 @@ export function profilePage(username: string) {
         },
       },
       h("label", { class: "field-label" }, "Change password"),
-      h("div", { class: "password-row" }, current, next, again, h("button", { class: "btn btn-primary", type: "submit" }, "Change")),
+      h("div", { class: "password-row" }, next, again, h("button", { class: "btn btn-primary", type: "submit" }, "Change")),
     );
   };
 
