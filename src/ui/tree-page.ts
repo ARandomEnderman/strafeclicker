@@ -1,5 +1,5 @@
 import type { PerkId } from "../../shared/game.js";
-import { OFFLINE_CAP_HOURS, PERKS, perkValue } from "../odds";
+import { CLICK_CPS_LIMIT, OFFLINE_CAP_HOURS, PERKS, perkValue } from "../odds";
 import { buyPerk, displayBalance, getState, InsufficientFunds, ServerError, subscribe } from "../state";
 import { h, money, toast } from "./dom";
 import { icon, iconNode, type IconName } from "./icons";
@@ -23,7 +23,7 @@ const BRANCHES: { id: PerkId; angle: number; icon: IconName; about: string; effe
     id: "clickPower",
     angle: Math.PI / 4,
     icon: "clickPower",
-    about: "What each click on the clicker pays (in full up to 10 clicks per second).",
+    about: `What each click on the clicker pays (in full up to ${CLICK_CPS_LIMIT} clicks per second).`,
     effect: (v) => `${money(v)} per click`,
   },
   {
