@@ -288,7 +288,7 @@ export const PLINKO_DROP_MS = (rows) => 400 + rows * 190;
 export const FB_GROWTH = 0.00006;
 /** Time between a pop and the next round's start; bets are open throughout. */
 export const FB_INTERMISSION_MS = 10_000;
-export const FB_MAX = 1000;
+export const FB_MAX = 10_000;
 export const FB_AUTO_MIN = 1.01;
 
 /** Multiplier `ms` into a round, floored to cents. */

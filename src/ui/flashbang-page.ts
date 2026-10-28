@@ -64,8 +64,11 @@ export function flashbangPage() {
     c.font = "11px system-ui, sans-serif";
     c.fillStyle = "#6b7286";
     c.strokeStyle = "rgba(255,255,255,0.05)";
-    const step = topMult > 20 ? 10 : topMult > 6 ? 2 : topMult > 3 ? 0.5 : 0.25;
-    for (let v = 1; v <= topMult; v += step) {
+    // A round step (1, 2 or 5 times a power of ten) that gives about five lines.
+    const raw = (topMult - 1) / 5;
+    const mag = 10 ** Math.floor(Math.log10(raw));
+    const step = Math.max(0.25, [1, 2, 5, 10].map((k) => k * mag).find((k) => k >= raw)!);
+    for (let v = 1; v <= topMult; v = v === 1 && step > 1 ? step : v + step) {
       c.beginPath();
       c.moveTo(pad.l, Y(v));
       c.lineTo(box.width - pad.r, Y(v));
