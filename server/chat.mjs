@@ -73,7 +73,7 @@ export class Chat {
     const base = { id: m.id, kind: m.kind, user: m.user ?? null, name: m.name ?? null, text: m.text, at: m.at, admin: m.user === ADMIN_USERNAME, channel: m.data.clan ? "clan" : "global" };
     if (m.kind === "rain") {
       const yours = viewerId != null ? m.data.shares?.[viewerId] : undefined;
-      return { ...base, amount: m.data.amount / 100, count: m.data.count, level: m.data.level, yours: yours == null ? null : yours / 100, mine: viewerId === m.userId };
+      return { ...base, amount: m.data.amount / 100, count: m.data.count, level: m.data.level, yours: yours == null ? null : yours / 100, mine: viewerId === m.userId, house: !!m.data.house };
     }
     if (m.kind === "pay") return { ...base, amount: m.data.amount / 100, toUser: m.data.toUser, toName: m.data.toName, fromMe: viewerId === m.userId };
     return base;
@@ -138,9 +138,15 @@ export class Chat {
     this.sent.set(userId, times);
   }
 
-  #rain(user, rawAmount, clan = null) {
+  /** A rain paid by the house (an admin event): from the admin, but nobody's balance goes down. */
+  houseRain(userId, usd) {
+    if (!(Number(usd) >= 0.01)) throw new GameError("bad_input", "Enter an amount");
+    return this.#rain(this.q.user.get(userId), String(usd), null, true);
+  }
+
+  #rain(user, rawAmount, clan = null, house = false) {
     const usd = parseAmount(rawAmount);
-    const min = Number(this.settings.get("rainMin")) || 1;
+    const min = house ? 0.01 : Number(this.settings.get("rainMin")) || 1;
     if (!(usd >= min)) throw new GameError("bad_input", `Usage: /rain <amount>, at least $${min}`);
     const total = cents(usd);
     const ids = [...this.io.onlineIds()].filter((id) => id !== user.id && !this.q.user.get(id)?.banned && (!clan || this.clans.clanOf(id) === clan));
@@ -150,6 +156,7 @@ export class Chat {
 
     // Debit first: this throws if the rainer can't afford it, before anyone is paid.
     const { account } = this.game.act(user.id, (a) => {
+      if (house) return {};
       if (spendable(a) < total) throw new GameError("insufficient", "Not enough balance");
       a.balanceCents -= total;
       a.stats.rainedCents = (a.stats.rainedCents ?? 0) + total;
@@ -168,7 +175,7 @@ export class Chat {
       this.io.toUser(id, "account", acc);
     }
     const level = rainLevel(total / 100);
-    this.#push(user.id, user, "rain", "", { amount: total, count: ids.length, level, shares, ...(clan ? { clan } : {}) });
+    this.#push(user.id, user, "rain", "", { amount: total, count: ids.length, level, shares, ...(clan ? { clan } : {}), ...(house ? { house: true } : {}) });
     return { account, rain: { amount: total / 100, count: ids.length, level } };
   }
 

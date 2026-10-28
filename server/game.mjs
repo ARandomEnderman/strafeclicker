@@ -335,6 +335,13 @@ export class Game {
    */
   track(a, ev) {
     trackMissions(a, ev);
+    // Cashback event: part of a losing bet's loss comes straight back.
+    const cb = this.settings?.event("cashback");
+    if (cb && ev.stakeCents > 0 && ev.payoutCents < ev.stakeCents) {
+      const back = Math.floor(((ev.stakeCents - ev.payoutCents) * cb.value) / 100);
+      a.balanceCents += back;
+      a.stats.cashbackCents = (a.stats.cashbackCents ?? 0) + back;
+    }
     // The biggest single win, for the profile.
     if (ev.stakeCents > 0 && ev.payoutCents > ev.stakeCents && ev.payoutCents > (a.stats.bestWin?.cents ?? 0)) {
       a.stats.bestWin = { cents: ev.payoutCents, game: ev.game, mult: Math.round((ev.payoutCents / ev.stakeCents) * 100) / 100 };
@@ -357,8 +364,9 @@ export class Game {
   /** Collect the reward of one finished daily mission, or all of them (id omitted). */
   claimMission(userId, id) {
     return this.#act(userId, (a) => {
-      const total = claimMissions(a, id);
-      if (!total) throw new GameError("nothing", "Nothing to claim");
+      const base = claimMissions(a, id);
+      if (!base) throw new GameError("nothing", "Nothing to claim");
+      const total = Math.round(base * (this.settings?.event("missionBoost")?.value ?? 1));
       a.balanceCents += total;
       a.stats.missionCents = (a.stats.missionCents ?? 0) + total;
       return { reward: total / 100 };
@@ -586,8 +594,9 @@ export class Game {
         st = { rate: 0, last: null, skew: Infinity, carry: st.carry };
       }
       st.recv = now;
-      // Fractions of a cent carry over to the next batch.
-      const earned = paid * cents(perkValue(a.perks, "clickPower")) + st.carry;
+      // Fractions of a cent carry over to the next batch. A click frenzy event multiplies it.
+      const boost = this.settings?.event("clickBoost")?.value ?? 1;
+      const earned = paid * cents(perkValue(a.perks, "clickPower")) * boost + st.carry;
       const credited = Math.floor(earned);
       st.carry = earned - credited;
       this.clickBuckets.set(a.id, st);

@@ -3,7 +3,7 @@
 
 import { BHOP_DIFFICULTIES, DAILY_PRIZES, PLINKO_TABLES, UPGRADE_RTP, floatInWear, priceKey } from "../shared/game.js";
 import { GameError, cents } from "./game.mjs";
-import { RIGGABLE } from "./settings.mjs";
+import { EVENT_TYPES, RIGGABLE } from "./settings.mjs";
 
 export const ADMIN_USERNAME = "admin";
 
@@ -139,6 +139,7 @@ export class Admin {
       itemValue: Math.round(itemValue * 100) / 100,
       games: Object.entries(games).map(([game, t]) => ({ game, ...t, house: Math.round((t.wagered - t.paid) * 100) / 100, rtp: t.wagered ? pct(t.paid / t.wagered) : null })),
       steam: { prices: this.steam.prices.size, sweep: this.steam.start, total: this.steam.total, intervalMs: this.steam.intervalMs, sweeps: this.steam.sweeps },
+      events: this.settings.public().events,
       settings: {
         rig: this.settings.get("rig"),
         rigGames: this.settings.get("rigGames"),
@@ -228,6 +229,48 @@ export class Admin {
     if (body.announcement !== undefined) this.settings.set("announcement", body.announcement ? String(body.announcement).slice(0, 300) : null);
     this.broadcast("site", this.settings.public());
     return this.overview();
+  }
+
+  // ---------- events ----------
+
+  /** Start (or replace) a timed event: cashback %, click multiplier or mission multiplier. */
+  startEvent(body) {
+    const t = EVENT_TYPES[body.type];
+    if (!t) throw new GameError("bad_input", "Unknown event");
+    const value = Number(body.value);
+    if (!(value >= t.min && value <= t.max)) throw new GameError("bad_input", `${t.name}: pick ${t.min} to ${t.max}`);
+    const minutes = Number(body.minutes);
+    if (!(minutes >= 1 && minutes <= 24 * 60)) throw new GameError("bad_input", "Run it for 1 minute to 24 hours");
+    const events = (this.settings.get("events") ?? []).filter((e) => e.type !== body.type && e.endsAt > Date.now());
+    events.push({ type: body.type, value, endsAt: Date.now() + minutes * 60_000 });
+    this.settings.set("events", events);
+    this.broadcast("site", this.settings.public());
+    const what = body.type === "cashback" ? `${value}% of every loss back` : body.type === "clickBoost" ? `${value}x clicker earnings` : `${value}x daily mission rewards`;
+    this.chat.system(`Event started: ${t.name}, ${what} for ${minutes} minutes`);
+    return { events: this.settings.public().events };
+  }
+
+  endEvent(type) {
+    this.settings.set("events", (this.settings.get("events") ?? []).filter((e) => e.type !== type && e.endsAt > Date.now()));
+    this.broadcast("site", this.settings.public());
+    return { events: this.settings.public().events };
+  }
+
+  /** Everyone online gets one free opening of a case (the house pays). */
+  caseDrop(caseId) {
+    const { c } = this.game.caseCost(String(caseId ?? ""));
+    const ids = [...this.onlineIds()].filter((id) => this.q.name.get(id)?.username !== ADMIN_USERNAME);
+    if (!ids.length) throw new GameError("nobody", "Nobody is online");
+    for (const id of ids) {
+      const { account } = this.game.act(id, (a, changes) => {
+        const [owned] = this.game.grant(a, changes, [this.game.rollDrop(c)], c.id);
+        this.toUser(id, "notice", { text: `Case drop: you got ${this.game.item(owned.itemId).name} from a free ${c.name}` });
+        return {};
+      });
+      this.toUser(id, "account", account);
+    }
+    this.chat.system(`Case drop: ${ids.length} player${ids.length === 1 ? "" : "s"} online each got a free ${c.name}`);
+    return { count: ids.length };
   }
 
   /** End the current flashbang round right now. */

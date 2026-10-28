@@ -307,6 +307,9 @@ const admin = new Admin({
   toUser,
   flashbang,
 });
+// The admin panel's events use the chat (announcements, house rain) and who's online.
+admin.chat = chat;
+admin.onlineIds = onlineIds;
 
 /** Someone came online or went offline: refresh their friends' lists. */
 function presenceChanged(userId) {
@@ -541,6 +544,10 @@ const actions = {
       : a === "chatDelete" ? chat.delete(body.id)
       : a === "chatClear" ? chat.clear()
       : a === "mute" ? chat.mute(body.username, body.minutes)
+      : a === "eventStart" ? admin.startEvent(body)
+      : a === "eventEnd" ? admin.endEvent(body.type)
+      : a === "houseRain" ? chat.houseRain(userId, body.amount)
+      : a === "caseDrop" ? admin.caseDrop(body.caseId)
       : null;
     if (!r) throw new GameError("bad_input", "Unknown action");
     return { ...r, account: game.view(userId) };

@@ -66,7 +66,7 @@ function messageEl(m: ChatMessage) {
       h(
         "div",
         { class: "chat-rain-body" },
-        h("div", null, userLink(m.user!, m.name ?? m.user!), " rained ", h("b", null, money(m.amount ?? 0)), ` on ${m.count} player${m.count === 1 ? "" : "s"}`),
+        h("div", null, userLink(m.user!, m.name ?? m.user!), m.house ? " rained (on the house) " : " rained ", h("b", null, money(m.amount ?? 0)), ` on ${m.count} player${m.count === 1 ? "" : "s"}`),
         h("div", { class: "chat-rain-foot" }, h("span", { class: "chat-rain-tag" }, RAIN_LEVELS[level]), h("span", { class: m.yours ? "chat-rain-you got" : "chat-rain-you" }, you)),
       ),
       del,

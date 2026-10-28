@@ -19,6 +19,8 @@ export interface ChatMessage {
   level?: number;
   yours?: number | null;
   mine?: boolean;
+  /** An admin event: paid by the house, not the rainer. */
+  house?: boolean;
   /** pay */
   toUser?: string;
   toName?: string;

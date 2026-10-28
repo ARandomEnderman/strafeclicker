@@ -1,4 +1,4 @@
-import { getCatalog } from "../catalog";
+import { getCatalog, openableCases, openCost } from "../catalog";
 import { adminAction, ServerError } from "../state";
 import type { Item } from "../types";
 import { decimalInput, h, money, parseDecimal, toast } from "./dom";
@@ -32,6 +32,7 @@ interface Overview {
   };
   rigGames: string[];
   report: ReportRow[];
+  events: { type: string; value: number; endsAt: number }[];
 }
 interface AdminUser {
   id: number;
@@ -180,6 +181,80 @@ export function adminPage() {
         { class: "admin-row" },
         h("b", null, "Flashbang"),
         h("button", { class: "btn", onclick: () => void run(() => adminAction("pop"), "Popped") }, "Pop the current round now"),
+      ),
+    );
+  };
+
+  // ---------- events ----------
+  const EVENTS = [
+    { type: "cashback", name: "Cashback", what: "% of every loss back", value: 20, step: "1" },
+    { type: "clickBoost", name: "Click frenzy", what: "x clicker earnings", value: 3, step: "0.5" },
+    { type: "missionBoost", name: "Mission bonus", what: "x mission rewards", value: 2, step: "0.5" },
+  ];
+  const eventsSection = () => {
+    const o = ov!;
+    const rows = EVENTS.map((e) => {
+      const live = o.events.find((x) => x.type === e.type && x.endsAt > Date.now());
+      const value = decimalInput({ class: "admin-num", value: String(live?.value ?? e.value) });
+      const minutes = decimalInput({ class: "admin-num", value: "30" });
+      return h(
+        "div",
+        { class: "admin-row" },
+        h("b", { class: "admin-event-name" }, e.name),
+        value,
+        h("span", { class: "admin-muted" }, e.what),
+        h("span", { class: "admin-muted" }, "for"),
+        minutes,
+        h("span", { class: "admin-muted" }, "min"),
+        h(
+          "button",
+          {
+            class: "btn btn-primary",
+            onclick: async () => {
+              const r = await run(() => adminAction<{ events: Overview["events"] }>("eventStart", { type: e.type, value: parseDecimal(value.value), minutes: parseDecimal(minutes.value) }), `${e.name} started`);
+              if (r) ((ov!.events = r.events), draw());
+            },
+          },
+          live ? "Restart" : "Start",
+        ),
+        live
+          ? h(
+              "button",
+              {
+                class: "btn btn-ghost",
+                onclick: async () => {
+                  const r = await run(() => adminAction<{ events: Overview["events"] }>("eventEnd", { type: e.type }), `${e.name} ended`);
+                  if (r) ((ov!.events = r.events), draw());
+                },
+              },
+              `End (${Math.ceil((live.endsAt - Date.now()) / 60_000)} min left)`,
+            )
+          : "",
+      );
+    });
+    const rainAmount = decimalInput({ class: "admin-num", value: "100" });
+    const cases = [...openableCases()].sort((a, b) => openCost(a) - openCost(b));
+    const caseSel = h("select", { class: "search" }, ...cases.map((c) => h("option", { value: c.id }, `${c.name} (${money(openCost(c))})`))) as HTMLSelectElement;
+    return section(
+      "Events",
+      h("p", { class: "hint" }, "Timed events show a banner with a countdown to everyone and are announced in the chat. One-off events happen right away; the house pays, not your balance."),
+      ...rows,
+      h(
+        "div",
+        { class: "admin-row" },
+        h("b", { class: "admin-event-name" }, "House rain"),
+        h("span", { class: "admin-muted" }, "$"),
+        rainAmount,
+        h("span", { class: "admin-muted" }, "split among everyone online, with the full rain effect"),
+        h("button", { class: "btn btn-primary", onclick: () => void run(() => adminAction("houseRain", { amount: parseDecimal(rainAmount.value) }), "It's raining") }, "Make it rain"),
+      ),
+      h(
+        "div",
+        { class: "admin-row" },
+        h("b", { class: "admin-event-name" }, "Case drop"),
+        caseSel,
+        h("span", { class: "admin-muted" }, "everyone online gets one free opening"),
+        h("button", { class: "btn btn-primary", onclick: () => void run(() => adminAction<{ count: number }>("caseDrop", { caseId: caseSel.value })).then((r) => r && toast(`Dropped a case on ${r.count} player${r.count === 1 ? "" : "s"}`)) }, "Drop"),
       ),
     );
   };
@@ -508,6 +583,7 @@ export function adminPage() {
       h("div", { class: "admin-top" }, h("h1", null, icon("admin", 22), " Admin"), h("button", { class: "btn btn-ghost", onclick: () => void load() }, "Refresh")),
       rigSection(),
       siteSection(),
+      eventsSection(),
       chatSection(),
       promoSection(),
       economySection(),

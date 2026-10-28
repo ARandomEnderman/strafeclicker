@@ -6656,3 +6656,15 @@ body.rain-shake .shell {
   border-radius: 50%;
   background: var(--accent);
 }
+.site-note.event {
+  background: rgba(62, 207, 142, 0.12);
+  border-color: rgba(62, 207, 142, 0.4);
+  color: var(--up);
+}
+.site-event-left {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+.admin-event-name {
+  min-width: 110px;
+}

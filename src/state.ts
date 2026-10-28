@@ -135,7 +135,10 @@ let flushing: Promise<void> | null = null;
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** What one full-speed click is worth right now. */
-export const clickValue = () => perkValue(account.perks, "clickPower");
+/** A click frenzy event's multiplier (set from the site state). */
+let clickBoost = 1;
+export const setClickBoost = (x: number) => (clickBoost = x);
+export const clickValue = () => perkValue(account.perks, "clickPower") * clickBoost;
 
 /** Current clicks per second (moving average) and the share of a click's value it pays. */
 export function clickSpeed() {
