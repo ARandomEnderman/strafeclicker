@@ -4,8 +4,8 @@ import { h, money, toast } from "./dom";
 import { displayName } from "./item-card";
 
 /** A grid of your inventory to pick items from (most valuable first). */
-export function itemPicker(opts: { max: number; onChange?: () => void }) {
-  const picked = new Set<string>();
+export function itemPicker(opts: { max: number; onChange?: () => void; initial?: string[] }) {
+  const picked = new Set<string>(opts.initial ?? []);
   const grid = h("div", { class: "trade-grid picker-grid" });
   const draw = () => {
     const inv = [...getState().inventory].sort((a, b) => priceOf(b) - priceOf(a));

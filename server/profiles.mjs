@@ -5,6 +5,14 @@
 import { ACHIEVEMENTS } from "../shared/achievements.js";
 import { GameError } from "./game.mjs";
 
+/** The game played most often (case openings count as "cases"), or null. */
+function favourite(s) {
+  const counts = Object.entries(s.games ?? {}).map(([g, st]) => [g, st.played ?? 0]);
+  counts.push(["cases", s.opened ?? 0]);
+  const [game, n] = counts.sort((x, y) => y[1] - x[1])[0];
+  return n > 0 ? game : null;
+}
+
 export class Profiles {
   /**
    * @param {import("./game.mjs").Game} game
@@ -39,6 +47,16 @@ export class Profiles {
         battlesWon: games.battle?.won ?? 0,
         achievements: Object.keys(s.achievements ?? {}).length,
         achievementsTotal: ACHIEVEMENTS.length,
+        bestWin: s.bestWin ? { value: s.bestWin.cents / 100, game: s.bestWin.game, mult: s.bestWin.mult } : null,
+        favourite: favourite(s),
+      },
+      // Pinned items and banner: shown to everyone, that's what they're for.
+      showcase: {
+        banner: s.showcase?.banner ?? "default",
+        items: (s.showcase?.uids ?? [])
+          .map((uid) => p.inventory.find((it) => it.uid === uid))
+          .filter(Boolean)
+          .map(({ uid, itemId, phase, float, wear, stattrak, seed, obtainedAt }) => ({ uid, itemId, phase, float, wear, stattrak, seed, obtainedAt })),
       },
       // Friends only:
       ...(close

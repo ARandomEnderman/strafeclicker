@@ -1,8 +1,10 @@
 import { priceOf } from "../catalog";
 import { onPricesForPage } from "../live";
-import { getProfile, getState, renameMe, ServerError, subscribe, type Profile } from "../state";
+import { PROFILE_BANNERS, SHOWCASE_MAX } from "../../shared/game.js";
+import { getProfile, getState, renameMe, ServerError, setShowcase, subscribe, type Profile } from "../state";
 import { h, money, toast } from "./dom";
 import { dropCard } from "./item-card";
+import { itemPicker } from "./item-picker";
 import { onLeave } from "./page";
 import { forgetProfile, profileCard } from "./profile-card";
 
@@ -41,6 +43,64 @@ export function profilePage(username: string) {
     );
   };
 
+  // Your own showcase: pick up to four items and a banner colour.
+  let editing = false;
+  let picker: ReturnType<typeof itemPicker> | null = null;
+  onLeave(() => picker?.destroy());
+  const showcaseEditor = (p: Profile) => {
+    picker?.destroy();
+    const pk = itemPicker({ max: SHOWCASE_MAX, initial: p.showcase.items.map((it) => it.uid) });
+    picker = pk;
+    let banner = p.showcase.banner;
+    const swatches = h(
+      "div",
+      { class: "banner-swatches" },
+      ...PROFILE_BANNERS.map((b) =>
+        h("button", {
+          type: "button",
+          class: `banner-swatch banner-${b}${b === banner ? " active" : ""}`,
+          title: b,
+          onclick: (e: Event) => {
+            banner = b;
+            swatches.querySelectorAll(".banner-swatch").forEach((x) => x.classList.toggle("active", x === e.currentTarget));
+          },
+        }),
+      ),
+    );
+    const save = async () => {
+      try {
+        await setShowcase(pk.uids(), banner);
+        forgetProfile(getState().username);
+        editing = false;
+        toast("Showcase saved");
+        void load();
+      } catch (err) {
+        if (err instanceof ServerError) toast(err.message, "error");
+        else throw err;
+      }
+    };
+    return h(
+      "div",
+      { class: "showcase-editor" },
+      h("div", { class: "field-label" }, "Banner"),
+      swatches,
+      h("div", { class: "field-label" }, `Pick up to ${SHOWCASE_MAX} items to show off`),
+      pk.el,
+      h("div", { class: "bt-actions" }, h("button", { class: "btn btn-primary", onclick: () => void save() }, "Save showcase"), h("button", { class: "btn btn-ghost", onclick: () => ((editing = false), draw()) }, "Cancel")),
+    );
+  };
+  const showcase = (p: Profile) => {
+    const self = p.relation === "self";
+    if (self && editing) return [h("h2", null, "Showcase"), showcaseEditor(p)];
+    if (!p.showcase.items.length && !self) return [];
+    return [
+      h("div", { class: "toolbar" }, h("h2", null, "Showcase"), self ? h("button", { class: "btn btn-sm", onclick: () => ((editing = true), draw()) }, "Edit showcase") : ""),
+      p.showcase.items.length
+        ? h("div", { class: "item-grid showcase-grid" }, ...p.showcase.items.map((it) => dropCard(it)))
+        : h("p", { class: "empty" }, "Pin your best items here for everyone to see."),
+    ];
+  };
+
   const draw = () => {
     if (!profile) return;
     const p = profile;
@@ -49,6 +109,7 @@ export function profilePage(username: string) {
     const sortBtn = (s: Sort, label: string) => h("button", { class: `chip${sort === s ? " active" : ""}`, onclick: () => ((sort = s), draw()) }, label);
     root.replaceChildren(
       profileCard(p, { onChange: () => void load() }),
+      ...showcase(p),
       ...(p.relation === "self" ? [renameForm()] : []),
       ...(p.inventory || p.relation === "self"
         ? [
@@ -74,7 +135,7 @@ export function profilePage(username: string) {
     }
   };
 
-  onLeave(subscribe(() => profile?.relation === "self" && draw()));
+  onLeave(subscribe(() => profile?.relation === "self" && !editing && draw()));
   onPricesForPage(draw);
   root.append(h("p", { class: "empty" }, "Loading..."));
   void load();

@@ -493,6 +493,7 @@ const actions = {
       friendsChanged(userId, ...friends.friendIds(userId));
       return out;
     }
+    if (body.action === "showcase") return game.setShowcase(userId, body);
     return { profile: profiles.get(userId, body.username), account: game.view(userId) };
   },
   admin: (userId, body) => {

@@ -402,6 +402,8 @@ function duration(seconds: number) {
   return h ? `${h}h ${m}m` : `${m}m`;
 }
 
+/** Offline income below this is paid without a popup. */
+const MIN_OFFLINE_POPUP_USD = 1;
 /** Offline income that arrived before the app was on screen (at login). */
 let pendingOffline: NonNullable<Account["offline"]> | null = null;
 function showOffline(o: NonNullable<Account["offline"]>) {
@@ -414,6 +416,8 @@ function showOffline(o: NonNullable<Account["offline"]>) {
 
 /** "Welcome back": offline income and how the inventory's prices moved meanwhile. */
 function showWelcome(o: NonNullable<Account["offline"]> | null, prices: InventoryChange | null) {
+  // Pocket change isn't worth a popup (it's still paid).
+  if (o && o.earned < MIN_OFFLINE_POPUP_USD) o = null;
   const priceEl = awaySection(prices);
   if (!o && !priceEl) return;
   openModal(

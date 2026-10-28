@@ -4,6 +4,7 @@ import { segmented } from "./bet-input";
 import { h, money, mult, toast } from "./dom";
 import { icon } from "./icons";
 import { onLeave } from "./page";
+import { gameName } from "./game-names";
 import { userLink } from "./profile-card";
 
 // Leaderboards: most wagered and biggest win today / this week (UTC), and the richest
@@ -31,25 +32,6 @@ interface Board {
   richest: { rows: (Row & { balance: number; items: number })[]; me: { rank: number; value: number } | null; updatedAt: number };
 }
 
-const GAMES: Record<string, string> = {
-  cases: "Cases",
-  upgrade: "Upgrader",
-  plinko: "Plinko",
-  flashbang: "Flashbang",
-  roulette: "Roulette",
-  bhop: "B-hop",
-  defuse: "Defuse",
-  towers: "Towers",
-  keno: "Keno",
-  race: "Bot race",
-  blackjack: "Blackjack",
-  poker: "Video poker",
-  bombplant: "Bomb plant",
-  rps: "Rock paper scissors",
-  coinflip: "Coinflip",
-  jackpot: "Jackpot",
-  battle: "Case battle",
-};
 
 function left(ms: number) {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -132,7 +114,7 @@ export function leaderboardPage() {
         "div",
         { class: "lb-grid" },
         table("Most wagered", p.wagered, { prizes: p.prizes, empty: `No bets ${when} yet.` }),
-        table("Biggest win", p.best, { extra: (r) => `${GAMES[r.game ?? ""] ?? r.game ?? ""}${r.mult ? ` · ${mult(r.mult)}` : ""}`, empty: `No wins ${when} yet.` }),
+        table("Biggest win", p.best, { extra: (r) => `${gameName(r.game ?? "")}${r.mult ? ` · ${mult(r.mult)}` : ""}`, empty: `No wins ${when} yet.` }),
       ),
       p.lastWinners.some((w) => w.prize > 0)
         ? h(

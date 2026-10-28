@@ -12,6 +12,8 @@ import {
   DAILY_PRIZES,
   DAILY_SPIN_EVERY_MS,
   DAILY_SPIN_MS,
+  PROFILE_BANNERS,
+  SHOWCASE_MAX,
   clickEfficiency,
   rateClicks,
   UPGRADE_MAX_CHANCE,
@@ -333,7 +335,23 @@ export class Game {
    */
   track(a, ev) {
     trackMissions(a, ev);
+    // The biggest single win, for the profile.
+    if (ev.stakeCents > 0 && ev.payoutCents > ev.stakeCents && ev.payoutCents > (a.stats.bestWin?.cents ?? 0)) {
+      a.stats.bestWin = { cents: ev.payoutCents, game: ev.game, mult: Math.round((ev.payoutCents / ev.stakeCents) * 100) / 100 };
+    }
     for (const fn of this.trackers) fn(a, ev);
+  }
+
+  /** Pick up to SHOWCASE_MAX of your items to pin to your profile, and a banner colour. */
+  setShowcase(userId, body) {
+    return this.#act(userId, (a) => {
+      const uids = [...new Set(Array.isArray(body.uids) ? body.uids.map(String) : [])];
+      if (uids.length > SHOWCASE_MAX) throw new GameError("bad_input", `Pick up to ${SHOWCASE_MAX} items`);
+      if (uids.some((uid) => !a.inventory.some((it) => it.uid === uid))) throw new GameError("bad_input", "You don't own one of those items");
+      const banner = PROFILE_BANNERS.includes(body.banner) ? body.banner : "default";
+      a.stats.showcase = { uids, banner };
+      return {};
+    });
   }
 
   /** Collect the reward of one finished daily mission, or all of them (id omitted). */

@@ -6141,3 +6141,65 @@ body.rain-shake .shell {
   background: var(--up);
   color: #0b2418;
 }
+
+/* ---------- profile banners and showcase ---------- */
+
+/* Same specificity as ".profile-page .profile-card" (which sets the background), and later. */
+.profile-card[class*="banner-"] {
+  background-image: linear-gradient(180deg, var(--banner, transparent) 0, transparent 110px);
+}
+.banner-gold {
+  --banner: rgba(230, 180, 34, 0.38);
+}
+.banner-red {
+  --banner: rgba(239, 91, 91, 0.38);
+}
+.banner-purple {
+  --banner: rgba(166, 106, 224, 0.4);
+}
+.banner-blue {
+  --banner: rgba(79, 143, 220, 0.4);
+}
+.banner-green {
+  --banner: rgba(62, 207, 142, 0.35);
+}
+.banner-pink {
+  --banner: rgba(235, 100, 190, 0.38);
+}
+.banner-teal {
+  --banner: rgba(40, 190, 200, 0.38);
+}
+.banner-swatches {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.banner-swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  background: linear-gradient(135deg, var(--banner), var(--bg-3));
+  cursor: pointer;
+}
+.banner-swatch.banner-default {
+  background: var(--bg-3);
+}
+.banner-swatch.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(245, 165, 36, 0.35);
+}
+.showcase-editor {
+  padding: 14px;
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+}
+.showcase-editor .picker-grid {
+  max-height: 340px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+.showcase-grid {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}

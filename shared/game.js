@@ -522,3 +522,8 @@ export const BP_OUTCOMES = [
 export const RPS_WINS = 2;
 export const RPS_PICK_MS = 10_000;
 export const RPS_REVEAL_MS = 2500;
+
+// ---------- Profile showcase ----------
+/** Banner colours a profile can pick. */
+export const PROFILE_BANNERS = ["default", "gold", "red", "purple", "blue", "green", "pink", "teal"];
+export const SHOWCASE_MAX = 4;

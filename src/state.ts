@@ -224,7 +224,17 @@ export interface Profile {
   name: string;
   joinedAt: number;
   relation: "self" | "friends" | "incoming" | "outgoing" | "none";
-  stats: { opened: number; best: { name: string; value: number } | null; battlesWon: number; achievements: number; achievementsTotal: number };
+  stats: {
+    opened: number;
+    best: { name: string; value: number } | null;
+    battlesWon: number;
+    achievements: number;
+    achievementsTotal: number;
+    bestWin: { value: number; game: string; mult: number } | null;
+    favourite: string | null;
+  };
+  /** Pinned items and banner colour, shown to everyone. */
+  showcase: { banner: string; items: OwnedItem[] };
   /** Only for friends and yourself. */
   online?: boolean;
   balance?: number;
@@ -235,6 +245,10 @@ export interface Profile {
 
 export async function getProfile(username: string) {
   return (await post<{ profile: Profile }>("profile", { username })).profile;
+}
+
+export async function setShowcase(uids: string[], banner: string) {
+  return post("profile", { action: "showcase", uids, banner });
 }
 
 export async function renameMe(name: string) {

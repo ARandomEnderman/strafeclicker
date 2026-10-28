@@ -1,7 +1,8 @@
 import { friendsAction, getProfile, getState, ServerError, type Profile } from "../state";
 import { openChat } from "./chat-panel";
 import { set as setFriends } from "../friends";
-import { h, money, toast } from "./dom";
+import { h, money, mult, toast } from "./dom";
+import { gameName } from "./game-names";
 import { icon } from "./icons";
 
 // Mini profiles. userLink() is the clickable name used wherever a player shows up;
@@ -73,6 +74,8 @@ export function profileCard(p: Profile, opts: { compact?: boolean; onChange?: ()
     stat("Battles won", String(p.stats.battlesWon)),
     stat("Achievements", `${p.stats.achievements} / ${p.stats.achievementsTotal}`),
     ...(p.stats.best ? [stat("Best item", `${p.stats.best.name} (${money(p.stats.best.value)})`)] : []),
+    ...(p.stats.bestWin ? [stat("Biggest win", `${money(p.stats.bestWin.value)} · ${gameName(p.stats.bestWin.game)} ${mult(p.stats.bestWin.mult)}`)] : []),
+    ...(p.stats.favourite ? [stat("Favourite game", gameName(p.stats.favourite))] : []),
   ];
 
   const actions: HTMLElement[] = [];
@@ -100,7 +103,7 @@ export function profileCard(p: Profile, opts: { compact?: boolean; onChange?: ()
 
   return h(
     "div",
-    { class: `profile-card${opts.compact ? " compact" : ""}` },
+    { class: `profile-card${opts.compact ? " compact" : ""} banner-${p.showcase?.banner ?? "default"}` },
     h(
       "div",
       { class: "pc-head" },

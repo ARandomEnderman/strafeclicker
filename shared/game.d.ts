@@ -129,3 +129,5 @@ export const BP_OUTCOMES: BpOutcome[];
 export const RPS_WINS: number;
 export const RPS_PICK_MS: number;
 export const RPS_REVEAL_MS: number;
+export const PROFILE_BANNERS: string[];
+export const SHOWCASE_MAX: number;
