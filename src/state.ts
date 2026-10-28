@@ -247,6 +247,36 @@ export async function getProfile(username: string) {
   return (await post<{ profile: Profile }>("profile", { username })).profile;
 }
 
+export interface ClanMember {
+  user: string;
+  name: string;
+  role: "owner" | "member";
+  joinedAt: number;
+  online: boolean;
+}
+export interface Clan {
+  id: number;
+  name: string;
+  tag: string;
+  open: boolean;
+  createdAt: number;
+  weekWagered: number;
+  max: number;
+  members: ClanMember[];
+  myRole: "owner" | "member" | null;
+  requested: boolean;
+  requests: { user: string; name: string; at: number }[];
+}
+export interface ClanOverview {
+  mine: Clan | null;
+  board: { rank: number; id: number; name: string; tag: string; open: boolean; members: number; wagered: number }[];
+  cost: number;
+  max: number;
+}
+export async function clansAction<T>(action: string, body: object = {}) {
+  return post<T>("clans", { action, ...body });
+}
+
 export async function setShowcase(uids: string[], banner: string) {
   return post("profile", { action: "showcase", uids, banner });
 }
@@ -330,7 +360,7 @@ export async function playKeno(bet: number, picks: number[]): Promise<KenoResult
   return { ...r, reveal: hidePayout(r.payout) };
 }
 
-export const sendChat = (text: string) => post("chat", { text });
+export const sendChat = (text: string, channel: "global" | "clan" = "global") => post("chat", { text, channel });
 export const redeemPromo = (code: string) => post<{ reward: string }>("promo", { code });
 export const claimMission = (id?: string) => post<{ reward: number }>("missions", { id });
 export const getLeaderboard = <T>() => post<{ board: T }>("leaderboard");

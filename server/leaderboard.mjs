@@ -16,7 +16,7 @@ const weekStart = (t) => {
   const sinceMonday = (d.getUTCDay() + 6) % 7;
   return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - sinceMonday);
 };
-const periodKey = (kind, t = Date.now()) => (kind === "daily" ? `d:${dayKey(t)}` : `w:${dayKey(weekStart(t))}`);
+export const periodKey = (kind, t = Date.now()) => (kind === "daily" ? `d:${dayKey(t)}` : `w:${dayKey(weekStart(t))}`);
 const periodEnds = (kind, t = Date.now()) => (kind === "daily" ? nextMidnight(t) : weekStart(t) + 7 * DAY_MS);
 const SHOWN = 10;
 const RICH_CACHE_MS = 60_000;

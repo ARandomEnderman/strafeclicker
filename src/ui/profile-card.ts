@@ -3,6 +3,7 @@ import { openChat } from "./chat-panel";
 import { set as setFriends } from "../friends";
 import { h, money, mult, toast } from "./dom";
 import { gameName } from "./game-names";
+import { tagOf } from "../tags";
 import { icon } from "./icons";
 
 // Mini profiles. userLink() is the clickable name used wherever a player shows up;
@@ -27,6 +28,7 @@ export function userLink(user: string, name = user, opts: { avatar?: boolean } =
     "button",
     { type: "button", class: "user-link", title: name !== user ? `@${user}` : "View profile" },
     ...(opts.avatar ? [avatar(user, name, 18)] : []),
+    ...(tagOf(user) ? [h("span", { class: "clan-tag" }, tagOf(user)!)] : []),
     h("span", null, name),
   );
   el.addEventListener("click", (e) => {

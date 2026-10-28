@@ -1,6 +1,7 @@
 import { CHAT_MAX_LEN, RAIN_LEVELS } from "../../shared/game.js";
 import { chatMessages, onChat, type ChatMessage } from "../chat";
 import { adminAction, getState, InsufficientFunds, sendChat, ServerError } from "../state";
+import { onTags, tagOf } from "../tags";
 import { h, money, toast } from "./dom";
 import { icon } from "./icons";
 import { avatar, userLink } from "./profile-card";
@@ -102,22 +103,53 @@ export function chatPanel() {
   const field = input;
   let sending = false;
 
+  // Global or your clan's channel (the tabs only show while you're in a clan).
+  let channel: "global" | "clan" = "global";
+  const inClan = () => !!tagOf(getState().username);
+  const tabBtn = (c: typeof channel, label: string) =>
+    h(
+      "button",
+      {
+        type: "button",
+        class: `chat-tab${channel === c ? " active" : ""}`,
+        onclick: () => {
+          channel = c;
+          drawTabs();
+          redraw();
+        },
+      },
+      label,
+    );
+  const tabs = h("div", { class: "chat-tabs" });
+  const drawTabs = () => {
+    if (!inClan()) channel = "global";
+    tabs.hidden = !inClan();
+    tabs.replaceChildren(tabBtn("global", "Global"), tabBtn("clan", `Clan [${tagOf(getState().username) ?? ""}]`));
+    field.placeholder = channel === "clan" ? "Message your clan, or /rain on them" : "Say something, or /rain, /pay";
+  };
+  onTags(() => {
+    drawTabs();
+    redraw();
+  });
+
   const nearBottom = () => list.scrollHeight - list.scrollTop - list.clientHeight < 60;
   const redraw = () => {
-    const msgs = chatMessages();
+    // Private /pay notes show in both channels.
+    const msgs = chatMessages().filter((m) => m.kind === "pay" || (m.channel ?? "global") === channel);
     list.replaceChildren(...(msgs.length ? msgs.map(messageEl) : [h("div", { class: "chat-empty" }, "No messages yet. Say hi.")]));
     list.scrollTop = list.scrollHeight;
   };
   onChat((m) => {
     if (!m) return redraw();
+    // Everyone online sees a rain, chat open or not.
+    if (m.kind === "rain") rainFx(m);
+    if (m.kind === "pay" && !m.fromMe) toast(`${m.name ?? m.user} paid you ${money(m.amount ?? 0)}`);
+    if (m.kind !== "pay" && (m.channel ?? "global") !== channel) return;
     const stick = nearBottom();
     list.querySelector(".chat-empty")?.remove();
     list.append(messageEl(m));
     while (list.children.length > 150) list.firstElementChild!.remove();
     if (stick || m.user === getState().username) list.scrollTop = list.scrollHeight;
-    // Everyone online sees a rain, chat open or not.
-    if (m.kind === "rain") rainFx(m);
-    if (m.kind === "pay" && !m.fromMe) toast(`${m.name ?? m.user} paid you ${money(m.amount ?? 0)}`);
     if (!isChatOpen() && m.kind !== "pay") {
       unread++;
       unreadListeners.forEach((fn) => fn(unread));
@@ -162,7 +194,7 @@ export function chatPanel() {
     }
     sending = true;
     try {
-      await sendChat(text);
+      await sendChat(text, channel);
       field.value = "";
       drawHints();
     } catch (e) {
@@ -199,11 +231,12 @@ export function chatPanel() {
   const panel = h(
     "section",
     { class: "chat", "aria-label": "Chat" },
-    h("div", { class: "chat-head" }, icon("chat", 14), h("b", null, "Chat")),
+    h("div", { class: "chat-head" }, icon("chat", 14), h("b", null, "Chat"), tabs),
     list,
     h("div", { class: "chat-compose" }, hints, h("div", { class: "chat-row" }, rainBtn, field, h("button", { class: "btn btn-primary btn-sm icon-btn", "aria-label": "Send", onclick: () => void send() }, icon("send", 15)))),
   );
   openListeners.add((open) => open && requestAnimationFrame(() => (list.scrollTop = list.scrollHeight)));
+  drawTabs();
   redraw();
 
   // Open by default on screens wide enough to keep it beside the page.

@@ -36,6 +36,8 @@ import { blackjackPage } from "./ui/blackjack-page";
 import { pokerPage } from "./ui/poker-page";
 import { bombplantPage } from "./ui/bombplant-page";
 import { rpsPage, rpsView } from "./ui/rps-page";
+import { clanView, clansPage } from "./ui/clans-page";
+import "./tags";
 import "./race";
 import "./bombplant";
 import "./rps";
@@ -73,7 +75,7 @@ const MAIN_NAV: NavItem[] = [
 const GAMES_NAV: NavItem[] = [
   { route: "coinflip", href: "#/coinflip", label: "Coinflip", icon: "coins" },
   { route: "jackpot", href: "#/jackpot", label: "Jackpot", icon: "jackpot" },
-  { route: "rps", href: "#/rps", label: "Rock paper scissors", icon: "scissors" },
+  { route: "rps", href: "#/rps", label: "RPS", icon: "scissors" },
   { route: "plinko", href: "#/plinko", label: "Plinko", icon: "plinko" },
   { route: "flashbang", href: "#/flashbang", label: "Flashbang", icon: "flashbang" },
   { route: "roulette", href: "#/roulette", label: "Roulette", icon: "roulette" },
@@ -90,6 +92,7 @@ const BOTTOM_NAV: NavItem[] = [
   { route: "inventory", href: "#/inventory", label: "Inventory", icon: "inventory" },
   { route: "trade", href: "#/trade", label: "Trade", icon: "trade" },
   { route: "tree", href: "#/tree", label: "Upgrades", icon: "upgrades" },
+  { route: "clans", href: "#/clans", label: "Clans", icon: "clan" },
 ];
 /** Free rewards and rankings, another foldable group. */
 const REWARDS_NAV: NavItem[] = [
@@ -116,7 +119,7 @@ interface SideGroup {
   syncBadge: () => void;
 }
 const GROUP_KEY = "strafeclicker:side:";
-function sideGroup(key: string, label: string, items: NavItem[], badges: Record<string, HTMLElement> = {}, onToggle: () => void): SideGroup {
+function sideGroup(key: string, label: string, items: NavItem[], badges: Record<string, HTMLElement> = {}, onToggle: () => void, columns = 1): SideGroup {
   let pref: SideGroup["pref"] = null;
   try {
     const v = localStorage.getItem(GROUP_KEY + key);
@@ -127,7 +130,7 @@ function sideGroup(key: string, label: string, items: NavItem[], badges: Record<
   const sum = h("span", { class: "badge ping", hidden: true });
   const body = h("nav", { class: "side-group-body", "aria-label": label }, ...items.map((n) => navLink(n, badges[n.route])));
   const head = h("button", { type: "button", class: "side-group-head", "aria-expanded": "true" }, h("span", null, label), sum, icon("chevron", 14));
-  const el = h("div", { class: "side-group" }, head, body);
+  const el = h("div", { class: `side-group${columns > 1 ? " two-col" : ""}` }, head, body);
   const g: SideGroup = {
     el,
     pref,
@@ -206,7 +209,8 @@ function sidebar() {
   void loadTrades();
   const scroll = h("div", { class: "side-scroll" });
   const fit = () => fitSidebar(scroll, groups);
-  const games = sideGroup("games", "Games", GAMES_NAV, {}, fit);
+  // Many games: two to a row so the list stays short.
+  const games = sideGroup("games", "Games", GAMES_NAV, {}, fit, 2);
   rewards = sideGroup("rewards", "Rewards", REWARDS_NAV, { achievements: toClaim, spin: spinReady, missions: missionsReady }, fit);
   const groups = [games, rewards];
   scroll.append(
@@ -344,6 +348,7 @@ function route() {
   else if (page === "blackjack") view = blackjackPage();
   else if (page === "poker") view = pokerPage();
   else if (page === "bombplant") view = bombplantPage();
+  else if (page === "clans") view = arg ? clanView(Number(arg)) : clansPage();
   else if (page === "rps") view = arg ? rpsView(Number(arg)) : rpsPage(new URLSearchParams(query).get("code"));
   else if (page === "missions") view = missionsPage();
   else if (page === "leaderboard") view = leaderboardPage();

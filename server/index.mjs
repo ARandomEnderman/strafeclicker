@@ -46,6 +46,7 @@ import { Blackjack } from "./games/blackjack.mjs";
 import { Chat } from "./chat.mjs";
 import { Leaderboard } from "./leaderboard.mjs";
 import { Promos } from "./promos.mjs";
+import { Clans } from "./clans.mjs";
 import { Battles } from "./games/battles.mjs";
 import { Friends } from "./friends.mjs";
 import { Trades } from "./trades.mjs";
@@ -289,6 +290,8 @@ const chat = new Chat(db, game, settings, { broadcastPer, broadcast, toUser, onl
 const leaderboard = new Leaderboard(db, game, settings, { toUser, announce: (text) => chat.system(text) });
 leaderboard.start();
 const promos = new Promos(db, game);
+const clans = new Clans(db, game, { broadcast, toUser, isOnline, onMembership: (id) => toUser(id, "chat", chat.history(id)) });
+chat.clans = clans;
 const profiles = new Profiles(game, db, friends, isOnline);
 const admin = new Admin({
   db,
@@ -340,6 +343,7 @@ function events(req, res) {
   res.write(`event: flips\ndata: ${JSON.stringify(coinflip.list(res.userId))}\n\n`);
   res.write(`event: rps\ndata: ${JSON.stringify(rps.list(res.userId))}\n\n`);
   res.write(`event: bj\ndata: ${JSON.stringify(blackjack.view(res.userId))}\n\n`);
+  res.write(`event: tags\ndata: ${JSON.stringify(clans.tags())}\n\n`);
   res.write(`event: chat\ndata: ${JSON.stringify(chat.history(res.userId))}\n\n`);
   const wasOnline = res.userId != null && isOnline(res.userId);
   clients.add(res);
@@ -469,7 +473,23 @@ const actions = {
   click: (userId, body) => game.click(userId, body.clicks, body.times),
   plinko: (userId, body) => plinko(game, userId, body),
   claim: (userId, body) => game.claim(userId, body.id == null ? null : String(body.id)),
-  chat: (userId, body) => chat.send(userId, body.text),
+  chat: (userId, body) => chat.send(userId, body.text, body.channel === "clan" ? "clan" : "global"),
+  clans: (userId, body) => {
+    const a = body.action;
+    const r =
+      a === "overview" ? clans.overview(userId)
+      : a === "view" ? { clan: clans.view(Number(body.id), userId) }
+      : a === "create" ? clans.create(userId, body)
+      : a === "join" ? clans.join(userId, body)
+      : a === "accept" ? clans.answer(userId, body, true)
+      : a === "decline" ? clans.answer(userId, body, false)
+      : a === "leave" ? clans.leave(userId)
+      : a === "kick" ? clans.kick(userId, body)
+      : a === "settings" ? clans.settings(userId, body)
+      : null;
+    if (!r) throw new GameError("bad_input", "Unknown action");
+    return { ...r, account: r.account ?? game.view(userId) };
+  },
   leaderboard: (userId) => ({ board: leaderboard.view(userId, auth.usernameOf(userId)) }),
   promo: (userId, body) => promos.redeem(userId, body.code),
   missions: (userId, body) => game.claimMission(userId, body.id == null ? null : String(body.id)),

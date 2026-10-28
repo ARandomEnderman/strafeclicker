@@ -10,6 +10,8 @@ export interface ChatMessage {
   text: string;
   at: number;
   admin: boolean;
+  /** "clan" for your clan's channel. */
+  channel: "global" | "clan";
   /** rain and pay */
   amount?: number;
   /** rain: how many caught it, how big it was (0–5), your share (null: you weren't online) */

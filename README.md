@@ -35,6 +35,7 @@ A CS2 case-opening simulator. Play money only: no deposits, no withdrawals, noth
   - `/pay <user> <amount>`: send money to one player. Only the two of you see it in the chat. The **Pay** button on any profile card types it for you.
 
   Amounts can be written as `50`, `$1,250.50` or `2k`. Messages are up to 200 characters, about one every second at most.
+- **Clans**: start one for $25 with a name and a 2–4 character tag, which then shows before every member's name across the site. Clans are open (anyone joins) or by request (the owner accepts or declines), up to 20 members; the owner can kick, and leaving hands ownership to the longest-standing member (the last one out disbands it). Members get a Clan tab in the chat, and a /rain typed there only reaches online clan members. The Clans page ranks clans by what their members wagered this week.
 - **Daily missions**: three random tasks every UTC day (one easy, one medium, one hard: open cases, click, wager, play or win rounds of a game, hit a multiplier) paying $1 / $2.50 / $5, claimed on the Missions page. The task list is in `server/missions.mjs`.
 - **Leaderboards**: most wagered and biggest single win, today and this week (UTC, weeks start Monday), plus the richest players (balance + inventory). When a day or week ends, the top wagerers get the prizes set in the admin panel (default $25 / $10 / $5 daily, $100 / $50 / $25 weekly) and the chat announces them. The admin account isn't ranked.
 - **Promo codes**: made in the admin panel, redeemed on the Missions page, once per player.
@@ -153,6 +154,7 @@ No `git` on the box? Download the code instead:
 | `POST /api/jackpot` `{uids}` / `{action: "withdraw"}` | Deposit items into the pot, or take them back before anyone else joins; round state comes over SSE as `jackpot` events |
 | `POST /api/admin` `{action, ...}` | Admin panel (account `admin` only) |
 | `POST /api/chat` `{text}` | Send a chat message, `/rain <amount>` or `/pay <user> <amount>`; the chat comes over SSE as `chat` (history) and `chatmsg` events |
+| `POST /api/clans` `{action: "overview"}` / `view` `{id}` / `create` `{name, tag, open}` / `join` `{id}` / `accept` / `decline` / `kick` `{username}` / `leave` / `settings` `{open}` | Clans; member tags come over SSE as `tags` events |
 | `POST /api/missions` `{id?}` | Claim a finished daily mission (all of them without `id`) |
 | `POST /api/leaderboard` | Today's, this week's and the richest leaderboards |
 | `POST /api/promo` `{code}` | Redeem a promo code |

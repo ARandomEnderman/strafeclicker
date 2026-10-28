@@ -3,6 +3,8 @@
 //   /rain <amount>        split your own money evenly among everyone else online
 //   /pay <user> <amount>  send money to one player (only the two of you see it)
 //
+// Clan members also have a clan channel; a /rain there only reaches online clan members.
+//
 // The last HISTORY messages are kept in memory and sent on connect; everything is also
 // written to chat_messages. The admin can delete messages, clear the chat and mute players.
 
@@ -58,13 +60,17 @@ export class Chat {
       .map((r) => ({ id: r.id, userId: r.user_id, user: r.username, name: r.display_name || r.username, kind: r.kind, text: r.text, at: r.at, data: r.data ? JSON.parse(r.data) : {} }));
     /** userId -> recent send times */
     this.sent = new Map();
+    /** Set after construction: the clans, for the clan channel. */
+    this.clans = null;
   }
 
   // ---------- what browsers see ----------
 
   #view(m, viewerId) {
     if (m.data.to && !m.data.to.includes(viewerId)) return null;
-    const base = { id: m.id, kind: m.kind, user: m.user ?? null, name: m.name ?? null, text: m.text, at: m.at, admin: m.user === ADMIN_USERNAME };
+    // Clan messages only for the clan's current members.
+    if (m.data.clan && (viewerId == null || this.clans?.clanOf(viewerId) !== m.data.clan)) return null;
+    const base = { id: m.id, kind: m.kind, user: m.user ?? null, name: m.name ?? null, text: m.text, at: m.at, admin: m.user === ADMIN_USERNAME, channel: m.data.clan ? "clan" : "global" };
     if (m.kind === "rain") {
       const yours = viewerId != null ? m.data.shares?.[viewerId] : undefined;
       return { ...base, amount: m.data.amount / 100, count: m.data.count, level: m.data.level, yours: yours == null ? null : yours / 100, mine: viewerId === m.userId };
@@ -83,8 +89,9 @@ export class Chat {
     const m = { id: Number(lastInsertRowid), userId, user: user?.username ?? null, name: user ? user.display_name || user.username : null, kind, text, at, data };
     this.recent.push(m);
     if (this.recent.length > HISTORY) this.recent.shift();
-    // Private messages go only to the people in them.
-    if (data.to) for (const id of data.to) this.io.toUser(id, "chatmsg", this.#view(m, id));
+    // Private and clan messages go only to the people in them.
+    const only = data.to ?? (data.clan ? this.clans.memberIds(data.clan) : null);
+    if (only) for (const id of only) this.io.toUser(id, "chatmsg", this.#view(m, id));
     else this.io.broadcastPer("chatmsg", (id) => this.#view(m, id));
     return m;
   }
@@ -96,7 +103,10 @@ export class Chat {
 
   // ---------- sending ----------
 
-  send(userId, raw) {
+  /** `channel` is "global" or "clan". */
+  send(userId, raw, channel = "global") {
+    const clan = channel === "clan" ? this.clans?.clanOf(userId) : null;
+    if (channel === "clan" && !clan) throw new GameError("no_clan", "You're not in a clan");
     const text = String(raw ?? "")
       .replace(/\s+/g, " ")
       .trim();
@@ -112,11 +122,11 @@ export class Chat {
     if (text.startsWith("/")) {
       const [cmd, ...args] = text.slice(1).split(" ");
       const c = cmd.toLowerCase();
-      if (c === "rain") return this.#rain(user, args[0]);
+      if (c === "rain") return this.#rain(user, args[0], clan);
       if (c === "pay" || c === "tip") return this.#pay(user, args[0], args[1]);
       throw new GameError("bad_input", "Unknown command. Try /rain <amount> or /pay <user> <amount>");
     }
-    this.#push(userId, user, "msg", text);
+    this.#push(userId, user, "msg", text, clan ? { clan } : {});
     return {};
   }
 
@@ -128,13 +138,13 @@ export class Chat {
     this.sent.set(userId, times);
   }
 
-  #rain(user, rawAmount) {
+  #rain(user, rawAmount, clan = null) {
     const usd = parseAmount(rawAmount);
     const min = Number(this.settings.get("rainMin")) || 1;
     if (!(usd >= min)) throw new GameError("bad_input", `Usage: /rain <amount>, at least $${min}`);
     const total = cents(usd);
-    const ids = [...this.io.onlineIds()].filter((id) => id !== user.id && !this.q.user.get(id)?.banned);
-    if (!ids.length) throw new GameError("nobody", "Nobody else is online to catch it");
+    const ids = [...this.io.onlineIds()].filter((id) => id !== user.id && !this.q.user.get(id)?.banned && (!clan || this.clans.clanOf(id) === clan));
+    if (!ids.length) throw new GameError("nobody", clan ? "Nobody else from your clan is online to catch it" : "Nobody else is online to catch it");
     const each = Math.floor(total / ids.length);
     if (each < 1) throw new GameError("bad_input", `Rain at least $${(ids.length / 100).toFixed(2)} so everyone gets a cent`);
 
@@ -158,7 +168,7 @@ export class Chat {
       this.io.toUser(id, "account", acc);
     }
     const level = rainLevel(total / 100);
-    this.#push(user.id, user, "rain", "", { amount: total, count: ids.length, level, shares });
+    this.#push(user.id, user, "rain", "", { amount: total, count: ids.length, level, shares, ...(clan ? { clan } : {}) });
     return { account, rain: { amount: total / 100, count: ids.length, level } };
   }
 

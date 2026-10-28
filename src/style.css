@@ -6203,3 +6203,126 @@ body.rain-shake .shell {
 .showcase-grid {
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
 }
+
+/* ---------- clans ---------- */
+
+.clan-tag {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: rgba(245, 165, 36, 0.15);
+  color: var(--accent);
+  font-size: 0.8em;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  vertical-align: 1px;
+}
+.clan-tag.big {
+  padding: 10px 12px;
+  font-size: 22px;
+  border-radius: 10px;
+}
+.user-link .clan-tag {
+  font-size: 10px;
+}
+.clan-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+}
+.clan-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.clan-head h2 {
+  margin: 0;
+}
+.clan-members,
+.clan-requests {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.clan-requests h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+.clan-member {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--bg-3);
+}
+.clan-member .user-link {
+  flex: 1;
+  min-width: 0;
+}
+.clan-role {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+.clan-board .lb-row {
+  text-decoration: none;
+  color: inherit;
+}
+.chat-tabs {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+.chat-head b {
+  flex: none;
+}
+.chat-tab {
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.chat-tab.active {
+  background: var(--bg-3);
+  color: var(--text);
+}
+.side-group.two-col .side-group-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px 2px;
+}
+.side-group.two-col .side-link {
+  gap: 6px;
+  padding: 6px 5px;
+  font-size: 12px;
+  letter-spacing: -0.01em;
+}
+.side-group.two-col .side-link .icon {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+.side-group.two-col {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+.side-group.two-col .side-link > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.clan-card .seg-btn {
+  white-space: nowrap;
+}
