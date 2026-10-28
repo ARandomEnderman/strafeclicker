@@ -6023,3 +6023,121 @@ body.rain-shake .shell {
   opacity: 0.5;
 }
 
+
+/* ---------- rock paper scissors ---------- */
+
+.rps-stage {
+  margin-top: 12px;
+  padding: 22px 16px 14px;
+}
+.rps-board {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+}
+.rps-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--bg-3);
+  border: 2px solid transparent;
+  min-width: 0;
+}
+.rps-side.me {
+  border-color: rgba(245, 165, 36, 0.4);
+}
+.rps-side.won {
+  border-color: var(--up);
+  box-shadow: 0 0 24px rgba(62, 207, 142, 0.25);
+}
+.rps-score {
+  font-size: 34px;
+  font-weight: 900;
+}
+.rps-vs {
+  color: var(--muted);
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+.rps-hand {
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: var(--bg-2);
+  color: var(--text);
+  font-size: 32px;
+  font-weight: 900;
+}
+.rps-hand.unknown {
+  color: var(--muted);
+}
+.rps-hand.ready {
+  color: var(--up);
+}
+.rps-picks {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+.rps-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 120px;
+  padding: 16px 0 12px;
+}
+.rps-pick:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.rps-history {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 16px;
+}
+.rps-round {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: var(--bg-2);
+  font-size: 12px;
+  color: var(--muted);
+}
+.rps-round .rps-hand {
+  width: 26px;
+  height: 26px;
+  font-size: 12px;
+}
+.rps-round.tie {
+  opacity: 0.6;
+}
+@media (max-width: 600px) {
+  .rps-board {
+    gap: 8px;
+  }
+  .rps-side {
+    padding: 10px 6px;
+  }
+  .rps-hand {
+    width: 64px;
+    height: 64px;
+  }
+  .rps-pick {
+    width: 30%;
+  }
+}
+.rps-round .rps-hand.win {
+  background: var(--up);
+  color: #0b2418;
+}

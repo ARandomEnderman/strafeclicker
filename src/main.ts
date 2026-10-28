@@ -35,8 +35,10 @@ import { racePage } from "./ui/race-page";
 import { blackjackPage } from "./ui/blackjack-page";
 import { pokerPage } from "./ui/poker-page";
 import { bombplantPage } from "./ui/bombplant-page";
+import { rpsPage, rpsView } from "./ui/rps-page";
 import "./race";
 import "./bombplant";
+import "./rps";
 import "./blackjack";
 import "./jackpot";
 import "./roulette";
@@ -71,6 +73,7 @@ const MAIN_NAV: NavItem[] = [
 const GAMES_NAV: NavItem[] = [
   { route: "coinflip", href: "#/coinflip", label: "Coinflip", icon: "coins" },
   { route: "jackpot", href: "#/jackpot", label: "Jackpot", icon: "jackpot" },
+  { route: "rps", href: "#/rps", label: "Rock paper scissors", icon: "scissors" },
   { route: "plinko", href: "#/plinko", label: "Plinko", icon: "plinko" },
   { route: "flashbang", href: "#/flashbang", label: "Flashbang", icon: "flashbang" },
   { route: "roulette", href: "#/roulette", label: "Roulette", icon: "roulette" },
@@ -341,6 +344,7 @@ function route() {
   else if (page === "blackjack") view = blackjackPage();
   else if (page === "poker") view = pokerPage();
   else if (page === "bombplant") view = bombplantPage();
+  else if (page === "rps") view = arg ? rpsView(Number(arg)) : rpsPage(new URLSearchParams(query).get("code"));
   else if (page === "missions") view = missionsPage();
   else if (page === "leaderboard") view = leaderboardPage();
   else if (page === "admin" && getState().isAdmin) view = adminPage();

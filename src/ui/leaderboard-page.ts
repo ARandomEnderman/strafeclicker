@@ -45,6 +45,7 @@ const GAMES: Record<string, string> = {
   blackjack: "Blackjack",
   poker: "Video poker",
   bombplant: "Bomb plant",
+  rps: "Rock paper scissors",
   coinflip: "Coinflip",
   jackpot: "Jackpot",
   battle: "Case battle",

@@ -42,6 +42,7 @@ const KINDS = [
   { kind: "win:blackjack", game: "blackjack", tiers: [[2, 100], [5, 250], [10, 500]], label: (m) => `Win ${m.target} hands of Blackjack` },
   { kind: "win:coinflip", game: "coinflip", tiers: [[1, 100], [3, 250], null], label: (m) => (m.target === 1 ? "Win a coinflip" : `Win ${m.target} coinflips`) },
   { kind: "win:battle", game: "battle", tiers: [null, [1, 250], [3, 500]], label: (m) => (m.target === 1 ? "Win a case battle" : `Win ${m.target} case battles`) },
+  { kind: "win:rps", game: "rps", tiers: [[1, 100], [3, 250], null], label: (m) => (m.target === 1 ? "Win a rock paper scissors duel" : `Win ${m.target} rock paper scissors duels`) },
   { kind: "win:upgrade", game: "upgrade", tiers: [[1, 100], [3, 250], null], label: (m) => (m.target === 1 ? "Win an upgrade" : `Win ${m.target} upgrades`) },
   ...[
     ["towers", 5],

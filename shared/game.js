@@ -514,3 +514,11 @@ export const BP_OUTCOMES = [
   { site: "B", result: "boom" },
   { site: "B", result: "defuse" },
 ];
+
+// ---------- Rock paper scissors ----------
+// Duels are first to RPS_WINS round wins (ties replay); each round both players have
+// RPS_PICK_MS to pick, then both hands show for RPS_REVEAL_MS.
+
+export const RPS_WINS = 2;
+export const RPS_PICK_MS = 10_000;
+export const RPS_REVEAL_MS = 2500;

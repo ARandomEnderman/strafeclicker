@@ -36,6 +36,7 @@ import { Defuse } from "./games/defuse.mjs";
 import { Towers } from "./games/towers.mjs";
 import { Poker } from "./games/poker.mjs";
 import { BombPlant } from "./games/bombplant.mjs";
+import { Rps } from "./games/rps.mjs";
 import { Roulette } from "./games/roulette.mjs";
 import { Coinflip } from "./games/coinflip.mjs";
 import { Jackpot } from "./games/jackpot.mjs";
@@ -279,6 +280,8 @@ battles.start();
 const trades = new Trades(game, db, friends, { toUser });
 const coinflip = new Coinflip(game, db, friends, { broadcastPer, toUser });
 coinflip.start();
+const rps = new Rps(game, db, friends, { broadcastPer, toUser });
+rps.start();
 const blackjack = new Blackjack(game, db, { broadcastPer, toUser });
 blackjack.start();
 const onlineIds = () => new Set([...clients].map((r) => r.userId).filter((id) => id != null));
@@ -309,6 +312,7 @@ function friendsChanged(...userIds) {
   for (const id of userIds) toUser(id, "friends", friends.list(id, isOnline));
   battles.publish();
   coinflip.publish();
+  rps.publish();
 }
 
 setInterval(() => {
@@ -334,6 +338,7 @@ function events(req, res) {
   res.userId = sessionUser(req);
   res.write(`event: battles\ndata: ${JSON.stringify(battles.list(res.userId))}\n\n`);
   res.write(`event: flips\ndata: ${JSON.stringify(coinflip.list(res.userId))}\n\n`);
+  res.write(`event: rps\ndata: ${JSON.stringify(rps.list(res.userId))}\n\n`);
   res.write(`event: bj\ndata: ${JSON.stringify(blackjack.view(res.userId))}\n\n`);
   res.write(`event: chat\ndata: ${JSON.stringify(chat.history(res.userId))}\n\n`);
   const wasOnline = res.userId != null && isOnline(res.userId);
@@ -439,6 +444,7 @@ const STARTS = {
   jackpot: (b) => b.action !== "withdraw",
   flashbang: (b) => b.action === "bet",
   coinflip: (b) => ["create", "join", "bot"].includes(b.action),
+  rps: (b) => ["create", "join", "bot"].includes(b.action),
   battle: (b) => ["create", "join", "bots"].includes(b.action),
   bhop: (b) => b.action === "start",
   defuse: (b) => b.action === "start",
@@ -542,6 +548,14 @@ const actions = {
     throw new GameError("bad_input", "Unknown action");
   },
   jackpot: (userId, body) => (body.action === "withdraw" ? jackpot.withdraw(userId) : jackpot.deposit(userId, body)),
+  rps: (userId, body) => {
+    if (body.action === "create") return rps.create(userId, body);
+    if (body.action === "join") return rps.join(userId, body);
+    if (body.action === "bot") return rps.bot(userId, body);
+    if (body.action === "cancel") return rps.cancel(userId, body);
+    if (body.action === "pick") return rps.pick(userId, body);
+    throw new GameError("bad_input", "Unknown action");
+  },
   coinflip: (userId, body) => {
     if (body.action === "create") return coinflip.create(userId, body);
     if (body.action === "join") return coinflip.join(userId, body);
@@ -712,6 +726,7 @@ for (const sig of ["SIGINT", "SIGTERM"]) {
     jackpot.stop();
     race.stop();
     bombplant.stop();
+    rps.stop();
     blackjack.stop();
     leaderboard.stop();
     void steam.stop().finally(() => {

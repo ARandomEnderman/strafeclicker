@@ -126,3 +126,6 @@ export const BP_PLANT_MS: number;
 export const BP_END_MS: number;
 export const BP_PICKS: Record<string, { label: string; pays: number; wins: (o: BpOutcome) => boolean }>;
 export const BP_OUTCOMES: BpOutcome[];
+export const RPS_WINS: number;
+export const RPS_PICK_MS: number;
+export const RPS_REVEAL_MS: number;
