@@ -64,15 +64,16 @@ export const PERKS = {
       { value: 5, cost: 500 },
     ],
   },
+  // Minutes of full-speed clicking (at your click power) paid per hour away.
   offlineIncome: {
     name: "Offline income",
-    unit: "per hour away",
+    unit: "min of clicking per hour away",
     levels: [
-      { value: 2.5, cost: 0 },
-      { value: 5, cost: 15 },
-      { value: 10, cost: 60 },
-      { value: 20, cost: 200 },
-      { value: 40, cost: 600 },
+      { value: 1, cost: 0 },
+      { value: 2, cost: 15 },
+      { value: 3, cost: 60 },
+      { value: 5, cost: 200 },
+      { value: 8, cost: 600 },
     ],
   },
   battleRounds: {
@@ -125,6 +126,24 @@ export const OFFLINE_CAP_HOURS = 12;
 /** Current value of a perk for an account's perk levels. */
 export const perkValue = (perks, id) => PERKS[id].levels[perks?.[id] ?? 0].value;
 
+/** Offline income in USD per hour away: some minutes of clicking at full speed. */
+export const offlinePerHour = (perks) => perkValue(perks, "clickPower") * CLICK_CPS_LIMIT * 60 * perkValue(perks, "offlineIncome");
+
+/**
+ * The daily spin's prizes and the login streak bonus grow with click power, so they stay
+ * worth having: (click power / starting click power)², 1x at the start up to 400x.
+ */
+export const rewardScale = (perks) => (perkValue(perks, "clickPower") / PERKS.clickPower.levels[0].value) ** 2;
+
+// ---------- login streak ----------
+// The first visit of each day (UTC) pays STREAK_USD × the streak's length (up to
+// STREAK_MAX_DAYS) × rewardScale. Missing a day starts it over.
+
+export const STREAK_USD = 1;
+export const STREAK_MAX_DAYS = 30;
+export const streakReward = (perks, days) => STREAK_USD * Math.min(days, STREAK_MAX_DAYS) * rewardScale(perks);
+export const utcDay = (t = Date.now()) => Math.floor(t / 86_400_000);
+
 /** Upgrader: chance = (your value / target price) × UPGRADE_RTP, kept inside these bounds. */
 // ---------- clicker speed limit ----------
 // Up to CLICK_CPS_LIMIT clicks per second pay full value. Past that, every click is worth
@@ -157,7 +176,7 @@ export function rateClicks(state, times) {
 /** The moving clicks/s average at time `t`. */
 export const clickRateAt = (state, t) => (state.last == null ? 0 : state.rate * Math.exp(-Math.max(0, t - state.last) / 1000 / CLICK_RATE_TAU));
 
-export const UPGRADE_RTP = 0.9;
+export const UPGRADE_RTP = 0.95;
 export const UPGRADE_MIN_CHANCE = 0.01;
 export const UPGRADE_MAX_CHANCE = 0.8;
 export const UPGRADE_MAX_ITEMS = 10;
@@ -382,8 +401,8 @@ export const JP_MAX_ITEMS = 10; // per deposit
 export const JP_MIN_DEPOSIT = 0.1; // USD
 
 // ---------- daily spin ----------
-// A free wheel once every DAILY_SPIN_EVERY_MS. Prizes are balance; weights set how
-// often each comes up (about $2.27 a day on average).
+// A free wheel once every DAILY_SPIN_EVERY_MS. Prizes are balance (times rewardScale);
+// weights set how often each comes up (about $2.27 a day on average, before the scale).
 
 export const DAILY_SPIN_EVERY_MS = 24 * 3_600_000;
 export const DAILY_SPIN_MS = 5500;

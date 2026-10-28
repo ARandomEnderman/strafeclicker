@@ -4,8 +4,14 @@ import { decimalInput, h, parseDecimal } from "./dom";
 import { icon } from "./icons";
 
 const KEY = "strafeclicker:bet";
+const ADDS: [string, number][] = [
+  ["+1", 1],
+  ["+10", 10],
+  ["+100", 100],
+  ["+1K", 1000],
+];
 
-/** Bet amount field with half / double / max buttons. Remembers the last amount. */
+/** Bet amount field with half / double / max buttons and +1 to +1K. Remembers the last amount. */
 export function betInput(onChange?: () => void, label = "Bet amount") {
   let saved = 0.1;
   try {
@@ -45,6 +51,12 @@ export function betInput(onChange?: () => void, label = "Bet amount") {
       h("button", { class: "bet-btn", type: "button", onclick: () => set(value() / 2) }, "½"),
       h("button", { class: "bet-btn", type: "button", onclick: () => set(value() * 2) }, "2×"),
       h("button", { class: "bet-btn", type: "button", onclick: () => set(Math.floor(displayBalance() * 100) / 100) }, "Max"),
+    ),
+    h(
+      "div",
+      { class: "bet-adds" },
+      ...ADDS.map(([label, add]) => h("button", { class: "bet-btn", type: "button", onclick: () => set(value() + add) }, label)),
+      h("button", { class: "bet-btn", type: "button", title: "Back to the smallest bet", onclick: () => set(BET_MIN) }, "Clear"),
     ),
   );
   return {

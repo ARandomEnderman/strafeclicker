@@ -78,6 +78,11 @@ export {
   tierOdds,
   upgradeChance,
   variants,
+  offlinePerHour,
+  rewardScale,
+  STREAK_MAX_DAYS,
+  STREAK_USD,
+  streakReward,
 } from "../shared/game.js";
 
 export const TIER_INFO: Record<Tier, { label: string; color: string }> = {

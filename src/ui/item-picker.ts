@@ -4,11 +4,12 @@ import { h, money, toast } from "./dom";
 import { displayName } from "./item-card";
 
 /** A grid of your inventory to pick items from (most valuable first). */
-export function itemPicker(opts: { max: number; onChange?: () => void; initial?: string[] }) {
+export function itemPicker(opts: { max: number; onChange?: () => void; initial?: string[]; includeLocked?: boolean }) {
   const picked = new Set<string>(opts.initial ?? []);
   const grid = h("div", { class: "trade-grid picker-grid" });
   const draw = () => {
-    const inv = [...getState().inventory].sort((a, b) => priceOf(b) - priceOf(a));
+    // Locked items can't be staked (the profile showcase may still pin them).
+    const inv = getState().inventory.filter((it) => opts.includeLocked || !it.locked).sort((a, b) => priceOf(b) - priceOf(a));
     for (const uid of [...picked]) if (!inv.some((it) => it.uid === uid)) picked.delete(uid);
     grid.replaceChildren(
       ...(inv.length

@@ -85,6 +85,7 @@ export class Trades {
         const move = (src, dst, uids, cs, cd) => {
           const items = uids.map((uid) => src.inventory.find((it) => it.uid === uid));
           if (items.some((it) => !it)) throw new GameError("gone", `${src.username} no longer has every item in this offer`);
+          if (uids.some((uid) => (src.stats.locked ?? []).includes(uid))) throw new GameError("locked", `${src.username} has locked one of the items in this offer`);
           src.inventory = src.inventory.filter((it) => !uids.includes(it.uid));
           const moved = items.map((it) => ({ ...it, source: "trade", obtainedAt: Date.now() }));
           dst.inventory.unshift(...moved);

@@ -1,8 +1,8 @@
 import "./style.css";
 import { getCase, loadCatalog, priceOf, round2 } from "./catalog";
 import type { Case } from "./types";
-import type { Account } from "./types";
-import { displayBalance, getState, initState, logout, resetAll, setLoggedOutHandler, setOfflineHandler, setUnlockedHandler, subscribe } from "./state";
+import { displayBalance, getState, initState, logout, resetAll, setLoggedOutHandler, setOfflineHandler, setUnlockedHandler, subscribe, type Welcome } from "./state";
+import { STREAK_MAX_DAYS, streakReward } from "./odds";
 import { openModal } from "./ui/modal";
 import { icon, type IconName } from "./ui/icons";
 import { feedPanel } from "./ui/feed";
@@ -417,27 +417,43 @@ function duration(seconds: number) {
 
 /** Offline income below this is paid without a popup. */
 const MIN_OFFLINE_POPUP_USD = 1;
-/** Offline income that arrived before the app was on screen (at login). */
-let pendingOffline: NonNullable<Account["offline"]> | null = null;
-function showOffline(o: NonNullable<Account["offline"]>) {
+/** Offline income and the streak bonus that arrived before the app was on screen (at login). */
+let pendingOffline: Welcome | null = null;
+function showOffline(w: Welcome) {
   if (!document.querySelector(".topbar")) {
-    pendingOffline = o;
+    pendingOffline = { offline: w.offline ?? pendingOffline?.offline ?? null, streak: w.streak ?? pendingOffline?.streak ?? null };
     return;
   }
-  showWelcome(o, null);
+  showWelcome(w, null);
 }
 
-/** "Welcome back": offline income and how the inventory's prices moved meanwhile. */
-function showWelcome(o: NonNullable<Account["offline"]> | null, prices: InventoryChange | null) {
+/** "Welcome back": offline income, the login streak bonus, and how the inventory's prices moved meanwhile. */
+function showWelcome(w: Welcome | null, prices: InventoryChange | null) {
   // Pocket change isn't worth a popup (it's still paid).
-  if (o && o.earned < MIN_OFFLINE_POPUP_USD) o = null;
+  const o = w?.offline && w.offline.earned >= MIN_OFFLINE_POPUP_USD ? w.offline : null;
+  const streak = w?.streak ?? null;
   const priceEl = awaySection(prices);
-  if (!o && !priceEl) return;
+  if (!o && !streak && !priceEl) return;
   openModal(
     "Welcome back",
     h(
       "div",
       { class: "popup-body" },
+      streak
+        ? h(
+            "div",
+            { class: "popup-hero popup-streak" },
+            h("div", { class: "popup-label" }, `Day ${streak.days} login streak`),
+            h("div", { class: "popup-value" }, `+${money(streak.earned)}`),
+            h(
+              "div",
+              { class: "popup-was" },
+              streak.days >= STREAK_MAX_DAYS
+                ? "The streak bonus is at its max. Keep it going."
+                : `Come back tomorrow for ${money(streakReward(getState().perks, streak.days + 1))}. Miss a day and it starts over.`,
+            ),
+          )
+        : null,
       o
         ? h(
             "div",

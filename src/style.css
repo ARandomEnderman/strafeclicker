@@ -2058,6 +2058,20 @@ a.wallet-item:hover {
 .bet-btn:hover:not(:disabled) {
   background: var(--line);
 }
+.bet-adds {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  margin-top: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.bet-adds .bet-btn {
+  padding: 6px 4px;
+}
+.bet-adds .bet-btn:first-child {
+  border-left: 0;
+}
 .seg {
   display: flex;
   padding: 3px;
@@ -7047,4 +7061,149 @@ body.rain-shake .shell {
   .password-row {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* ---------- login streak ---------- */
+.streak-card {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-2);
+}
+.streak-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin-bottom: 10px;
+}
+.streak-head .hint {
+  margin: 0;
+}
+.streak-days {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  gap: 8px;
+}
+.streak-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-3);
+  font-size: 12px;
+  color: var(--muted);
+}
+.streak-day b {
+  color: var(--text);
+  font-size: 14px;
+}
+.streak-day.done {
+  opacity: 0.55;
+}
+.streak-day.today {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.streak-day.today b {
+  color: var(--up);
+}
+
+/* ---------- inventory tools ---------- */
+.inv-toolbar {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.inv-toolbar .search {
+  max-width: 240px;
+}
+.inv-tier {
+  width: auto;
+}
+.inv-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.inv-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.inv-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.inv-bar.picked {
+  padding: 8px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: rgba(245, 165, 36, 0.08);
+}
+.inv-bar.picked b {
+  margin-right: auto;
+}
+.inv-under-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.inv-under {
+  width: 80px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+.inv-card-btns {
+  display: flex;
+  gap: 6px;
+}
+.inv-card-btns .btn:last-child {
+  flex: 1;
+}
+.inv-pick,
+.inv-lock {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  padding: 0;
+}
+.inv-box {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--muted);
+  border-radius: 3px;
+}
+.inv-pick.on {
+  background: var(--accent);
+  color: #1a1206;
+  border-color: var(--accent);
+}
+.inv-lock {
+  color: var(--muted);
+}
+.inv-lock.on {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.item-card.inv-selected {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+.item-card.inv-locked .item-price::after {
+  content: " · locked";
+  color: var(--accent);
+  font-size: 11px;
 }

@@ -88,7 +88,7 @@ export function jackpotPage() {
   const drawDeposit = () => {
     const s = jackpotState();
     const open = !!s && (s.phase === "waiting" || s.phase === "open");
-    const inv = [...getState().inventory].sort((a, b) => priceOf(b) - priceOf(a));
+    const inv = getState().inventory.filter((it) => !it.locked).sort((a, b) => priceOf(b) - priceOf(a));
     for (const uid of [...picked]) if (!inv.some((it) => it.uid === uid)) picked.delete(uid);
     grid.replaceChildren(
       ...(inv.length

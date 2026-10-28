@@ -49,7 +49,7 @@ export function profilePage(username: string) {
   onLeave(() => picker?.destroy());
   const showcaseEditor = (p: Profile) => {
     picker?.destroy();
-    const pk = itemPicker({ max: SHOWCASE_MAX, initial: p.showcase.items.map((it) => it.uid) });
+    const pk = itemPicker({ max: SHOWCASE_MAX, includeLocked: true, initial: p.showcase.items.map((it) => it.uid) });
     picker = pk;
     let banner = p.showcase.banner;
     const swatches = h(

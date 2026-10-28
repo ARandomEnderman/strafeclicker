@@ -19,11 +19,11 @@ export function subscribe(fn: () => void) {
 let latest: Account;
 
 function set(next: Account) {
-  const { offline, unlocked, ...rest } = next;
+  const { offline, streakPaid, unlocked, ...rest } = next;
   latest = rest;
   account = withoutHidden(rest);
   listeners.forEach((fn) => fn());
-  if (offline && offline.earned > 0) onOffline(offline);
+  if ((offline && offline.earned > 0) || streakPaid) onOffline({ offline: offline ?? null, streak: streakPaid ?? null });
   if (unlocked?.length) setTimeout(() => onUnlocked(unlocked), Math.max(0, quietUntil - Date.now()));
 }
 
@@ -57,7 +57,11 @@ let onUnlocked: (ids: string[]) => void = () => {};
 export const setUnlockedHandler = (fn: typeof onUnlocked) => (onUnlocked = fn);
 
 /** Called when the server just paid offline income. */
-let onOffline: (o: NonNullable<Account["offline"]>) => void = () => {};
+export interface Welcome {
+  offline: Account["offline"] | null;
+  streak: Account["streakPaid"] | null;
+}
+let onOffline: (w: Welcome) => void = () => {};
 export const setOfflineHandler = (fn: typeof onOffline) => (onOffline = fn);
 
 export class InsufficientFunds extends Error {}
@@ -487,6 +491,11 @@ export async function openCases(c: Case, count: number): Promise<{ items: OwnedI
 export async function buyPerk(perk: PerkId) {
   await flushClicks();
   return (await post<{ level: number }>("perk", { perk })).level;
+}
+
+/** Lock items (nothing can sell, upgrade, stake or trade them) or unlock them. */
+export async function lockItems(uids: string[], locked: boolean) {
+  await post("lock", { uids, locked });
 }
 
 export async function sell(uids: string[]): Promise<number> {

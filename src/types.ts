@@ -75,6 +75,8 @@ export interface OwnedItem extends Drop {
   /** Case id it came from, or "upgrade". */
   source: string;
   obtainedAt: number;
+  /** Locked by its owner: it can't be sold, upgraded, staked or traded. */
+  locked?: boolean;
 }
 
 /** Everything the server lets the browser see about its account. */
@@ -91,6 +93,10 @@ export interface Account {
   perks: { multiOpen: number; clickPower: number; offlineIncome: number; battleRounds: number; maxBet: number };
   /** Present once, right after offline income was paid out. */
   offline?: { earned: number; seconds: number };
+  /** Present once, right after the day's login streak bonus was paid. */
+  streakPaid?: { days: number; earned: number };
+  /** Login streak: days in a row, counting today. */
+  streak: number;
   inventory: OwnedItem[];
   stats: {
     opened: number;

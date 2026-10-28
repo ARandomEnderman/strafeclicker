@@ -1,5 +1,5 @@
 import { serverNow } from "../live";
-import { DAILY_PRIZES, DAILY_SPIN_MS } from "../odds";
+import { DAILY_PRIZES, DAILY_SPIN_MS, rewardScale, STREAK_MAX_DAYS, streakReward } from "../odds";
 import { dailySpin, getState, ServerError, subscribe } from "../state";
 import { h, money, toast } from "./dom";
 import { onLeave } from "./page";
@@ -20,12 +20,18 @@ function svg<K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string,
   return el;
 }
 
+/** "$25", "$1.5K", "50¢": short enough for a wheel slice. */
+const short = (usd: number) =>
+  usd >= 1e6 ? `$${+(usd / 1e6).toFixed(1)}M` : usd >= 1e3 ? `$${+(usd / 1e3).toFixed(1)}K` : usd >= 1 ? `$${+usd.toFixed(2)}` : `${Math.round(usd * 100)}¢`;
+
 const fmt = (t: number) => {
   const s = Math.max(0, Math.ceil(t / 1000));
   return `${Math.floor(s / 3600)}h ${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}m ${String(s % 60).padStart(2, "0")}s`;
 };
 
 export function spinPage() {
+  // Prizes grow with click power.
+  const scale = rewardScale(getState().perks);
   // Equal-sized slices, cheapest to priciest around the wheel, coloured by prize.
   const wheel = svg("g", {});
   const rad = (a: number) => ((a - 90) * Math.PI) / 180;
@@ -45,7 +51,7 @@ export function spinPage() {
       transform: `rotate(${mid} ${Math.cos(rad(mid)) * R * 0.68} ${Math.sin(rad(mid)) * R * 0.68})`,
       class: "sp-label",
     });
-    label.textContent = p.usd >= 1 ? `$${p.usd}` : `${p.usd * 100}¢`;
+    label.textContent = short(p.usd * scale);
     wheel.append(label);
   });
   wheel.append(svg("circle", { cx: 0, cy: 0, r: 26, class: "sp-hub" }));
@@ -119,7 +125,31 @@ export function spinPage() {
     "section",
     { class: "page narrow game-page" },
     h("h1", null, "Daily spin"),
-    h("p", { class: "hint" }, "One free spin every 24 hours. Whatever it lands on goes straight into your balance."),
+    h(
+      "p",
+      { class: "hint" },
+      "One free spin every 24 hours. Whatever it lands on goes straight into your balance.",
+      scale > 1 ? ` Your click power makes every prize ${+scale.toFixed(1)}x bigger.` : " Prizes grow as you upgrade click power.",
+    ),
     h("div", { class: "game-stage sp-stage" }, h("div", { class: "jp-wheel sp-wheel" }, root), status, btn),
+    streakCard(),
+  );
+}
+
+/** The login streak: days in a row, and what the next few days pay. */
+function streakCard() {
+  const { streak, perks } = getState();
+  const days = Array.from({ length: 7 }, (_, i) => Math.max(1, streak - 2) + i).filter((d) => d <= STREAK_MAX_DAYS);
+  return h(
+    "div",
+    { class: "streak-card" },
+    h("div", { class: "streak-head" }, h("b", null, `Login streak: ${streak} day${streak === 1 ? "" : "s"}`), h("span", { class: "hint" }, "Paid on your first visit each day (UTC). Miss a day and it starts over.")),
+    h(
+      "div",
+      { class: "streak-days" },
+      ...days.map((d) =>
+        h("div", { class: `streak-day${d < streak ? " done" : d === streak ? " today" : ""}` }, h("span", null, `Day ${d}`), h("b", null, short(streakReward(perks, d)))),
+      ),
+    ),
   );
 }

@@ -133,7 +133,7 @@ export function upgraderPage() {
 
   const drawInventory = () => {
     for (const uid of selected) if (!getState().inventory.some((it) => it.uid === uid)) selected.delete(uid);
-    const inv = [...getState().inventory].sort((a, b) => priceOf(b) - priceOf(a));
+    const inv = getState().inventory.filter((it) => !it.locked).sort((a, b) => priceOf(b) - priceOf(a));
     invGrid.replaceChildren(
       ...(inv.length
         ? inv.map((it) =>

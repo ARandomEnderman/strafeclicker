@@ -100,6 +100,7 @@ export class Jackpot {
     const out = this.game.act(userId, (a, changes) => {
       const items = uids.map((uid) => a.inventory.find((it) => it.uid === uid));
       if (items.some((it) => !it)) throw new GameError("bad_input", "You don't own one of those items");
+      this.game.checkUnlocked(a, uids);
       const values = items.map((it) => cents(this.game.priceOf(it)));
       const total = values.reduce((s, v) => s + v, 0);
       if (total < cents(JP_MIN_DEPOSIT)) throw new GameError("bad_input", `Deposit at least $${JP_MIN_DEPOSIT.toFixed(2)} worth`);

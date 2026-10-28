@@ -170,7 +170,8 @@ export function tradePage(withUser: string | null = null) {
       ...friends.map((f) => h("option", { value: f.user, selected: f.user.toLowerCase() === partner.toLowerCase() }, `${f.name}${f.name !== f.user ? ` (@${f.user})` : ""}${f.online ? ", online" : ""}`)),
     );
     if (!partner) return [select];
-    const mine = getState().inventory;
+    // Locked items can't be traded.
+    const mine = getState().inventory.filter((it) => !it.locked);
     const giveItems = mine.filter((it) => give.has(it.uid));
     const getItems = theirs.filter((it) => get.has(it.uid));
     const giveTotal = round2(value(giveItems) + giveCash);

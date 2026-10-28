@@ -655,6 +655,7 @@ const actions = {
   open: (userId, body) => game.open(userId, String(body.caseId ?? ""), body.count ?? 1),
   perk: (userId, body) => game.buyPerk(userId, String(body.perk ?? "")),
   sell: (userId, body) => game.sell(userId, body.uids),
+  lock: (userId, body) => game.setLocked(userId, body.uids, !!body.locked),
   upgrade: (userId, body) => game.upgrade(userId, body.uids, body.target),
   reset: (userId) => {
     bhop.forget(userId); // their stakes are part of what's being wiped

@@ -6,6 +6,10 @@ import { randomBytes, randomInt } from "node:crypto";
 import { readFileSync, renameSync } from "node:fs";
 import {
   NO_PERKS,
+  offlinePerHour,
+  rewardScale,
+  streakReward,
+  utcDay,
   OFFLINE_CAP_HOURS,
   OFFLINE_MIN_GAP_MS,
   PERKS,
@@ -240,11 +244,24 @@ export class Game {
     const gap = a.lastActive == null ? 0 : now - a.lastActive;
     if (gap < OFFLINE_MIN_GAP_MS) return null;
     const ms = Math.min(gap, OFFLINE_CAP_HOURS * 3_600_000);
-    const earned = Math.floor((perkValue(a.perks, "offlineIncome") * 100 * ms) / 3_600_000);
+    const earned = Math.floor((offlinePerHour(a.perks) * 100 * ms) / 3_600_000);
     if (earned <= 0) return null;
     a.balanceCents += earned;
     a.stats.offlineCents = (a.stats.offlineCents ?? 0) + earned;
     return { earned: earned / 100, seconds: Math.round(ms / 1000) };
+  }
+
+  /** The login streak: the first visit of each day (UTC) pays a bonus that grows each day in a row. */
+  #payStreak(a) {
+    const today = utcDay();
+    const last = a.stats.streak;
+    if (last?.day === today) return null;
+    const days = last?.day === today - 1 ? last.days + 1 : 1;
+    const earned = cents(streakReward(a.perks, days));
+    a.stats.streak = { day: today, days };
+    a.balanceCents += earned;
+    a.stats.streakCents = (a.stats.streakCents ?? 0) + earned;
+    return { days, earned: earned / 100 };
   }
 
   /**
@@ -257,11 +274,12 @@ export class Game {
     const out = tx(this.db, () => {
       const a = this.#load(userId);
       const offline = this.#payOffline(a);
+      const streakPaid = this.#payStreak(a);
       ensureMissions(a);
       const result = fn(a, changes);
       const unlocked = this.#unlockAchievements(a);
       this.#save(a, changes);
-      return { ...result, account: { ...this.#view(a), ...(offline ? { offline } : {}), ...(unlocked.length ? { unlocked } : {}) } };
+      return { ...result, account: { ...this.#view(a), ...(offline ? { offline } : {}), ...(streakPaid ? { streakPaid } : {}), ...(unlocked.length ? { unlocked } : {}) } };
     });
     for (const { win, delayMs } of changes.wins ?? []) this.feed?.push(win, delayMs);
     return out;
@@ -428,7 +446,7 @@ export class Game {
       const rig = this.rig("dailySpin");
       const weights = DAILY_PRIZES.map((p, i) => [i, p.weight * (i >= DAILY_PRIZES.length / 2 ? 1 - rig : 1)]);
       const slot = pickWeighted(weights, randomFloats(1)[0]);
-      const prize = cents(DAILY_PRIZES[slot].usd);
+      const prize = cents(DAILY_PRIZES[slot].usd * rewardScale(a.perks));
       a.balanceCents += prize;
       a.stats.lastSpin = now;
       a.stats.spinCents = (a.stats.spinCents ?? 0) + prize;
@@ -495,10 +513,28 @@ export class Game {
     return fresh;
   }
 
+  /** Throws if any of `uids` is locked (the owner locked it so nothing can sell or stake it). */
+  checkUnlocked(a, uids) {
+    const locked = new Set(a.stats.locked ?? []);
+    if (uids.some((uid) => locked.has(uid))) throw new GameError("locked", "One of those items is locked. Unlock it in your inventory first.");
+  }
+
+  /** Lock or unlock items you own. */
+  setLocked(userId, uids, locked) {
+    return this.#act(userId, (a) => {
+      const ids = (Array.isArray(uids) ? uids : []).map(String).filter((uid) => a.inventory.some((it) => it.uid === uid));
+      const set = new Set((a.stats.locked ?? []).filter((uid) => a.inventory.some((it) => it.uid === uid)));
+      for (const uid of ids) locked ? set.add(uid) : set.delete(uid);
+      a.stats.locked = [...set];
+      return { count: ids.length };
+    });
+  }
+
   /** Take items out of an account (they must all be there). Returns them. */
   takeItems(a, changes, uids, max) {
     const ids = [...new Set((Array.isArray(uids) ? uids : []).map(String))];
     if (!ids.length || ids.length > max) throw new GameError("bad_input", `Pick 1 to ${max} items`);
+    this.checkUnlocked(a, ids);
     const items = ids.map((uid) => a.inventory.find((it) => it.uid === uid));
     if (items.some((it) => !it)) throw new GameError("bad_input", "You don't own one of those items");
     a.inventory = a.inventory.filter((it) => !ids.includes(it.uid));
@@ -534,7 +570,7 @@ export class Game {
       ...(a.username === "admin" ? { isAdmin: true } : {}),
       balance: a.balanceCents / 100,
       perks: a.perks,
-      inventory: a.inventory,
+      inventory: s.locked?.length ? a.inventory.map((it) => (s.locked.includes(it.uid) ? { ...it, locked: true } : it)) : a.inventory,
       stats: {
         opened: s.opened,
         spent: s.spentCents / 100,
@@ -553,6 +589,8 @@ export class Game {
         offlineEarned: (s.offlineCents ?? 0) / 100,
       },
       nextSpinAt: (s.lastSpin ?? 0) + DAILY_SPIN_EVERY_MS,
+      // Days in a row, counting today (0 once a day was missed).
+      streak: s.streak && s.streak.day >= utcDay() - 1 ? s.streak.days : 0,
       missions: missionsView(s.missions),
       achievements: s.achievements,
       claimed: s.claimed,
@@ -684,6 +722,7 @@ export class Game {
   sell(userId, uids) {
     return this.#act(userId, (a, changes) => {
       const set = new Set(Array.isArray(uids) ? uids : []);
+      this.checkUnlocked(a, [...set]);
       let total = 0;
       changes.removed = [];
       a.inventory = a.inventory.filter((it) => {
@@ -706,6 +745,7 @@ export class Game {
       if (!picked.length || picked.length > UPGRADE_MAX_ITEMS) throw new GameError("bad_input", `Pick 1–${UPGRADE_MAX_ITEMS} items`);
       const inputs = picked.map((uid) => a.inventory.find((it) => it.uid === uid));
       if (inputs.some((it) => !it)) throw new GameError("bad_input", "You don't own one of those items");
+      this.checkUnlocked(a, picked);
 
       const item = this.#item(target?.itemId);
       if (!item) throw new GameError("bad_target", "Unknown target item");
