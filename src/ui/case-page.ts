@@ -270,6 +270,11 @@ const markerCentre = (wrap: HTMLElement) => {
 };
 
 const currentX = (reel: HTMLElement) => new DOMMatrixReadOnly(getComputedStyle(reel).transform).m41;
+/**
+ * How much the reel is scaled on screen (a popup zooming in, say). Measured distances are
+ * divided by it, since translateX works in the reel's own, unscaled pixels.
+ */
+const scaleOf = (reel: HTMLElement) => reel.getBoundingClientRect().width / reel.offsetWidth || 1;
 
 function resetReel(reel: HTMLElement) {
   reel.getAnimations().forEach((a) => a.cancel());
@@ -281,7 +286,7 @@ function resetReel(reel: HTMLElement) {
 function xFor(reel: HTMLElement, i: number, fraction: number) {
   const wrap = reel.parentElement as HTMLElement;
   const t = (reel.children[i] as HTMLElement).getBoundingClientRect();
-  return currentX(reel) - (t.left + t.width * fraction - markerCentre(wrap));
+  return currentX(reel) - (t.left + t.width * fraction - markerCentre(wrap)) / scaleOf(reel);
 }
 
 function snapTo(reel: HTMLElement) {
@@ -306,8 +311,9 @@ async function animate(reel: HTMLElement, sound = true): Promise<void> {
   const target = xFor(reel, WIN_INDEX, slack);
   // Measured with the reel at 0: where the marker sits along the strip, and the tile pitch.
   const first = (reel.children[0] as HTMLElement).getBoundingClientRect();
-  const pitch = (reel.children[1] as HTMLElement).getBoundingClientRect().left - first.left;
-  const markerInReel = markerCentre(reel.parentElement as HTMLElement) - first.left;
+  const scale = scaleOf(reel);
+  const pitch = ((reel.children[1] as HTMLElement).getBoundingClientRect().left - first.left) / scale;
+  const markerInReel = (markerCentre(reel.parentElement as HTMLElement) - first.left) / scale;
 
   const anim = reel.animate([{ transform: `translateX(${start}px)` }, { transform: `translateX(${target}px)` }], {
     duration: SPIN_MS,
@@ -380,8 +386,9 @@ export async function reelPopup(c: Case, drop: OwnedItem, title: string) {
   openModal(title, h("div", { class: "drop-popup" }, h("div", { class: "drop-popup-case" }, h("img", { src: c.image, alt: "" }), h("b", null, c.name)), wrap, result), { wide: true });
   const item = getItem(drop.itemId);
   fillReel(reel, c, item);
-  // Let the popup lay out before measuring the tiles.
+  // Let the popup lay out, and finish zooming in, before measuring the tiles.
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  await Promise.all((wrap.closest(".modal")?.getAnimations() ?? []).map((a) => a.finished.catch(() => undefined)));
   await animate(reel);
   ensureLanded(reel, wrap);
   playReveal(item.tier);
