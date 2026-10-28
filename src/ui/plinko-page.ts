@@ -1,5 +1,6 @@
 import { PLINKO_DROP_MS, PLINKO_RISKS, PLINKO_ROWS, PLINKO_TABLES } from "../odds";
 import { displayBalance, dropPlinko, InsufficientFunds, ServerError } from "../state";
+import { autoBet } from "./auto-bet";
 import { betInput, segmented } from "./bet-input";
 import { h, money, toast } from "./dom";
 import { onLeave } from "./page";
@@ -132,18 +133,22 @@ export function plinkoPage() {
   };
 
   const bet = betInput();
-  const go = async () => {
-    const stake = bet.value();
+  /** Drop one ball; resolves to its profit as soon as the server has rolled it (null if refused). */
+  const dropOne = async (stake: number): Promise<number | null> => {
     // Balls still falling don't count: their winnings aren't yours until they land.
-    if (stake > displayBalance() + 1e-9) return toast("Not enough balance", "error");
+    if (stake > displayBalance() + 1e-9) {
+      toast("Not enough balance", "error");
+      return null;
+    }
     const r0 = rows;
     let res;
     try {
       res = await dropPlinko(stake, rows, risk);
     } catch (e) {
-      if (e instanceof InsufficientFunds) return toast("Not enough balance", "error");
-      if (e instanceof ServerError) return toast(e.message, "error");
-      throw e;
+      if (e instanceof InsufficientFunds) toast("Not enough balance", "error");
+      else if (e instanceof ServerError) toast(e.message, "error");
+      else throw e;
+      return null;
     }
     if (r0 !== rows) layout();
     inFlight++;
@@ -159,8 +164,20 @@ export function plinkoPage() {
       history.prepend(h("div", { class: `plinko-chip${res.mult >= 1 ? " up" : ""}`, style: `--c:${slotColor(res.slot, res.path.length)}`, title: `${money(res.stake)} → ${money(res.payout)}` }, fmtMult(res.mult)));
       while (history.children.length > 12) history.lastElementChild!.remove();
     });
+    return Math.round((res.payout - res.stake) * 100) / 100;
   };
-  const dropBtn = h("button", { class: "btn btn-primary btn-lg", onclick: () => void go() }, "Drop ball");
+  const dropBtn = h("button", { class: "btn btn-primary btn-lg", onclick: () => void dropOne(bet.value()) }, "Drop ball");
+  // Auto: a ball every 300 ms; rows and risk stay locked while it runs.
+  const auto = autoBet({
+    bet,
+    play: dropOne,
+    delayMs: 300,
+    onChange: ({ mode, running }) => {
+      dropBtn.hidden = mode === "auto";
+      bet.setDisabled(running);
+      lock();
+    },
+  });
 
   const riskSeg = segmented<Risk>(
     "Risk",
@@ -184,8 +201,8 @@ export function plinkoPage() {
   );
   // Rows and risk change the board, so they're locked while balls are falling.
   const lock = () => {
-    riskSeg.setDisabled(inFlight > 0);
-    rowSeg.setDisabled(inFlight > 0);
+    riskSeg.setDisabled(inFlight > 0 || auto.running());
+    rowSeg.setDisabled(inFlight > 0 || auto.running());
   };
 
   requestAnimationFrame(layout);
@@ -197,7 +214,7 @@ export function plinkoPage() {
     h(
       "div",
       { class: "game-layout" },
-      h("div", { class: "game-panel" }, bet.el, riskSeg.el, rowSeg.el, dropBtn),
+      h("div", { class: "game-panel" }, auto.modeEl, bet.el, riskSeg.el, rowSeg.el, dropBtn, auto.el),
       h("div", { class: "game-stage plinko-stage" }, history, board),
     ),
   );

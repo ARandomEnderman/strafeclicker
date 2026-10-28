@@ -97,6 +97,49 @@ export class Defuse {
     });
   }
 
+  /**
+   * Auto mode: a whole round in one go. The tiles are picked in the order given; the
+   * round stops at the first bomb, or cashes out once all of them are safe. Same odds
+   * (and rig) as picking them by hand.
+   */
+  auto(userId, body) {
+    const bombs = Math.floor(Number(body.bombs));
+    if (!(bombs >= 1 && bombs <= DEFUSE_TILES - 1)) throw new GameError("bad_input", `Pick 1 to ${DEFUSE_TILES - 1} bombs`);
+    const picks = [...new Set((Array.isArray(body.tiles) ? body.tiles : []).map((t) => Math.floor(Number(t))))];
+    if (!picks.length || picks.some((t) => !(t >= 0 && t < DEFUSE_TILES))) throw new GameError("bad_input", "Pick the tiles to reveal");
+    if (picks.length > DEFUSE_TILES - bombs) throw new GameError("bad_input", `With ${bombs} bombs there are only ${DEFUSE_TILES - bombs} safe tiles`);
+    return this.game.act(userId, (a) => {
+      if (this.q.get.get(userId)) throw new GameError("busy", "Finish your current round first");
+      const stake = stakeCents(a, body.bet);
+      a.balanceCents -= stake;
+      const tiles = Array.from({ length: DEFUSE_TILES }, (_, i) => i);
+      for (let i = tiles.length - 1; i > 0; i--) {
+        const j = randomInt(i + 1);
+        [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+      }
+      const mines = tiles.slice(0, bombs);
+      const rig = this.game.rig("defuse");
+      const revealed = [];
+      for (const tile of picks) {
+        // The rig, as for a hand pick: a bomb from a tile not picked yet moves under this one.
+        if (!mines.includes(tile) && rig > 0 && Math.random() < rig) {
+          const spare = mines.filter((m) => !revealed.includes(m));
+          mines.splice(mines.indexOf(spare[Math.floor(Math.random() * spare.length)]), 1, tile);
+        }
+        if (mines.includes(tile)) {
+          this.game.noteGame(a, "defuse", { stakeCents: stake, payoutCents: 0, max: { bestTiles: revealed.length } });
+          return { result: "boom", tile, revealed, mines: mines.sort((x, y) => x - y), mult: 0, payout: 0, stake: stake / 100 };
+        }
+        revealed.push(tile);
+      }
+      const mult = defuseMultiplier(bombs, revealed.length);
+      const payout = Math.floor(stake * mult);
+      a.balanceCents += payout;
+      this.game.noteGame(a, "defuse", { stakeCents: stake, payoutCents: payout, max: { bestTiles: revealed.length } });
+      return { result: "cashed", revealed, mines: mines.sort((x, y) => x - y), mult, payout: payout / 100, stake: stake / 100 };
+    });
+  }
+
   cashout(userId) {
     return this.game.act(userId, (a) => {
       const r = this.q.get.get(userId);

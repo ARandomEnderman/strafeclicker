@@ -430,7 +430,7 @@ export interface DefuseResult {
   run: DefuseRun | null;
 }
 
-export async function defuseAction(action: "state" | "start" | "reveal" | "cashout", body: object = {}) {
+export async function defuseAction(action: "state" | "start" | "reveal" | "cashout" | "auto", body: object = {}) {
   await flushClicks();
   return post<DefuseResult>("defuse", { action, ...body });
 }

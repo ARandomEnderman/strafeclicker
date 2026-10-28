@@ -457,7 +457,7 @@ const STARTS = {
   bracket: (b) => ["create", "join", "bots"].includes(b.action),
   battle: (b) => ["create", "join", "bots"].includes(b.action),
   bhop: (b) => b.action === "start",
-  defuse: (b) => b.action === "start",
+  defuse: (b) => b.action === "start" || b.action === "auto",
   towers: (b) => b.action === "start",
   poker: (b) => b.action === "deal",
   keno: true,
@@ -616,6 +616,7 @@ const actions = {
     if (body.action === "start") return defuse.start(userId, body);
     if (body.action === "reveal") return defuse.reveal(userId, body);
     if (body.action === "cashout") return defuse.cashout(userId);
+    if (body.action === "auto") return defuse.auto(userId, body);
     throw new GameError("bad_input", "Unknown action");
   },
   bhop: (userId, body) => {

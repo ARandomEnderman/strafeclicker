@@ -6583,3 +6583,76 @@ body.rain-shake .shell {
 .br-name .clan-tag {
   flex: none;
 }
+
+/* ---------- auto bet ---------- */
+
+.btn.btn-danger {
+  background: var(--down);
+  border-color: var(--down);
+  color: #fff;
+}
+.btn.btn-danger:hover:not(:disabled) {
+  background: var(--down);
+  filter: brightness(1.1);
+}
+.auto-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.auto-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.ab-field {
+  min-width: 0;
+}
+.auto-input {
+  width: 100%;
+  min-width: 0;
+}
+.auto-pct {
+  position: relative;
+  display: block;
+}
+.auto-pct span {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+.auto-rule {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px;
+  align-items: end;
+  gap: 8px;
+}
+.auto-rule input:disabled {
+  opacity: 0.4;
+}
+.auto-status {
+  display: flex;
+  justify-content: space-between;
+  min-height: 20px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.auto-status .up {
+  color: var(--up);
+}
+.auto-status .down {
+  color: var(--down);
+}
+.df-tile.picked {
+  box-shadow: inset 0 0 0 3px var(--accent);
+}
+.df-tile.picked.hidden::after {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+}
