@@ -7017,3 +7017,16 @@ body.rain-shake .shell {
     animation: none;
   }
 }
+.password-form {
+  margin-top: 12px;
+}
+.password-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 8px;
+}
+@media (max-width: 700px) {
+  .password-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

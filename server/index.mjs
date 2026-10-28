@@ -539,8 +539,10 @@ const actions = {
     if (body.action === "showcase") return game.setShowcase(userId, body);
     return { profile: profiles.get(userId, body.username), account: game.view(userId) };
   },
-  admin: (userId, body) => {
+  password: async (userId, body, req) => ({ ...(await auth.changePassword(userId, body.current, body.next, cookieValue(req, SESSION_COOKIE))), account: game.view(userId) }),
+  admin: async (userId, body) => {
     admin.check(userId);
+    if (body.action === "password") return { ...(await auth.resetPassword(body.username, body.password)), account: game.view(userId) };
     const a = body.action;
     const r =
       a === "overview" ? admin.overview()
@@ -711,7 +713,7 @@ async function api(req, res, url) {
       const userId = sessionUser(req);
       if (!userId) throw new GameError("auth", "Please log in", 401);
       checkMaintenance(userId, action, body);
-      return send(req, res, 200, actions[action](userId, body));
+      return send(req, res, 200, await actions[action](userId, body, req));
     } catch (err) {
       if (!(err instanceof GameError)) throw err;
       return send(req, res, err.status, { error: err.code, message: err.message }, undefined, headers);

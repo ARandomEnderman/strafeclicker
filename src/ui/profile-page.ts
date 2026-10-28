@@ -1,7 +1,7 @@
 import { priceOf } from "../catalog";
 import { onPricesForPage } from "../live";
 import { PROFILE_BANNERS, SHOWCASE_MAX } from "../../shared/game.js";
-import { getProfile, getState, renameMe, ServerError, setShowcase, subscribe, type Profile } from "../state";
+import { changePassword, getProfile, getState, renameMe, ServerError, setShowcase, subscribe, type Profile } from "../state";
 import { h, money, toast } from "./dom";
 import { dropCard } from "./item-card";
 import { itemPicker } from "./item-picker";
@@ -101,6 +101,34 @@ export function profilePage(username: string) {
     ];
   };
 
+  // Your own profile: change your password (other devices get logged out).
+  const passwordForm = () => {
+    const field = (placeholder: string, autocomplete: string) => h("input", { class: "search", type: "password", placeholder, autocomplete, maxlength: "200" }) as HTMLInputElement;
+    const current = field("Current password", "current-password");
+    const next = field("New password (8+ characters)", "new-password");
+    const again = field("New password again", "new-password");
+    return h(
+      "form",
+      {
+        class: "rename password-form",
+        onsubmit: async (e: Event) => {
+          e.preventDefault();
+          if (next.value !== again.value) return toast("The new passwords don't match", "error");
+          try {
+            await changePassword(current.value, next.value);
+            toast("Password changed. Other devices were logged out.");
+            current.value = next.value = again.value = "";
+          } catch (err) {
+            if (err instanceof ServerError) toast(err.message, "error");
+            else throw err;
+          }
+        },
+      },
+      h("label", { class: "field-label" }, "Change password"),
+      h("div", { class: "password-row" }, current, next, again, h("button", { class: "btn btn-primary", type: "submit" }, "Change")),
+    );
+  };
+
   const draw = () => {
     if (!profile) return;
     const p = profile;
@@ -110,7 +138,7 @@ export function profilePage(username: string) {
     root.replaceChildren(
       profileCard(p, { onChange: () => void load() }),
       ...showcase(p),
-      ...(p.relation === "self" ? [renameForm()] : []),
+      ...(p.relation === "self" ? [renameForm(), passwordForm()] : []),
       ...(p.inventory || p.relation === "self"
         ? [
             h(

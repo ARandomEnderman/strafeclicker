@@ -604,6 +604,19 @@ export function adminPage() {
                     {
                       class: "btn btn-sm",
                       onclick: async () => {
+                        const v = prompt(`New password for ${u.user} (8+ characters). Leave empty for a random one. They'll be logged out everywhere.`, "");
+                        if (v === null) return;
+                        const r = await run(() => adminAction<{ password: string }>("password", { username: u.user, password: v }));
+                        if (r) prompt(`${u.user}'s new password (copy it now, it isn't shown again):`, r.password);
+                      },
+                    },
+                    "Password",
+                  ),
+                  h(
+                    "button",
+                    {
+                      class: "btn btn-sm",
+                      onclick: async () => {
                         if (u.mutedUntil) return (await run(() => adminAction("mute", { username: u.user, minutes: 0 }), "Unmuted")) && void loadUsers();
                         const v = prompt(`Mute ${u.user} in chat for how many minutes? (-1 = for good)`, "60");
                         if (v && (await run(() => adminAction("mute", { username: u.user, minutes: Number(v) }), "Muted"))) void loadUsers();

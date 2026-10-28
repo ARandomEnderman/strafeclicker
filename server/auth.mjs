@@ -57,6 +57,10 @@ export class Auth {
       addSession: db.prepare("INSERT INTO sessions (token_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)"),
       dropSession: db.prepare("DELETE FROM sessions WHERE token_hash = ?"),
       expire: db.prepare("DELETE FROM sessions WHERE expires_at <= ?"),
+      hashOf: db.prepare("SELECT pass_hash FROM users WHERE id = ?"),
+      setHash: db.prepare("UPDATE users SET pass_hash = ? WHERE id = ?"),
+      dropAll: db.prepare("DELETE FROM sessions WHERE user_id = ?"),
+      dropOthers: db.prepare("DELETE FROM sessions WHERE user_id = ? AND token_hash != ?"),
     };
     this.q.expire.run(Date.now());
   }
@@ -80,6 +84,35 @@ export class Auth {
 
   logout(token) {
     if (token) this.q.dropSession.run(sha256(token));
+  }
+
+  #checkNew(password) {
+    if (password.length < MIN_PASSWORD) throw new GameError("bad_password", `Password must be at least ${MIN_PASSWORD} characters`);
+    if (password.length > 200) throw new GameError("bad_password", "Password is too long");
+  }
+
+  /** The player changes their own password: the current one is needed; other devices get logged out. */
+  async changePassword(userId, current, next, token) {
+    current = String(current ?? "");
+    next = String(next ?? "");
+    const row = this.q.hashOf.get(userId);
+    if (!row || !(await verifyPassword(current, row.pass_hash))) throw new GameError("bad_login", "Your current password is wrong", 403);
+    this.#checkNew(next);
+    this.q.setHash.run(await hashPassword(next), userId);
+    this.q.dropOthers.run(userId, sha256(token ?? ""));
+    return { ok: true };
+  }
+
+  /** The admin sets someone's password (a random one if none is given). Logs them out everywhere. */
+  async resetPassword(username, password) {
+    const row = this.q.byName.get(String(username ?? ""));
+    if (!row) throw new GameError("not_found", "No such user", 404);
+    let next = String(password ?? "").trim();
+    if (!next) next = randomBytes(9).toString("base64url");
+    this.#checkNew(next);
+    this.q.setHash.run(await hashPassword(next), row.id);
+    this.q.dropAll.run(row.id);
+    return { password: next };
   }
 
   async register(username, password, legacyId) {
