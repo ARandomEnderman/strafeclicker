@@ -527,3 +527,19 @@ export const RPS_REVEAL_MS = 2500;
 /** Banner colours a profile can pick. */
 export const PROFILE_BANNERS = ["default", "gold", "red", "purple", "blue", "green", "pink", "teal"];
 export const SHOWCASE_MAX = 4;
+
+// ---------- Bracket tournaments ----------
+// 4 or 8 players, single elimination; the creator picks the game that decides each
+// round's 1v1 matches. The champion takes every entry fee.
+
+export const BRACKET_SIZES = [4, 8];
+export const BRACKET_GAMES = {
+  coinflip: "Coinflip",
+  highcard: "High card",
+  rps: "Rock paper scissors",
+  unbox: "Unbox duel",
+};
+/** How long a coinflip / high card / unbox match plays on screen. */
+export const BRACKET_SHOW_MS = 4000;
+/** Pause between one round of the bracket finishing and the next starting. */
+export const BRACKET_GAP_MS = 3000;

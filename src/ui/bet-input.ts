@@ -6,7 +6,7 @@ import { icon } from "./icons";
 const KEY = "strafeclicker:bet";
 
 /** Bet amount field with half / double / max buttons. Remembers the last amount. */
-export function betInput(onChange?: () => void) {
+export function betInput(onChange?: () => void, label = "Bet amount") {
   let saved = 0.1;
   try {
     saved = Number(localStorage.getItem(KEY)) || saved;
@@ -35,7 +35,7 @@ export function betInput(onChange?: () => void) {
   const el = h(
     "div",
     { class: "bet" },
-    h("label", { class: "field-label" }, "Bet amount"),
+    h("label", { class: "field-label" }, label),
     h(
       "div",
       { class: "bet-row" },

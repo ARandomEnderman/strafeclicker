@@ -306,6 +306,11 @@ export interface BhopResult {
   run: BhopRun | null;
 }
 
+export async function bracketAction(action: "create" | "join" | "bots" | "leave" | "pick", body: object) {
+  await flushClicks();
+  return post<{ id: number }>("bracket", { action, ...body });
+}
+
 export async function rpsAction(action: "create" | "join" | "bot" | "cancel" | "pick", body: object) {
   await flushClicks();
   return post<{ id: number }>("rps", { action, ...body });

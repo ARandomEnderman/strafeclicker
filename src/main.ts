@@ -37,6 +37,8 @@ import { pokerPage } from "./ui/poker-page";
 import { bombplantPage } from "./ui/bombplant-page";
 import { rpsPage, rpsView } from "./ui/rps-page";
 import { clanView, clansPage } from "./ui/clans-page";
+import { bracketView, bracketsPage } from "./ui/bracket-page";
+import "./brackets";
 import "./tags";
 import "./race";
 import "./bombplant";
@@ -69,6 +71,7 @@ const MAIN_NAV: NavItem[] = [
   { route: "clicker", href: "#/clicker", label: "Clicker", icon: "clicker" },
   { route: "cases", href: "#/", label: "Cases", icon: "cases" },
   { route: "battles", href: "#/battles", label: "Case battles", icon: "battles" },
+  { route: "brackets", href: "#/brackets", label: "Brackets", icon: "bracket" },
   { route: "upgrader", href: "#/upgrader", label: "Upgrader", icon: "upgrader" },
 ];
 /** The casino games: a group in the sidebar that folds up when there isn't room. */
@@ -348,6 +351,7 @@ function route() {
   else if (page === "blackjack") view = blackjackPage();
   else if (page === "poker") view = pokerPage();
   else if (page === "bombplant") view = bombplantPage();
+  else if (page === "brackets") view = arg ? bracketView(Number(arg)) : bracketsPage(new URLSearchParams(query).get("code"));
   else if (page === "clans") view = arg ? clanView(Number(arg)) : clansPage();
   else if (page === "rps") view = arg ? rpsView(Number(arg)) : rpsPage(new URLSearchParams(query).get("code"));
   else if (page === "missions") view = missionsPage();

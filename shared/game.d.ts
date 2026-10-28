@@ -131,3 +131,7 @@ export const RPS_PICK_MS: number;
 export const RPS_REVEAL_MS: number;
 export const PROFILE_BANNERS: string[];
 export const SHOWCASE_MAX: number;
+export const BRACKET_SIZES: number[];
+export const BRACKET_GAMES: Record<string, string>;
+export const BRACKET_SHOW_MS: number;
+export const BRACKET_GAP_MS: number;

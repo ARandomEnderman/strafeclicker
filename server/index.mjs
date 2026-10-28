@@ -37,6 +37,7 @@ import { Towers } from "./games/towers.mjs";
 import { Poker } from "./games/poker.mjs";
 import { BombPlant } from "./games/bombplant.mjs";
 import { Rps } from "./games/rps.mjs";
+import { Brackets } from "./games/brackets.mjs";
 import { Roulette } from "./games/roulette.mjs";
 import { Coinflip } from "./games/coinflip.mjs";
 import { Jackpot } from "./games/jackpot.mjs";
@@ -283,6 +284,8 @@ const coinflip = new Coinflip(game, db, friends, { broadcastPer, toUser });
 coinflip.start();
 const rps = new Rps(game, db, friends, { broadcastPer, toUser });
 rps.start();
+const brackets = new Brackets(game, db, friends, { broadcastPer, toUser });
+brackets.start();
 const blackjack = new Blackjack(game, db, { broadcastPer, toUser });
 blackjack.start();
 const onlineIds = () => new Set([...clients].map((r) => r.userId).filter((id) => id != null));
@@ -316,6 +319,7 @@ function friendsChanged(...userIds) {
   battles.publish();
   coinflip.publish();
   rps.publish();
+  brackets.publish();
 }
 
 setInterval(() => {
@@ -342,6 +346,7 @@ function events(req, res) {
   res.write(`event: battles\ndata: ${JSON.stringify(battles.list(res.userId))}\n\n`);
   res.write(`event: flips\ndata: ${JSON.stringify(coinflip.list(res.userId))}\n\n`);
   res.write(`event: rps\ndata: ${JSON.stringify(rps.list(res.userId))}\n\n`);
+  res.write(`event: brackets\ndata: ${JSON.stringify(brackets.list(res.userId))}\n\n`);
   res.write(`event: bj\ndata: ${JSON.stringify(blackjack.view(res.userId))}\n\n`);
   res.write(`event: tags\ndata: ${JSON.stringify(clans.tags())}\n\n`);
   res.write(`event: chat\ndata: ${JSON.stringify(chat.history(res.userId))}\n\n`);
@@ -449,6 +454,7 @@ const STARTS = {
   flashbang: (b) => b.action === "bet",
   coinflip: (b) => ["create", "join", "bot"].includes(b.action),
   rps: (b) => ["create", "join", "bot"].includes(b.action),
+  bracket: (b) => ["create", "join", "bots"].includes(b.action),
   battle: (b) => ["create", "join", "bots"].includes(b.action),
   bhop: (b) => b.action === "start",
   defuse: (b) => b.action === "start",
@@ -569,6 +575,14 @@ const actions = {
     throw new GameError("bad_input", "Unknown action");
   },
   jackpot: (userId, body) => (body.action === "withdraw" ? jackpot.withdraw(userId) : jackpot.deposit(userId, body)),
+  bracket: (userId, body) => {
+    if (body.action === "create") return brackets.create(userId, body);
+    if (body.action === "join") return brackets.join(userId, body);
+    if (body.action === "bots") return brackets.bots(userId, body);
+    if (body.action === "leave") return brackets.leave(userId, body);
+    if (body.action === "pick") return brackets.pick(userId, body);
+    throw new GameError("bad_input", "Unknown action");
+  },
   rps: (userId, body) => {
     if (body.action === "create") return rps.create(userId, body);
     if (body.action === "join") return rps.join(userId, body);
@@ -748,6 +762,7 @@ for (const sig of ["SIGINT", "SIGTERM"]) {
     race.stop();
     bombplant.stop();
     rps.stop();
+    brackets.stop();
     blackjack.stop();
     leaderboard.stop();
     void steam.stop().finally(() => {

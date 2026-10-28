@@ -83,7 +83,7 @@ export function rigReport(settings) {
     { game: "blackjack", rig: r("blackjack"), rtp: pct(interp(BJ_RTP, r("blackjack"))), note: `With perfect basic strategy; real players do worse. ${pct(r("blackjack"))}% of the dealer's draws are the best of three cards. About 99% with no rig.` },
     { game: "poker", rig: r("poker"), rtp: pct(interp(POKER_RTP, r("poker"))), note: `Jacks or Better 9/6, with perfect play (a simple strategy gets about 97%). ${pct(r("poker"))}% of draws also try the next cards and keep the worse hand. 99.5% with no rig.` },
     { game: "dailySpin", rig: r("dailySpin"), rtp: null, note: `Free, so no payback: worth ${money(dailyEv(r("dailySpin")))} a day on average (${money(dailyEv(0))} with no rig). The rig makes the top four prizes rarer.` },
-    { game: "battles / jackpot / coinflip / RPS (players)", rig: null, rtp: 100, note: "Player against player: nothing to rig, there's no house." },
+    { game: "battles / jackpot / coinflip / RPS / brackets (players)", rig: null, rtp: 100, note: "Player against player: nothing to rig, there's no house." },
   ];
 }
 

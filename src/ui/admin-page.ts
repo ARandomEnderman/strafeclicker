@@ -70,6 +70,7 @@ const GAME_NAMES: Record<string, string> = {
   poker: "Video poker",
   bombplant: "Bomb plant",
   rps: "Rock paper scissors",
+  bracket: "Brackets",
   coinflipBot: "Coinflip vs bot",
   rpsBot: "RPS vs bot",
   dailySpin: "Daily spin",

@@ -18,6 +18,7 @@ export const GAME_NAMES: Record<string, string> = {
   coinflip: "Coinflip",
   jackpot: "Jackpot",
   battle: "Case battle",
+  bracket: "Bracket",
 };
 
 export const gameName = (id: string) => GAME_NAMES[id] ?? id;
