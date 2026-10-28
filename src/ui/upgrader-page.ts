@@ -30,7 +30,7 @@ export function upgraderPage() {
   const selected = new Set<string>();
   let target: Variant | null = null;
   let spinning = false;
-  // The win zone starts at the bottom of the ring (180°) and runs clockwise; the arrow rests there.
+  // The win zone is centred on the bottom of the ring (180°), half on each side; the arrow rests there.
   const START_DEG = 180;
   let rotation = START_DEG;
   /** The last spin's chance, so its zone stays on the ring (with the arrow on it) until you pick again. */
@@ -78,10 +78,9 @@ export function upgraderPage() {
   const arcPath = (fraction: number) => {
     if (fraction <= 0) return "";
     const a = Math.min(fraction, 0.9999) * 2 * Math.PI;
-    const end = a + (START_DEG * Math.PI) / 180;
-    const x = 110 + 92 * Math.sin(end);
-    const y = 110 - 92 * Math.cos(end);
-    return `M110 202 A92 92 0 ${a > Math.PI ? 1 : 0} 1 ${x.toFixed(2)} ${y.toFixed(2)}`;
+    const mid = (START_DEG * Math.PI) / 180;
+    const pt = (t: number) => `${(110 + 92 * Math.sin(t)).toFixed(2)} ${(110 - 92 * Math.cos(t)).toFixed(2)}`;
+    return `M${pt(mid - a / 2)} A92 92 0 ${a > Math.PI ? 1 : 0} 1 ${pt(mid + a / 2)}`;
   };
 
   const drawDial = () => {
@@ -233,7 +232,9 @@ export function upgraderPage() {
     const winDeg = result.chance * 360;
     const land = result.won ? winDeg * (0.1 + 0.8 * Math.random()) : winDeg + (360 - winDeg) * (0.05 + 0.9 * Math.random());
     dial.classList.remove("won", "lost");
-    rotation = Math.ceil((rotation - START_DEG) / 360) * 360 + START_DEG + 360 * 5 + land;
+    // `land` is measured from the zone's left edge; spin forward five turns and stop there.
+    const stop = (((START_DEG - winDeg / 2 + land - rotation) % 360) + 360) % 360;
+    rotation += 360 * 5 + stop;
     pointer.style.transition = `transform ${SPIN_MS}ms cubic-bezier(0.15, 0.85, 0.2, 1)`;
     pointer.style.transform = `rotate(${rotation}deg)`;
     await new Promise((r) => setTimeout(r, SPIN_MS + 100));
