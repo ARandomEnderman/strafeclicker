@@ -55,7 +55,7 @@ export function betInput(onChange?: () => void, label = "Bet amount") {
     h(
       "div",
       { class: "bet-adds" },
-      ...ADDS.map(([label, add]) => h("button", { class: "bet-btn", type: "button", onclick: () => set(value() + add) }, label)),
+      ...ADDS.map(([label, add]) => h("button", { class: "bet-btn", type: "button", onclick: () => set((value() <= BET_MIN ? 0 : value()) + add) }, label)),
       h("button", { class: "bet-btn", type: "button", title: "Back to the smallest bet", onclick: () => set(BET_MIN) }, "Clear"),
     ),
   );

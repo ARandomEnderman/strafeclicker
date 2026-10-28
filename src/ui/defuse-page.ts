@@ -1,3 +1,4 @@
+import { hotkey } from "../hotkeys";
 import { DEFUSE_TILES, defuseMultiplier } from "../odds";
 import { defuseAction, InsufficientFunds, ServerError, type DefuseRun } from "../state";
 import { autoBet } from "./auto-bet";
@@ -104,8 +105,8 @@ export function defusePage() {
     );
   };
 
-  const startBtn = h("button", { class: "btn btn-primary btn-lg", onclick: () => void start() }, "Start round");
-  const cashBtn = h("button", { class: "btn btn-lg bh-cash", onclick: () => void cashout() });
+  const startBtn = hotkey(h("button", { class: "btn btn-primary btn-lg", onclick: () => void start() }, "Start round"), "space r");
+  const cashBtn = hotkey(h("button", { class: "btn btn-lg bh-cash", onclick: () => void cashout() }), "space");
   const drawButtons = () => {
     startBtn.hidden = !!run || autoMode();
     cashBtn.hidden = !run;

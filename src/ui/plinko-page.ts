@@ -1,3 +1,4 @@
+import { hotkey } from "../hotkeys";
 import { PLINKO_DROP_MS, PLINKO_RISKS, PLINKO_ROWS, PLINKO_TABLES } from "../odds";
 import { displayBalance, dropPlinko, InsufficientFunds, ServerError } from "../state";
 import { autoBet } from "./auto-bet";
@@ -166,7 +167,7 @@ export function plinkoPage() {
     });
     return Math.round((res.payout - res.stake) * 100) / 100;
   };
-  const dropBtn = h("button", { class: "btn btn-primary btn-lg", onclick: () => void dropOne(bet.value()) }, "Drop ball");
+  const dropBtn = hotkey(h("button", { class: "btn btn-primary btn-lg", onclick: () => void dropOne(bet.value()) }, "Drop ball"), "space r");
   // Auto: a ball every 300 ms; rows and risk stay locked while it runs.
   const auto = autoBet({
     bet,

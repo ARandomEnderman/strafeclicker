@@ -1,3 +1,4 @@
+import { hotkey } from "../hotkeys";
 import type { BhopDifficulty } from "../../shared/game.js";
 import { BHOP_DIFFICULTIES, bhopMultiplier } from "../odds";
 import { applyAccount, bhopAction, InsufficientFunds, ServerError, type BhopResult, type BhopRun } from "../state";
@@ -165,7 +166,8 @@ export function bhopPage() {
     );
   };
 
-  const startBtn = h("button", { class: "btn btn-primary btn-lg", onclick: () => void start() }, "Start run");
+  // Space also starts a run (and jumps during one, below).
+  const startBtn = hotkey(h("button", { class: "btn btn-primary btn-lg", onclick: () => void start() }, "Start run"), "space r");
   const jumpBtn = h("button", { class: "btn btn-primary btn-lg", onclick: () => void jump() }, "Jump");
   const cashBtn = h("button", { class: "btn btn-lg bh-cash", onclick: () => void cashout() });
 

@@ -1,4 +1,5 @@
 import "./style.css";
+import "./hotkeys";
 import { getCase, loadCatalog, priceOf, round2 } from "./catalog";
 import type { Case } from "./types";
 import { displayBalance, getState, initState, logout, resetAll, setLoggedOutHandler, setOfflineHandler, setUnlockedHandler, subscribe, type Welcome } from "./state";
@@ -14,6 +15,7 @@ import { h, money, toast } from "./ui/dom";
 import { casesPage } from "./ui/cases-page";
 import { casePage } from "./ui/case-page";
 import { inventoryPage } from "./ui/inventory-page";
+import { historyPage } from "./ui/history-page";
 import { clickerPage } from "./ui/clicker-page";
 import { upgraderPage } from "./ui/upgrader-page";
 import { treePage } from "./ui/tree-page";
@@ -96,6 +98,7 @@ const GAMES_NAV: NavItem[] = [
 ];
 const BOTTOM_NAV: NavItem[] = [
   { route: "inventory", href: "#/inventory", label: "Inventory", icon: "inventory" },
+  { route: "history", href: "#/history", label: "Bet history", icon: "timer" },
   { route: "trade", href: "#/trade", label: "Trade", icon: "trade" },
   { route: "tree", href: "#/tree", label: "Upgrades", icon: "upgrades" },
   { route: "clans", href: "#/clans", label: "Clans", icon: "clan" },
@@ -337,6 +340,7 @@ function route() {
     view = casePage(getCase(arg)!);
     active = "cases";
   } else if (page === "inventory") view = inventoryPage();
+  else if (page === "history") view = historyPage();
   else if (page === "clicker") view = clickerPage();
   else if (page === "upgrader") view = upgraderPage();
   else if (page === "tree") view = treePage();

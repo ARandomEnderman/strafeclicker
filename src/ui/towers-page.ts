@@ -1,3 +1,4 @@
+import { hotkey } from "../hotkeys";
 import type { TowerDifficulty } from "../../shared/game.js";
 import { TOWER_DIFFICULTIES, towerMultiplier } from "../odds";
 import { InsufficientFunds, ServerError, towersAction, type TowerFloor, type TowerRun } from "../state";
@@ -96,8 +97,8 @@ export function towersPage() {
       h("div", { class: "tip-row" }, h("span", null, "Next floor pays"), h("b", null, mult(towerMultiplier(diff(), k + 1)))),
     );
   };
-  const startBtn = h("button", { class: "btn btn-primary btn-lg", onclick: () => void start() }, "Start climbing");
-  const cashBtn = h("button", { class: "btn btn-lg bh-cash", onclick: () => void cashout() });
+  const startBtn = hotkey(h("button", { class: "btn btn-primary btn-lg", onclick: () => void start() }, "Start climbing"), "space r");
+  const cashBtn = hotkey(h("button", { class: "btn btn-lg bh-cash", onclick: () => void cashout() }), "space");
   const drawButtons = () => {
     startBtn.hidden = !!run;
     cashBtn.hidden = !run;

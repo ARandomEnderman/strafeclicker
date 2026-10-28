@@ -1,3 +1,4 @@
+import { hotkey } from "../hotkeys";
 import { KENO_DRAWS, KENO_MAX_PICKS, KENO_REVEAL_MS, KENO_TABLES, KENO_TILES } from "../odds";
 import { displayBalance, InsufficientFunds, playKeno, ServerError } from "../state";
 import { betInput } from "./bet-input";
@@ -76,7 +77,7 @@ export function kenoPage() {
   };
 
   const bet = betInput();
-  const playBtn = h("button", { class: "btn btn-primary btn-lg", onclick: () => void play() });
+  const playBtn = hotkey(h("button", { class: "btn btn-primary btn-lg", onclick: () => void play() }), "space r");
   const randomBtn = h(
     "button",
     {

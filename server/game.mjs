@@ -69,6 +69,9 @@ const freshStats = () => ({
   claimed: {},
 });
 
+/** How long bet history is kept. */
+const BET_HISTORY_DAYS = 30;
+
 export class GameError extends Error {
   constructor(code, message, status = 400) {
     super(message);
@@ -128,6 +131,18 @@ export class Game {
     /** Admin overrides, used once: userId -> the drop their next case opening gives / whether their next upgrade wins. */
     this.forcedDrops = new Map();
     this.forcedUpgrades = new Map();
+    // Bet history: every settled bet and case opening, kept for BET_HISTORY_DAYS.
+    db.exec(`CREATE TABLE IF NOT EXISTS bets (
+      id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, game TEXT NOT NULL,
+      stake_cents INTEGER NOT NULL, payout_cents INTEGER NOT NULL, n INTEGER NOT NULL DEFAULT 1, at INTEGER NOT NULL)`);
+    db.exec("CREATE INDEX IF NOT EXISTS bets_user ON bets(user_id, id)");
+    this.betQ = {
+      add: db.prepare("INSERT INTO bets (user_id, game, stake_cents, payout_cents, n, at) VALUES (?, ?, ?, ?, ?, ?)"),
+      recent: db.prepare("SELECT game, stake_cents, payout_cents, n, at FROM bets WHERE user_id = ? ORDER BY id DESC LIMIT ?"),
+      prune: db.prepare("DELETE FROM bets WHERE at < ?"),
+    };
+    this.betQ.prune.run(Date.now() - BET_HISTORY_DAYS * 86_400_000);
+    setInterval(() => this.betQ.prune.run(Date.now() - BET_HISTORY_DAYS * 86_400_000), 3_600_000).unref();
     this.q = {
       user: db.prepare("SELECT id, username, display_name, created_at, balance_cents, perks, stats, last_active FROM users WHERE id = ?"),
       rename: db.prepare("UPDATE users SET display_name = ? WHERE id = ?"),
@@ -356,6 +371,7 @@ export class Game {
    */
   track(a, ev) {
     trackMissions(a, ev);
+    if ((ev.type === "game" || ev.type === "cases") && ev.stakeCents > 0) this.betQ.add.run(a.id, ev.game, ev.stakeCents, ev.payoutCents, ev.n ?? 1, Date.now());
     // Cashback event: part of a losing bet's loss comes straight back.
     const cb = this.settings?.event("cashback");
     if (cb && ev.stakeCents > 0 && ev.payoutCents < ev.stakeCents) {
@@ -595,6 +611,17 @@ export class Game {
       achievements: s.achievements,
       claimed: s.claimed,
     };
+  }
+
+  /** Your last `limit` bets and case openings, newest first. */
+  betHistory(userId, limit = 100) {
+    return this.betQ.recent.all(userId, Math.min(500, Math.max(1, Number(limit) || 100))).map((r) => ({
+      game: r.game,
+      stake: r.stake_cents / 100,
+      payout: r.payout_cents / 100,
+      n: r.n,
+      at: r.at,
+    }));
   }
 
   /** Also marks the account active (and pays offline income), so it's a transaction too. */

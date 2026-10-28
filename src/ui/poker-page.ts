@@ -1,3 +1,4 @@
+import { hotkey } from "../hotkeys";
 import { POKER_HANDS, pokerHand, type PokerCard } from "../../shared/game.js";
 import { InsufficientFunds, pokerDeal, pokerDraw, pokerState, ServerError } from "../state";
 import { betInput } from "./bet-input";
@@ -40,7 +41,7 @@ export function pokerPage() {
     }),
   );
   const table = h("div", { class: "vp-pays" });
-  const actBtn = h("button", { class: "btn btn-primary btn-lg vp-act", onclick: () => void act() });
+  const actBtn = hotkey(h("button", { class: "btn btn-primary btn-lg vp-act", onclick: () => void act() }), "space");
 
   const draw = () => {
     slots.forEach((el, i) => {

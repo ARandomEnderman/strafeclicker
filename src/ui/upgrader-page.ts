@@ -1,3 +1,4 @@
+import { hotkey } from "../hotkeys";
 import type { Drop, Item, OwnedItem } from "../types";
 import { getCatalog, getItem, priceOf, round2 } from "../catalog";
 import { onPricesForPage } from "../live";
@@ -39,7 +40,7 @@ export function upgraderPage() {
   const inputSlot = h("div", { class: "upg-slot" });
   const targetSlot = h("div", { class: "upg-slot" });
   const dial = h("div", { class: "upg-dial" });
-  const goBtn = h("button", { class: "btn btn-primary btn-lg", onclick: () => go() }, "Upgrade");
+  const goBtn = hotkey(h("button", { class: "btn btn-primary btn-lg", onclick: () => go() }, "Upgrade"), "space r");
   const invGrid = h("div", { class: "item-grid upg-grid" });
   const targetGrid = h("div", { class: "item-grid upg-grid" });
   const multChips = h("div", { class: "sort" });

@@ -7207,3 +7207,53 @@ body.rain-shake .shell {
   color: var(--accent);
   font-size: 11px;
 }
+
+/* ---------- bet history ---------- */
+.hist-game {
+  width: auto;
+}
+.hist-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.hist-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.hist-table th,
+.hist-table td {
+  padding: 8px 12px;
+  text-align: right;
+  white-space: nowrap;
+}
+.hist-table th:nth-child(-n + 2),
+.hist-table td:nth-child(-n + 2) {
+  text-align: left;
+}
+.hist-table th {
+  background: var(--bg-2);
+  color: var(--muted);
+  font-weight: 600;
+}
+.hist-table tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+.hist-table td.up {
+  color: var(--up);
+}
+.hist-table td.down {
+  color: var(--down);
+}
+.hist-time,
+.hist-n {
+  color: var(--muted);
+}
+.stat b.up {
+  color: var(--up);
+}
+.stat b.down {
+  color: var(--down);
+}

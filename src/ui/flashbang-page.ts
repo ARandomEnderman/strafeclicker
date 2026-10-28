@@ -1,3 +1,4 @@
+import { hotkey } from "../hotkeys";
 import flashbangImg from "../assets/flashbang.webp";
 import { fbState, onFlashbang, setWatchingFlashbang, type FbBet, type FbState } from "../flashbang";
 import { serverNow } from "../live";
@@ -159,7 +160,7 @@ export function flashbangPage() {
   });
   const autoEl = h("div", null, h("label", { class: "field-label" }, "Auto cash out at"), h("div", { class: "bet-row" }, auto, h("span", { class: "bet-suffix" }, "x")));
 
-  const mainBtn = h("button", { class: "btn btn-primary btn-lg fb-main" });
+  const mainBtn = hotkey(h("button", { class: "btn btn-primary btn-lg fb-main" }), "space");
   let busy = false;
   type Mode = "bet" | "next" | "cashout" | "cancel" | "cancel-next";
   let mode: Mode = "bet";

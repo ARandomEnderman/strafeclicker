@@ -493,6 +493,19 @@ export async function buyPerk(perk: PerkId) {
   return (await post<{ level: number }>("perk", { perk })).level;
 }
 
+export interface BetRecord {
+  game: string;
+  stake: number;
+  payout: number;
+  /** Cases opened at once (1 for everything else). */
+  n: number;
+  at: number;
+}
+/** Your last bets and case openings, newest first. */
+export async function betHistory(limit = 100) {
+  return (await post<{ bets: BetRecord[] }>("bets", { limit })).bets;
+}
+
 /** Lock items (nothing can sell, upgrade, stake or trade them) or unlock them. */
 export async function lockItems(uids: string[], locked: boolean) {
   await post("lock", { uids, locked });
