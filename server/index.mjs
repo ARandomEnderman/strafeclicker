@@ -559,6 +559,7 @@ const actions = {
       : a === "houseRain" ? chat.houseRain(userId, body.amount)
       : a === "caseDrop" ? admin.caseDrop(body.caseId)
       : a === "force" ? admin.forceRound(body)
+      : a === "reloadAll" ? (broadcast("reload", {}), { ok: true, pages: clients.size })
       : a === "forcePlayer" ? admin.forcePlayer(body.username, body)
       : null;
     if (!r) throw new GameError("bad_input", "Unknown action");

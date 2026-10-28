@@ -66,5 +66,12 @@ onServerEvent<SiteState>("site", (s) => {
   state = { ...s, events: s.events ?? [] };
   draw();
 });
+// The admin asked every open page to reload (to pick up a new version after an update).
+// Spread over a few seconds so the server isn't hit by everyone at once.
+onServerEvent("reload", () => {
+  toast("Updating StrafeClicker...", "info", 4000);
+  setTimeout(() => location.reload(), 500 + Math.random() * 2500);
+});
+
 // One-off messages for this player (an event's free case, say).
 onServerEvent<{ text: string }>("notice", (n) => toast(n.text, "achievement", 5000));
