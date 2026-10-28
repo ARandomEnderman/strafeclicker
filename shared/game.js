@@ -79,11 +79,13 @@ export const PERKS = {
     name: "Battle size",
     unit: "cases per battle",
     levels: [
-      { value: 3, cost: 0 },
-      { value: 5, cost: 20 },
+      { value: 5, cost: 0 },
       { value: 10, cost: 75 },
       { value: 15, cost: 250 },
       { value: 20, cost: 750 },
+      { value: 25, cost: 1500 },
+      { value: 30, cost: 3000 },
+      { value: 35, cost: 5000 },
     ],
   },
   clickPower: {
@@ -299,7 +301,7 @@ export const bhopMultiplier = (difficulty, step) =>
 
 export const BATTLE_SIZES = [2, 3, 4];
 /** Hard cap; how many cases a player can put in a battle comes from the battleRounds perk. */
-export const BATTLE_MAX_ROUNDS = 20;
+export const BATTLE_MAX_ROUNDS = 35;
 /** Each round: the reels spin for BATTLE_SPIN_MS, then a pause before the next. */
 export const BATTLE_SPIN_MS = 4000;
 export const BATTLE_ROUND_MS = 5500;

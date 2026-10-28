@@ -67,7 +67,27 @@ export function openDb(file) {
   if (!userCols.has("display_name")) db.exec("ALTER TABLE users ADD COLUMN display_name TEXT");
   if (!userCols.has("banned")) db.exec("ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0");
   if (!userCols.has("muted_until")) db.exec("ALTER TABLE users ADD COLUMN muted_until INTEGER");
+  migrate(db);
   return db;
+}
+
+/** One-off data changes, tracked with SQLite's user_version. */
+function migrate(db) {
+  const version = db.prepare("PRAGMA user_version").get().user_version;
+  if (version < 1) {
+    // Battle size went from 3/5/10/15/20 cases to 5/10/.../35: keep everyone's case count.
+    const NEW_LEVEL = [0, 0, 1, 2, 3];
+    const set = db.prepare("UPDATE users SET perks = ? WHERE id = ?");
+    tx(db, () => {
+      for (const { id, perks } of db.prepare("SELECT id, perks FROM users").all()) {
+        const p = JSON.parse(perks);
+        if (!p.battleRounds) continue;
+        p.battleRounds = NEW_LEVEL[p.battleRounds] ?? 0;
+        set.run(JSON.stringify(p), id);
+      }
+      db.exec("PRAGMA user_version = 1");
+    });
+  }
 }
 
 /** Run fn inside a transaction; roll back if it throws. */
