@@ -443,3 +443,44 @@ export const BJ_RESULT_MS = 6000;
 export const RAIN_LEVELS = ["Drizzle", "Shower", "Downpour", "Storm", "Thunderstorm", "Monsoon"];
 export const rainLevel = (usd) => Math.max(0, Math.min(RAIN_LEVELS.length - 1, Math.floor(Math.log10(Math.max(1, usd)))));
 export const CHAT_MAX_LEN = 200;
+
+// ---------- Video poker (Jacks or Better, 9/6) ----------
+// Deal five, hold any, draw once. Pays are what comes back per $1 bet (the bet included).
+// With perfect play this table pays back 99.54%.
+
+export const POKER_HANDS = [
+  { id: "royal", name: "Royal flush", pay: 800 },
+  { id: "straightFlush", name: "Straight flush", pay: 50 },
+  { id: "quads", name: "Four of a kind", pay: 25 },
+  { id: "fullHouse", name: "Full house", pay: 9 },
+  { id: "flush", name: "Flush", pay: 6 },
+  { id: "straight", name: "Straight", pay: 4 },
+  { id: "trips", name: "Three of a kind", pay: 3 },
+  { id: "twoPair", name: "Two pair", pay: 2 },
+  { id: "jacks", name: "Jacks or better", pay: 1 },
+];
+export const POKER_RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
+export const POKER_SUITS = ["s", "h", "d", "c"];
+
+/** The paying hand five cards ({ r, s }) make, or null. */
+export function pokerHand(cards) {
+  const v = cards.map((c) => POKER_RANKS.indexOf(c.r) + 2).sort((a, b) => a - b);
+  const flush = cards.every((c) => c.s === cards[0].s);
+  const wheel = v.join() === "2,3,4,5,14";
+  const straight = wheel || v.every((x, i) => i === 0 || x === v[i - 1] + 1);
+  const counts = {};
+  for (const x of v) counts[x] = (counts[x] ?? 0) + 1;
+  const groups = Object.entries(counts)
+    .map(([rank, n]) => ({ rank: Number(rank), n }))
+    .sort((a, b) => b.n - a.n || b.rank - a.rank);
+  let id = null;
+  if (straight && flush) id = v[0] === 10 ? "royal" : "straightFlush";
+  else if (groups[0].n === 4) id = "quads";
+  else if (groups[0].n === 3 && groups[1].n === 2) id = "fullHouse";
+  else if (flush) id = "flush";
+  else if (straight) id = "straight";
+  else if (groups[0].n === 3) id = "trips";
+  else if (groups[0].n === 2 && groups[1].n === 2) id = "twoPair";
+  else if (groups[0].n === 2 && groups[0].rank >= 11) id = "jacks";
+  return id ? POKER_HANDS.find((x) => x.id === id) : null;
+}

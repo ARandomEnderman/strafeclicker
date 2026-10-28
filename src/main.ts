@@ -33,6 +33,7 @@ import { kenoPage } from "./ui/keno-page";
 import { towersPage } from "./ui/towers-page";
 import { racePage } from "./ui/race-page";
 import { blackjackPage } from "./ui/blackjack-page";
+import { pokerPage } from "./ui/poker-page";
 import "./race";
 import "./blackjack";
 import "./jackpot";
@@ -77,6 +78,7 @@ const GAMES_NAV: NavItem[] = [
   { route: "keno", href: "#/keno", label: "Keno", icon: "keno" },
   { route: "towers", href: "#/towers", label: "Towers", icon: "towers" },
   { route: "blackjack", href: "#/blackjack", label: "Blackjack", icon: "blackjack" },
+  { route: "poker", href: "#/poker", label: "Video poker", icon: "poker" },
 ];
 const BOTTOM_NAV: NavItem[] = [
   { route: "inventory", href: "#/inventory", label: "Inventory", icon: "inventory" },
@@ -334,6 +336,7 @@ function route() {
   else if (page === "towers") view = towersPage();
   else if (page === "race") view = racePage();
   else if (page === "blackjack") view = blackjackPage();
+  else if (page === "poker") view = pokerPage();
   else if (page === "missions") view = missionsPage();
   else if (page === "leaderboard") view = leaderboardPage();
   else if (page === "admin" && getState().isAdmin) view = adminPage();

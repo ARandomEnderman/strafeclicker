@@ -34,6 +34,7 @@ import { Flashbang } from "./games/flashbang.mjs";
 import { Bhop } from "./games/bhop.mjs";
 import { Defuse } from "./games/defuse.mjs";
 import { Towers } from "./games/towers.mjs";
+import { Poker } from "./games/poker.mjs";
 import { Roulette } from "./games/roulette.mjs";
 import { Coinflip } from "./games/coinflip.mjs";
 import { Jackpot } from "./games/jackpot.mjs";
@@ -262,6 +263,7 @@ race.start();
 const bhop = new Bhop(game, db);
 const defuse = new Defuse(game, db);
 const towers = new Towers(game, db);
+const poker = new Poker(game, db);
 /** Like broadcast, but each connection gets data made for its user. */
 function broadcastPer(event, data) {
   for (const res of clients) res.write(`event: ${event}\ndata: ${JSON.stringify(data(res.userId))}\n\n`);
@@ -437,6 +439,7 @@ const STARTS = {
   bhop: (b) => b.action === "start",
   defuse: (b) => b.action === "start",
   towers: (b) => b.action === "start",
+  poker: (b) => b.action === "deal",
   keno: true,
   race: true,
   blackjack: (b) => b.action === "bet",
@@ -540,6 +543,12 @@ const actions = {
     if (body.action === "cancel") return coinflip.cancel(userId, body);
     throw new GameError("bad_input", "Unknown action");
   },
+  poker: (userId, body) => {
+    if (body.action === "state") return poker.state(userId);
+    if (body.action === "deal") return poker.deal(userId, body);
+    if (body.action === "draw") return poker.draw(userId, body);
+    throw new GameError("bad_input", "Unknown action");
+  },
   towers: (userId, body) => {
     if (body.action === "state") return towers.state(userId);
     if (body.action === "start") return towers.start(userId, body);
@@ -569,6 +578,7 @@ const actions = {
     bhop.forget(userId); // their stakes are part of what's being wiped
     defuse.forget(userId);
     towers.forget(userId);
+    poker.forget(userId);
     return game.reset(userId);
   },
 };

@@ -282,6 +282,21 @@ export async function dailySpin() {
   return { ...r, reveal: hidePayout(r.prize) };
 }
 
+export interface PokerRun {
+  stake: number;
+  hand: import("../shared/game.js").PokerCard[];
+}
+export async function pokerDeal(bet: number) {
+  await flushClicks();
+  return post<{ run: PokerRun }>("poker", { action: "deal", bet });
+}
+export const pokerState = () => post<{ run: PokerRun | null }>("poker", { action: "state" });
+/** The draw. The payout shows in the balance once `reveal` is called (after the cards flip). */
+export async function pokerDraw(hold: boolean[]) {
+  const r = await post<{ hand: PokerRun["hand"]; result: string | null; payout: number }>("poker", { action: "draw", hold });
+  return { ...r, reveal: hidePayout(r.payout) };
+}
+
 export interface KenoResult {
   drawn: number[];
   hits: number;

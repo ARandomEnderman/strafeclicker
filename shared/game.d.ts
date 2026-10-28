@@ -106,3 +106,11 @@ export const BJ_RESULT_MS: number;
 export const RAIN_LEVELS: string[];
 export function rainLevel(usd: number): number;
 export const CHAT_MAX_LEN: number;
+export interface PokerCard {
+  r: string;
+  s: "s" | "h" | "d" | "c";
+}
+export const POKER_HANDS: { id: string; name: string; pay: number }[];
+export const POKER_RANKS: string[];
+export const POKER_SUITS: string[];
+export function pokerHand(cards: PokerCard[]): { id: string; name: string; pay: number } | null;

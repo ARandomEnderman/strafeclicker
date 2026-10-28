@@ -43,6 +43,7 @@ const GAMES: Record<string, string> = {
   keno: "Keno",
   race: "Bot race",
   blackjack: "Blackjack",
+  poker: "Video poker",
   coinflip: "Coinflip",
   jackpot: "Jackpot",
   battle: "Case battle",

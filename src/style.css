@@ -5712,3 +5712,125 @@ body.rain-shake .shell {
   padding-top: 6px;
   padding-bottom: 6px;
 }
+
+/* ---------- video poker ---------- */
+
+.vp-stage {
+  margin-top: 16px;
+  padding: 18px;
+  background: radial-gradient(ellipse at 50% 0%, #1d3d6b 0%, #142640 60%, #0f1c30 100%);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+.vp-pays {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px 16px;
+  width: 100%;
+  max-width: 640px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  font-size: 13px;
+}
+.vp-pay {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.7);
+}
+.vp-pay b {
+  color: var(--accent);
+}
+.vp-pay.now {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+.vp-pay.win {
+  background: var(--up);
+  color: #0b2418;
+}
+.vp-pay.win b {
+  color: #0b2418;
+}
+.vp-hand {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+.vp-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+.vp-slot:disabled {
+  cursor: default;
+}
+.vp-slot .bj-card {
+  width: 92px;
+  height: 132px;
+  margin: 0;
+  padding: 8px 10px;
+  transition: transform 0.12s;
+}
+.vp-slot .bj-rank {
+  font-size: 26px;
+}
+.vp-slot .bj-suit {
+  font-size: 40px;
+}
+.vp-slot.held .bj-card {
+  transform: translateY(-8px);
+  box-shadow: 0 0 0 3px var(--accent), 0 6px 14px rgba(0, 0, 0, 0.5);
+}
+.vp-held {
+  height: 16px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+.vp-status {
+  min-height: 22px;
+  font-weight: 700;
+  font-size: 16px;
+}
+.vp-controls {
+  margin-top: 14px;
+  align-items: flex-end;
+}
+.vp-act {
+  min-width: 140px;
+}
+@media (max-width: 600px) {
+  .vp-hand {
+    gap: 6px;
+  }
+  .vp-slot .bj-card {
+    width: 58px;
+    height: 84px;
+    padding: 5px 6px;
+  }
+  .vp-slot .bj-rank {
+    font-size: 17px;
+  }
+  .vp-slot .bj-suit {
+    font-size: 24px;
+  }
+  .vp-pays {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    font-size: 12px;
+  }
+}
