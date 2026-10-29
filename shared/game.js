@@ -316,12 +316,13 @@ export const PLINKO_DROP_MS = (rows) => 400 + rows * 190;
 // One global round at a time. The multiplier grows as e^(FB_GROWTH × ms) from 1.00x
 // (2x after ~11.6 s, 10x after ~38 s) until the flashbang pops at the crash point.
 // P(crash point >= x) = 0.99 / x, and cashing out at x wins when the crash point is at least
-// x, so every target pays back 99% on average.
+// x, so every target pays back 99% on average. A round that reaches FB_MAX (about 1 in a
+// million, after ~3.8 minutes) doesn't pop: everyone still riding cashes out at FB_MAX.
 
 export const FB_GROWTH = 0.00006;
 /** Time between a pop and the next round's start; bets are open throughout. */
 export const FB_INTERMISSION_MS = 10_000;
-export const FB_MAX = 10_000;
+export const FB_MAX = 1_000_000;
 export const FB_AUTO_MIN = 1.01;
 
 /** Multiplier `ms` into a round, floored to cents. */

@@ -114,11 +114,13 @@ export class Flashbang {
 
   #pop() {
     const crash = this.crash;
+    // Reaching the cap isn't a pop: everyone still riding cashes out there.
+    const maxed = crash >= FB_MAX;
     // An auto target equal to the crash point still wins, even if its timer hasn't fired.
-    for (const b of this.bets) if (b.status === "open") this.#settle(b, b.auto != null && b.auto <= crash ? b.auto : null);
+    for (const b of this.bets) if (b.status === "open") this.#settle(b, maxed ? FB_MAX : b.auto != null && b.auto <= crash ? b.auto : null);
     this.q.addRound.run(this.round, crash, Date.now());
     this.history = [crash, ...this.history].slice(0, HISTORY);
-    this.lastCrash = { round: this.round, crash, bets: this.bets.map(publicBet) };
+    this.lastCrash = { round: this.round, crash, maxed, bets: this.bets.map(publicBet) };
     this.round++;
     this.bets = this.next;
     this.next = [];

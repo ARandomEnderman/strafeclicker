@@ -35,6 +35,7 @@ export function flashbangPage() {
 
   let poppedAt = 0; // local time of the last pop, for the burst animation
   let popMult = 1;
+  let maxed = false; // the last round hit the cap instead of popping
 
   const draw = () => {
     const s = fbState();
@@ -74,7 +75,7 @@ export function flashbangPage() {
       c.moveTo(pad.l, Y(v));
       c.lineTo(box.width - pad.r, Y(v));
       c.stroke();
-      c.fillText(`${+v.toFixed(2)}x`, 6, Y(v) + 4);
+      c.fillText(v >= 1000 ? fmt(v) : `${+v.toFixed(2)}x`, 6, Y(v) + 4);
     }
 
     // The curve so far.
@@ -83,7 +84,7 @@ export function flashbangPage() {
     let tip = { x: X(0), y: Y(1) };
     if (showCurve && secs > 0) {
       const grad = c.createLinearGradient(0, Y(topMult), 0, Y(1));
-      grad.addColorStop(0, running ? "rgba(245,165,36,0.35)" : "rgba(239,91,91,0.3)");
+      grad.addColorStop(0, running ? "rgba(245,165,36,0.35)" : maxed ? "rgba(61,214,140,0.3)" : "rgba(239,91,91,0.3)");
       grad.addColorStop(1, "rgba(245,165,36,0)");
       c.beginPath();
       c.moveTo(X(0), Y(1));
@@ -93,7 +94,7 @@ export function flashbangPage() {
         c.lineTo(X(t), Y(Math.exp(G * t)));
       }
       tip = { x: X(secs), y: Y(Math.exp(G * secs)) };
-      c.strokeStyle = running ? "#f5a524" : "#ef5b5b";
+      c.strokeStyle = running ? "#f5a524" : maxed ? "#3dd68c" : "#ef5b5b";
       c.lineWidth = 3;
       c.stroke();
       c.lineTo(tip.x, Y(1));
@@ -105,7 +106,7 @@ export function flashbangPage() {
     // Flashbang at the tip (resting bottom-left between rounds), wobbling as it flies.
     const now = performance.now();
     const popped = popShowing;
-    nade.style.opacity = popped ? "0" : "1";
+    nade.style.opacity = popped && !maxed ? "0" : "1";
     const wobble = running ? Math.sin(now / 140) * 8 + Math.min(40, secs * 3) : -15;
     const size = Math.max(42, Math.min(70, box.height * 0.16));
     nade.style.height = `${size}px`;
@@ -120,8 +121,8 @@ export function flashbangPage() {
       timerBar.hidden = true;
     } else if (popped && s.last) {
       big.textContent = fmt(s.last.crash);
-      big.className = "fb-mult popped";
-      sub.textContent = "Popped";
+      big.className = `fb-mult ${maxed ? "maxed" : "popped"}`;
+      sub.textContent = maxed ? "Maxed out, everyone cashed out" : "Popped";
       timerBar.hidden = true;
     } else {
       const left = Math.max(0, (s.nextAt ?? 0) - serverNow());
@@ -250,9 +251,10 @@ export function flashbangPage() {
       if (popped && s.last) {
         poppedAt = performance.now();
         popMult = s.last.crash;
+        maxed = !!s.last.maxed;
         burst.classList.remove("go");
         void burst.offsetWidth;
-        burst.classList.add("go");
+        if (!maxed) burst.classList.add("go");
       }
       drawPlayers(s);
     }),

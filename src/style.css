@@ -2349,6 +2349,9 @@ a.wallet-item:hover {
 .fb-mult.popped {
   color: var(--down);
 }
+.fb-mult.maxed {
+  color: var(--up);
+}
 .fb-mult.waiting {
   font-size: clamp(32px, 6vw, 56px);
 }

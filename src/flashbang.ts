@@ -19,7 +19,8 @@ export interface FbState {
   phase: "waiting" | "running";
   startAt: number | null;
   nextAt: number | null;
-  last: { round: number; crash: number; bets: FbBet[] } | null;
+  /** maxed: it reached FB_MAX, so it didn't pop and everyone riding cashed out there. */
+  last: { round: number; crash: number; maxed?: boolean; bets: FbBet[] } | null;
   bets: FbBet[];
   next: FbBet[];
   history: number[];
@@ -45,7 +46,7 @@ onServerEvent<FbState>("fb", (s) => {
   if (popped) {
     const me = getState()?.username;
     const wasRiding = s.last!.bets.some((b) => b.user === me && b.status === "lost");
-    if (watching || wasRiding) flashScreen();
+    if (!s.last!.maxed && (watching || wasRiding)) flashScreen();
   }
   listeners.forEach((fn) => fn(s, popped));
 });
