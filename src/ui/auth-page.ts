@@ -4,7 +4,8 @@ import { h } from "./dom";
 type Mode = "login" | "register";
 
 /** Full-screen login / sign-up card. Calls onDone once a session exists. */
-export function authPage(onDone: () => void, mode: Mode = "login") {
+/** The login / sign-up card. `add`: logging into another account for the account switcher. */
+export function authPage(onDone: () => void, mode: Mode = "login", add = false) {
   const error = h("p", { class: "auth-error", role: "alert" });
   const username = h("input", { class: "search", name: "username", autocomplete: "username", required: true, minLength: 3, maxLength: 20 });
   const password = h("input", { class: "search", name: "password", type: "password", required: true, minLength: 8 });
@@ -34,7 +35,7 @@ export function authPage(onDone: () => void, mode: Mode = "login") {
         submit.disabled = true;
         error.textContent = "";
         try {
-          await (mode === "login" ? login : register)(username.value, password.value);
+          await (mode === "login" ? login : register)(username.value, password.value, add);
           onDone();
         } catch (err) {
           error.textContent = err instanceof ServerError ? err.message : "Something went wrong, try again";
@@ -50,6 +51,8 @@ export function authPage(onDone: () => void, mode: Mode = "login") {
   );
   setMode(mode);
 
+  // In the switcher's popup: just the form (you're still logged in as yourself until it works).
+  if (add) return h("div", { class: "auth-add" }, h("p", { class: "hint" }, "Log in to another account. You can switch back any time from the menu under your name."), tabs, form);
   return h(
     "div",
     { class: "auth" },

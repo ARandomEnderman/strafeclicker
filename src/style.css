@@ -310,8 +310,25 @@ a.wallet-item:hover {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 0 8px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  font: inherit;
   font-weight: 600;
+  cursor: pointer;
+}
+.user-name:hover {
+  background: var(--bg-3);
+}
+.user-name svg {
+  flex: none;
+  color: var(--muted);
+}
+.user-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .icon-btn {
   display: inline-grid;
@@ -356,7 +373,9 @@ a.wallet-item:hover {
   }
 }
 @media (max-width: 600px) {
-  .user-name {
+  /* Just the avatar: it still opens the account menu. */
+  .user-name-text,
+  .user-name svg {
     display: none;
   }
   .topbar .countdown .cd-label {
@@ -1907,13 +1926,13 @@ a.wallet-item:hover {
 }
 .user-name {
   font-weight: 600;
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  max-width: 170px;
   white-space: nowrap;
 }
 @media (max-width: 720px) {
-  .user-name {
+  /* Just the avatar: it still opens the account menu. */
+  .user-name-text,
+  .user-name svg {
     display: none;
   }
 }
@@ -7378,4 +7397,107 @@ body.rain-shake .shell {
 }
 .win.cash .win-art {
   color: var(--up);
+}
+
+/* ---------- account switcher ---------- */
+.acct-menu {
+  position: fixed;
+  z-index: 60;
+  width: 280px;
+  max-width: calc(100vw - 16px);
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-2);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+.acct-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 8px;
+}
+.acct-row.current,
+.acct-switch {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.acct-row.current:hover,
+.acct-switch:hover {
+  background: var(--bg-3);
+}
+.acct-row div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.acct-row b,
+.acct-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.acct-row span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.acct-forget {
+  color: var(--muted);
+}
+.acct-label {
+  padding: 8px 8px 2px;
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.acct-empty {
+  padding: 6px 8px 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.acct-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.acct-list + .acct-action {
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 8px 8px;
+}
+.acct-action:hover {
+  background: var(--bg-3);
+}
+.acct-action.danger {
+  color: var(--down);
+}
+.auth-add {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: min(360px, 80vw);
 }

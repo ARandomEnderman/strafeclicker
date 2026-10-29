@@ -423,6 +423,40 @@ function cookie(req, name, value, maxAgeSec) {
 
 const sessionUser = (req) => auth.userForToken(cookieValue(req, SESSION_COOKIE));
 
+// The account switcher: the other accounts this browser is logged into keep their
+// session tokens in a second HttpOnly cookie. The page only ever sees their names.
+const SAVED_COOKIE = "sc_saved";
+const MAX_SAVED = 5;
+const whoIs = db.prepare("SELECT username, display_name FROM users WHERE id = ?");
+const person = (id) => {
+  const u = whoIs.get(id);
+  return u ? { username: u.username, name: u.display_name || u.username } : null;
+};
+/** Saved sessions that still work, one per account, leaving out `exceptId` (the current account). */
+function savedSessions(req, exceptId) {
+  const seen = new Set([exceptId]);
+  const out = [];
+  for (const token of (cookieValue(req, SAVED_COOKIE) ?? "").split(",").filter(Boolean)) {
+    const id = auth.userForToken(token);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push({ token, id });
+  }
+  return out.slice(0, MAX_SAVED);
+}
+const savedCookie = (req, list) => cookie(req, SAVED_COOKIE, list.map((s) => s.token).join(","), list.length ? SESSION_MAX_AGE : 0);
+/**
+ * Cookies for being logged in as `token` (user `id`), keeping the session we're leaving
+ * (if it still works) and the other saved ones for switching back.
+ */
+function switchCookies(req, token, id) {
+  const leaving = cookieValue(req, SESSION_COOKIE);
+  const leavingId = auth.userForToken(leaving);
+  const list = savedSessions(req, id).filter((s) => s.id !== leavingId);
+  if (leavingId && leavingId !== id) list.unshift({ token: leaving, id: leavingId });
+  return [cookie(req, SESSION_COOKIE, token, SESSION_MAX_AGE), savedCookie(req, list.slice(0, MAX_SAVED))];
+}
+
 /**
  * Behind a reverse proxy or tunnel set TRUST_PROXY=1 so login rate limits see the real
  * client IP. Cloudflare's CF-Connecting-IP comes first since Cloudflare always overwrites
@@ -690,20 +724,48 @@ const SESSION_MAX_AGE = 30 * 86_400;
 
 /** POST /api/register, /api/login, /api/logout. They set or clear the session cookie. */
 const authActions = {
+  // With body.add (the switcher's "Add another account"), the account you were on stays saved.
   async register(req, body, headers) {
-    const { userId, token } = await auth.register(body.username, body.password, cookieValue(req, LEGACY_COOKIE));
-    headers["Set-Cookie"] = [cookie(req, SESSION_COOKIE, token, SESSION_MAX_AGE), cookie(req, LEGACY_COOKIE, "", 0)];
+    const { userId, token } = await auth.register(body.username, body.password, body.add ? null : cookieValue(req, LEGACY_COOKIE));
+    headers["Set-Cookie"] = [...(body.add ? switchCookies(req, token, userId) : [cookie(req, SESSION_COOKIE, token, SESSION_MAX_AGE)]), cookie(req, LEGACY_COOKIE, "", 0)];
     return { account: game.view(userId) };
   },
   async login(req, body, headers) {
     const { userId, token } = await auth.login(body.username, body.password, clientIp(req));
-    headers["Set-Cookie"] = cookie(req, SESSION_COOKIE, token, SESSION_MAX_AGE);
+    headers["Set-Cookie"] = body.add ? switchCookies(req, token, userId) : cookie(req, SESSION_COOKIE, token, SESSION_MAX_AGE);
     return { account: game.view(userId) };
   },
+  /** Logs out of this account; if others are saved, carries on as the first of them. */
   async logout(req, _body, headers) {
     auth.logout(cookieValue(req, SESSION_COOKIE));
-    headers["Set-Cookie"] = cookie(req, SESSION_COOKIE, "", 0);
-    return {};
+    const [next, ...rest] = savedSessions(req, null);
+    headers["Set-Cookie"] = next ? [cookie(req, SESSION_COOKIE, next.token, SESSION_MAX_AGE), savedCookie(req, rest)] : cookie(req, SESSION_COOKIE, "", 0);
+    return next ? { switchedTo: person(next.id) } : {};
+  },
+  /** The accounts you can switch to (names only). */
+  async accounts(req, _body, headers) {
+    const me = sessionUser(req);
+    if (!me) throw new GameError("auth", "Please log in again", 401);
+    const list = savedSessions(req, me);
+    headers["Set-Cookie"] = savedCookie(req, list);
+    return { current: person(me), saved: list.map((s) => person(s.id)).filter(Boolean) };
+  },
+  async switch(req, body, headers) {
+    const me = sessionUser(req);
+    const target = savedSessions(req, me).find((s) => person(s.id)?.username.toLowerCase() === String(body.username ?? "").toLowerCase());
+    if (!target) throw new GameError("not_found", "That account isn't saved here any more. Log in to it again.");
+    headers["Set-Cookie"] = switchCookies(req, target.token, target.id);
+    return { account: game.view(target.id) };
+  },
+  /** Log a saved account out of this browser. */
+  async forget(req, body, headers) {
+    const me = sessionUser(req);
+    const list = savedSessions(req, me);
+    const gone = list.find((s) => person(s.id)?.username.toLowerCase() === String(body.username ?? "").toLowerCase());
+    if (gone) auth.logout(gone.token);
+    const keep = list.filter((s) => s !== gone);
+    headers["Set-Cookie"] = savedCookie(req, keep);
+    return { saved: keep.map((s) => person(s.id)).filter(Boolean) };
   },
 };
 

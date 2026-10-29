@@ -2,7 +2,7 @@ import "./style.css";
 import "./hotkeys";
 import { getCase, loadCatalog, priceOf, round2 } from "./catalog";
 import type { Case } from "./types";
-import { displayBalance, getState, initState, logout, resetAll, setLoggedOutHandler, setOfflineHandler, setUnlockedHandler, subscribe, type Welcome } from "./state";
+import { displayBalance, forgetAccount, getState, initState, logout, resetAll, savedAccounts, setLoggedOutHandler, setOfflineHandler, setUnlockedHandler, subscribe, switchAccount, type SavedAccount, type Welcome } from "./state";
 import { STREAK_MAX_DAYS, streakReward } from "./odds";
 import { openModal } from "./ui/modal";
 import { icon, type IconName } from "./ui/icons";
@@ -270,9 +270,9 @@ function topbar() {
   });
   void loadFriends();
 
-  // Your name, linking to your profile; follows display name changes.
-  const myName = h("a", { class: "user-name", href: `#/u/${encodeURIComponent(getState().username)}`, title: "Your profile" });
-  const syncName = () => myName.replaceChildren(avatar(getState().username, getState().displayName, 22), h("span", null, getState().displayName));
+  // Your name opens the account menu (profile, switch account, log out); follows display name changes.
+  const myName = h("button", { type: "button", class: "user-name", title: "Your account", "aria-haspopup": "menu", onclick: () => toggleAccountMenu(myName) });
+  const syncName = () => myName.replaceChildren(avatar(getState().username, getState().displayName, 22), h("span", { class: "user-name-text" }, getState().displayName), icon("chevron", 12));
   subscribe(syncName);
   syncName();
 
@@ -303,6 +303,83 @@ function topbar() {
       h("button", { class: "btn btn-ghost btn-sm icon-btn", title: "Log out", "aria-label": "Log out", onclick: () => logout() }, icon("logout")),
     ),
   );
+}
+
+/** The menu under your name: your profile, the other accounts saved on this browser, add one, log out. */
+let accountMenu: HTMLElement | null = null;
+function toggleAccountMenu(anchor: HTMLElement) {
+  if (accountMenu) return closeAccountMenu();
+  const list = h("div", { class: "acct-list" }, h("div", { class: "acct-empty" }, "Loading..."));
+  const me = getState();
+  accountMenu = h(
+    "div",
+    { class: "acct-menu", role: "menu" },
+    h(
+      "a",
+      { class: "acct-row current", href: `#/u/${encodeURIComponent(me.username)}`, onclick: () => closeAccountMenu() },
+      avatar(me.username, me.displayName, 28),
+      h("div", null, h("b", null, me.displayName), h("span", null, `@${me.username} · your profile`)),
+    ),
+    h("div", { class: "acct-label" }, "Switch account"),
+    list,
+    h(
+      "button",
+      {
+        class: "acct-action",
+        onclick: () => {
+          closeAccountMenu();
+          openModal("Add another account", authPage(() => location.reload(), "login", true));
+        },
+      },
+      icon("friends", 15),
+      " Add another account",
+    ),
+    h("button", { class: "acct-action danger", onclick: () => logout() }, icon("logout", 15), " Log out"),
+  );
+  const r = anchor.getBoundingClientRect();
+  accountMenu.style.top = `${r.bottom + 6}px`;
+  accountMenu.style.right = `${Math.max(8, window.innerWidth - r.right)}px`;
+  document.body.append(accountMenu);
+  setTimeout(() => document.addEventListener("click", outside));
+
+  const drawList = (saved: SavedAccount[]) =>
+    list.replaceChildren(
+      ...(saved.length
+        ? saved.map((a) =>
+            h(
+              "div",
+              { class: "acct-row" },
+              h(
+                "button",
+                { class: "acct-switch", title: `Switch to @${a.username}`, onclick: () => void switchAccount(a.username) },
+                avatar(a.username, a.name, 28),
+                h("div", null, h("b", null, a.name), h("span", null, `@${a.username}`)),
+              ),
+              h(
+                "button",
+                {
+                  class: "btn btn-ghost btn-sm icon-btn acct-forget",
+                  title: `Log @${a.username} out of this browser`,
+                  "aria-label": `Remove @${a.username}`,
+                  onclick: async () => drawList(await forgetAccount(a.username)),
+                },
+                icon("close", 13),
+              ),
+            ),
+          )
+        : [h("div", { class: "acct-empty" }, "No other accounts on this browser yet.")]),
+    );
+  savedAccounts()
+    .then((r) => drawList(r.saved))
+    .catch(() => drawList([]));
+}
+function closeAccountMenu() {
+  accountMenu?.remove();
+  accountMenu = null;
+  document.removeEventListener("click", outside);
+}
+function outside(e: Event) {
+  if (accountMenu && !accountMenu.contains(e.target as Node) && !(e.target as HTMLElement).closest(".user-name")) closeAccountMenu();
 }
 
 function footer() {

@@ -112,12 +112,32 @@ export async function initState(): Promise<boolean> {
   return true;
 }
 
-export async function register(username: string, password: string) {
-  await post("register", { username, password });
+/** With `add`, the account you're on stays saved in the account switcher. */
+export async function register(username: string, password: string, add = false) {
+  await post("register", { username, password, add });
 }
 
-export async function login(username: string, password: string) {
-  await post("login", { username, password });
+export async function login(username: string, password: string, add = false) {
+  await post("login", { username, password, add });
+}
+
+// ---------- account switcher ----------
+
+export interface SavedAccount {
+  username: string;
+  name: string;
+}
+export async function savedAccounts() {
+  return post<{ current: SavedAccount; saved: SavedAccount[] }>("accounts");
+}
+/** Switch to another saved account; the page reloads as that account. */
+export async function switchAccount(username: string) {
+  await flushClicks();
+  await post("switch", { username });
+  location.reload();
+}
+export async function forgetAccount(username: string) {
+  return (await post<{ saved: SavedAccount[] }>("forget", { username })).saved;
 }
 
 export async function logout() {
