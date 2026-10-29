@@ -59,7 +59,7 @@ export function authPage(onDone: () => void, mode: Mode = "login", add = false) 
     h(
       "div",
       { class: "auth-card" },
-      h("div", { class: "logo" }, h("img", { class: "logo-mark", src: `${import.meta.env.BASE_URL}logo-mark.png`, alt: "" }), "STRAFE", h("span", null, "CLICKER")),
+      h("div", { class: "logo" }, "STRAFE", h("span", null, "CLICKER")),
       h("p", { class: "hint" }, "CS2 case simulator. Play money only. Your items and balance are saved to your account."),
       tabs,
       form,

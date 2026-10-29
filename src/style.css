@@ -8126,19 +8126,3 @@ body.rain-shake .shell {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-/* The SC mark in front of the word mark. */
-.logo-mark {
-  width: 26px;
-  height: 26px;
-  margin-right: 9px;
-  vertical-align: middle;
-}
-.auth-card .logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.auth-card .logo-mark {
-  width: 34px;
-  height: 34px;
-}
