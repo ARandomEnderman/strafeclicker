@@ -50,6 +50,8 @@ export class Profiles {
         bestWin: s.bestWin ? { value: s.bestWin.cents / 100, game: s.bestWin.game, mult: s.bestWin.mult } : null,
         favourite: favourite(s),
       },
+      bio: s.bio ?? null,
+      look: { color: s.look?.color ?? null, symbols: s.look?.symbols ?? null },
       // Pinned items and banner: shown to everyone, that's what they're for.
       showcase: {
         banner: s.showcase?.banner ?? "default",

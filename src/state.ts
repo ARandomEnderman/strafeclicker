@@ -78,6 +78,22 @@ export class ServerError extends Error {
 /** Show an account the server sent earlier (see `defer` below). */
 export const applyAccount = (a: Account) => set(a);
 
+/**
+ * Reload to get the current version, but never twice within a minute: if the server
+ * still says this page is outdated after a reload, something else is wrong, and a reload
+ * loop would only make it worse.
+ */
+export function reloadOnce() {
+  try {
+    const last = Number(sessionStorage.getItem("strafeclicker:reloaded") ?? 0);
+    if (Date.now() - last < 60_000) return;
+    sessionStorage.setItem("strafeclicker:reloaded", String(Date.now()));
+  } catch {
+    // no storage: reload anyway
+  }
+  setTimeout(() => location.reload(), 1500);
+}
+
 /** Whether the live connection is down (set by live.ts, which imports this file). */
 let offline = () => false;
 export const setOfflineCheck = (fn: () => boolean) => (offline = fn);
@@ -101,7 +117,7 @@ async function post<T>(action: string, body: object = {}, defer = false): Promis
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    if (data.error === "outdated") setTimeout(() => location.reload(), 1500);
+    if (data.error === "outdated") reloadOnce();
     if (res.status === 401 && data.error === "auth") onLoggedOut();
     if (data.account) set(data.account);
     if (data.error === "insufficient") throw new InsufficientFunds(data.message);
@@ -274,6 +290,9 @@ export interface Profile {
   };
   /** Pinned items and banner colour, shown to everyone. */
   showcase: { banner: string; items: OwnedItem[] };
+  bio: string | null;
+  /** Avatar colour and symbols (null: the defaults). */
+  look: { color: string | null; symbols: string | null };
   /** Only for friends and yourself. */
   online?: boolean;
   balance?: number;
@@ -339,6 +358,11 @@ export async function setShowcase(uids: string[], banner: string) {
 
 export async function changePassword(next: string) {
   return post("password", { next });
+}
+
+/** Avatar colour and symbols, bio and banner colour. */
+export async function setLook(look: { color: string | null; symbols: string; bio: string; banner: string }) {
+  return post("profile", { action: "look", ...look });
 }
 
 export async function renameMe(name: string) {
@@ -522,8 +546,9 @@ export interface BetRecord {
   at: number;
 }
 /** Usernames that start with `prefix` (for Tab completion in chat). */
+/** Players whose username or display name starts with `prefix` (chat's @ suggestions). */
 export async function playerNames(prefix: string) {
-  return (await post<{ names: string[] }>("players", { q: prefix })).names;
+  return (await post<{ players: { username: string; name: string }[] }>("players", { q: prefix })).players;
 }
 
 /** Your last bets and case openings, newest first. */

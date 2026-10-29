@@ -403,12 +403,54 @@ export class Game {
   }
 
   /** Pick up to SHOWCASE_MAX of your items to pin to your profile, and a banner colour. */
+  /** Everyone's custom avatar (username -> { c: colour, s: symbols }), for every page. */
+  looks() {
+    if (!this.lookMap) {
+      this.lookMap = {};
+      for (const r of this.db.prepare("SELECT username, stats FROM users WHERE stats LIKE '%\"look\"%'").all()) {
+        const look = JSON.parse(r.stats).look;
+        if (look?.color || look?.symbols) this.lookMap[r.username] = { c: look.color ?? null, s: look.symbols ?? null };
+      }
+    }
+    return this.lookMap;
+  }
+
+  /**
+   * Profile look: avatar colour (#rrggbb, or null for the one picked from your name), up to
+   * three symbols instead of your initial (letters, numbers, emoji), a short bio and the
+   * banner colour.
+   */
+  setLook(userId, body) {
+    const color = body.color == null || body.color === "" ? null : String(body.color);
+    if (color != null && !/^#[0-9a-f]{6}$/i.test(color)) throw new GameError("bad_input", "Pick a colour");
+    const raw = String(body.symbols ?? "")
+      .replace(/[\p{C}\s]/gu, "")
+      .slice(0, 32);
+    const symbols = [...new Intl.Segmenter().segment(raw)].map((x) => x.segment);
+    if (symbols.length > 3) throw new GameError("bad_input", "Up to three symbols");
+    const bio = String(body.bio ?? "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (bio.length > 160) throw new GameError("bad_input", "Keep the bio to 160 characters");
+    const banner = PROFILE_BANNERS.includes(body.banner) ? body.banner : null;
+    return this.#act(userId, (a) => {
+      a.stats.look = { color: color?.toLowerCase() ?? null, symbols: symbols.join("") || null };
+      a.stats.bio = bio || null;
+      if (banner) a.stats.showcase = { uids: a.stats.showcase?.uids ?? [], banner };
+      const map = this.looks();
+      if (a.stats.look.color || a.stats.look.symbols) map[a.username] = { c: a.stats.look.color, s: a.stats.look.symbols };
+      else delete map[a.username];
+      return {};
+    });
+  }
+
   setShowcase(userId, body) {
     return this.#act(userId, (a) => {
       const uids = [...new Set(Array.isArray(body.uids) ? body.uids.map(String) : [])];
       if (uids.length > SHOWCASE_MAX) throw new GameError("bad_input", `Pick up to ${SHOWCASE_MAX} items`);
       if (uids.some((uid) => !a.inventory.some((it) => it.uid === uid))) throw new GameError("bad_input", "You don't own one of those items");
-      const banner = PROFILE_BANNERS.includes(body.banner) ? body.banner : "default";
+      // The banner is set with the profile look now; older pages still send it here.
+      const banner = PROFILE_BANNERS.includes(body.banner) ? body.banner : (a.stats.showcase?.banner ?? "default");
       a.stats.showcase = { uids, banner };
       return {};
     });

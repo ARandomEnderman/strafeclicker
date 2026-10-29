@@ -25,6 +25,8 @@ export interface ChatMessage {
   toUser?: string;
   toName?: string;
   fromMe?: boolean;
+  /** msg: display names of the players it @mentions, by lowercase username. */
+  mentions?: Record<string, string>;
 }
 
 let messages: ChatMessage[] = [];

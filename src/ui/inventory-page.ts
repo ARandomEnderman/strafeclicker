@@ -131,19 +131,17 @@ export function inventoryPage() {
     const sellableTotal = round2(sellable.reduce((s, it) => s + priceOf(it), 0));
     const picked = all.filter((it) => selected.has(it.uid));
     const pickedTotal = round2(picked.reduce((s, it) => s + priceOf(it), 0));
-    const { stats } = getState();
+    const top = all.reduce<OwnedItem | null>((best, it) => (!best || priceOf(it) > priceOf(best) ? it : best), null);
 
     head.replaceChildren(
       h(
         "div",
         { class: "case-stats" },
+        // Only what's in the inventory now; cases, spending and upgrades are in Bet history.
         h("div", { class: "stat" }, h("span", null, "Items"), h("b", null, all.length)),
         h("div", { class: "stat" }, h("span", null, "Inventory value"), h("b", null, money(total))),
-        h("div", { class: "stat" }, h("span", null, "Cases opened"), h("b", null, stats.opened)),
-        h("div", { class: "stat" }, h("span", null, "Spent"), h("b", null, money(stats.spent))),
-        h("div", { class: "stat" }, h("span", null, "Unboxed value"), h("b", null, money(stats.unboxedValue))),
-        h("div", { class: "stat" }, h("span", null, "Upgrades won"), h("b", null, `${stats.upgradesWon} / ${stats.upgrades}`)),
-        stats.best ? h("div", { class: "stat" }, h("span", null, "Best pull"), h("b", null, `${stats.best.name} · ${money(stats.best.value)}`)) : null,
+        top ? h("div", { class: "stat" }, h("span", null, "Most valuable"), h("b", null, `${displayName(getItem(top.itemId), top).weapon} | ${displayName(getItem(top.itemId), top).finish} · ${money(priceOf(top))}`)) : null,
+        h("div", { class: "stat" }, h("span", null, "Locked"), h("b", null, all.filter((it) => it.locked).length)),
       ),
     );
 

@@ -65,15 +65,23 @@ const DIST = join(ROOT, "dist");
  * also send their own build with every action, and actions from another build are
  * refused (see OUTDATED).
  */
-let BUILD = "dev";
-try {
-  BUILD = readFileSync(join(DIST, "build.txt"), "utf8").trim();
-} catch {
+// Read from the files actually being served (checked at most every few seconds), so a
+// rebuild without a restart can't leave the server judging pages by a stale id.
+let buildCache = { at: 0, id: "dev" };
+function currentBuild() {
+  if (Date.now() - buildCache.at < 5000) return buildCache.id;
+  let id = "dev";
   try {
-    BUILD = createHash("sha256").update(readFileSync(join(DIST, "index.html"))).digest("hex").slice(0, 12);
+    id = readFileSync(join(DIST, "build.txt"), "utf8").trim();
   } catch {
-    // no build yet (dev mode)
+    try {
+      id = createHash("sha256").update(readFileSync(join(DIST, "index.html"))).digest("hex").slice(0, 12);
+    } catch {
+      // no build yet (dev mode)
+    }
   }
+  buildCache = { at: Date.now(), id };
+  return id;
 }
 const SNAPSHOT = join(ROOT, "server/snapshot.json.gz");
 const DATA_DIR = resolve(ROOT, process.env.DATA_DIR ?? "data");
@@ -366,7 +374,7 @@ function events(req, res) {
     Connection: "keep-alive",
     "X-Accel-Buffering": "no",
   });
-  res.write(`retry: 3000\nevent: build\ndata: ${JSON.stringify({ build: BUILD })}\n\n`);
+  res.write(`retry: 3000\nevent: build\ndata: ${JSON.stringify({ build: currentBuild() })}\n\n`);
   // Pages from before the build check only know this older signal; it makes them reload
   // into the current version once. Today's pages ignore it.
   res.write(`event: reload\ndata: {}\n\n`);
@@ -386,6 +394,7 @@ function events(req, res) {
   res.write(`event: brackets\ndata: ${JSON.stringify(brackets.list(res.userId))}\n\n`);
   res.write(`event: bj\ndata: ${JSON.stringify(blackjack.view(res.userId))}\n\n`);
   res.write(`event: tags\ndata: ${JSON.stringify(clans.tags())}\n\n`);
+  res.write(`event: looks\ndata: ${JSON.stringify(game.looks())}\n\n`);
   res.write(`event: chat\ndata: ${JSON.stringify(chat.history(res.userId))}\n\n`);
   const wasOnline = res.userId != null && isOnline(res.userId);
   clients.add(res);
@@ -556,7 +565,9 @@ function popupAll(body) {
 }
 
 /** Usernames starting with a prefix, most recently active first (chat's Tab completion). */
-const namesLike = db.prepare("SELECT username FROM users WHERE username LIKE ? ESCAPE '\\' AND banned = 0 ORDER BY last_active DESC NULLS LAST LIMIT 8");
+const namesLike = db.prepare(
+  "SELECT username, display_name FROM users WHERE (username LIKE ?1 ESCAPE '\\' OR display_name LIKE ?1 ESCAPE '\\') AND banned = 0 ORDER BY last_active DESC NULLS LAST LIMIT 8",
+);
 
 const actions = {
   click: (userId, body) => game.click(userId, body.clicks, body.times),
@@ -604,6 +615,11 @@ const actions = {
       return out;
     }
     if (body.action === "showcase") return game.setShowcase(userId, body);
+    if (body.action === "look") {
+      const out = game.setLook(userId, body);
+      broadcast("looks", game.looks());
+      return out;
+    }
     return { profile: profiles.get(userId, body.username), account: game.view(userId) };
   },
   password: async (userId, body, req) => ({ ...(await auth.changePassword(userId, body.next, cookieValue(req, SESSION_COOKIE))), account: game.view(userId) }),
@@ -726,11 +742,12 @@ const actions = {
   sell: (userId, body) => game.sell(userId, body.uids),
   lock: (userId, body) => game.setLocked(userId, body.uids, !!body.locked),
   bets: (userId, body) => ({ bets: game.betHistory(userId, body.limit) }),
+  /** Players whose username or display name starts with `q` (chat's @ suggestions). */
   players: (userId, body) => {
     const q = String(body.q ?? "")
-      .replace(/[^A-Za-z0-9_]/g, "")
-      .slice(0, 20);
-    return { names: q ? namesLike.all(`${q.replace(/_/g, "\\_")}%`).map((r) => r.username) : [] };
+      .replace(/[%\\]/g, "")
+      .slice(0, 24);
+    return { players: q ? namesLike.all(`${q.replace(/_/g, "\\_")}%`).map((r) => ({ username: r.username, name: r.display_name || r.username })) : [] };
   },
   upgrade: (userId, body) => game.upgrade(userId, body.uids, body.target, body.zone),
   reset: (userId) => {
@@ -820,7 +837,8 @@ async function api(req, res, url) {
       // A page from another build of the site (open since before an update) can't play:
       // it reloads into the current one when it gets this.
       const pageBuild = req.headers["x-build"];
-      if (pageBuild && BUILD !== "dev" && pageBuild !== BUILD) throw new GameError("outdated", "StrafeClicker was updated. Reloading...", 409);
+      const build = currentBuild();
+      if (pageBuild && build !== "dev" && pageBuild !== build) throw new GameError("outdated", "StrafeClicker was updated. Reloading...", 409);
       checkMaintenance(userId, action, body);
       return send(req, res, 200, await actions[action](userId, body, req));
     } catch (err) {

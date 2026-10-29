@@ -3,6 +3,7 @@ import { chatMessages, onChat, type ChatMessage } from "../chat";
 import { friendLists } from "../friends";
 import { adminAction, getState, InsufficientFunds, playerNames, sendChat, ServerError } from "../state";
 import { onTags, tagOf } from "../tags";
+import { onLooks } from "../looks";
 import { h, money, toast } from "./dom";
 import { icon } from "./icons";
 import { avatar, openMiniProfile, userLink } from "./profile-card";
@@ -27,12 +28,14 @@ const mentionsMe = (m: ChatMessage) => {
   return m.kind === "msg" && m.user?.toLowerCase() !== me && m.text.split(/(@[A-Za-z0-9_]{3,20})\b/).some((p) => p.toLowerCase() === `@${me}`);
 };
 /** Message text with each @name drawn as a link to that player (yours stands out). */
-function withMentions(text: string) {
+function withMentions(text: string, names: Record<string, string> = {}) {
   const me = getState().username.toLowerCase();
   return text.split(new RegExp(MENTION.source)).map((part, i) => {
     if (i % 2 === 0) return part;
     const name = part.slice(1);
-    const el = h("button", { type: "button", class: `chat-mention${name.toLowerCase() === me ? " me" : ""}`, title: "View profile" }, part);
+    // Shown as @DisplayName when it's a real player (the server says who).
+    const shown = names[name.toLowerCase()];
+    const el = h("button", { type: "button", class: `chat-mention${name.toLowerCase() === me ? " me" : ""}`, title: shown ? `@${name}` : "View profile" }, shown ? `@${shown}` : part);
     el.addEventListener("click", () => void openMiniProfile(name, el));
     return el;
   });
@@ -110,7 +113,7 @@ function messageEl(m: ChatMessage) {
       "div",
       { class: "chat-body" },
       h("div", { class: "chat-meta" }, userLink(m.user!, m.name ?? m.user!), m.admin ? h("span", { class: "chat-admin" }, "admin") : "", h("time", null, time(m.at))),
-      h("div", { class: "chat-text" }, ...withMentions(m.text)),
+      h("div", { class: "chat-text" }, ...withMentions(m.text, m.mentions)),
     ),
     del,
   );
@@ -151,6 +154,8 @@ export function chatPanel() {
     drawTabs();
     redraw();
   });
+  // Someone changed their picture.
+  onLooks(() => redraw());
 
   const nearBottom = () => list.scrollHeight - list.scrollTop - list.clientHeight < 60;
   const redraw = () => {
@@ -209,189 +214,162 @@ export function chatPanel() {
   field.addEventListener("input", drawHints);
   field.addEventListener("blur", () => (hints.hidden = true));
 
-  // Tab completes a username: the word before the cursor (an @ in front stays). Press Tab
-  // again (Shift+Tab back) to go through the other matches. People in the chat and your
-  // friends come first, then anyone else the server knows.
-  let tab: { start: number; end: number; names: string[]; i: number } | null = null;
-  let looking = false;
-  const knownNames = (prefix: string) => {
+  // Names: @ and the start of a username or display name lists matching players as you
+  // type (display name first); Tab, Enter or a click fills in @username (shown as
+  // @DisplayName once sent). Tab with no pick open completes the word before the cursor,
+  // and Tab again (Shift+Tab back) goes through the other matches. People in the chat and
+  // your friends come first, then anyone else the server finds.
+  type Person = { username: string; name: string };
+  const known = (prefix: string): Person[] => {
     const p = prefix.toLowerCase();
     const me = getState().username.toLowerCase();
     const seen = new Set<string>();
-    const out: string[] = [];
-    const add = (n?: string | null) => {
-      const k = n?.toLowerCase();
-      if (!n || !k!.startsWith(p) || k === me || seen.has(k!)) return;
-      seen.add(k!);
-      out.push(n);
+    const out: Person[] = [];
+    const add = (username?: string | null, name?: string | null) => {
+      const k = username?.toLowerCase();
+      if (!username || !k || k === me || seen.has(k)) return;
+      if (!k.startsWith(p) && !(name ?? "").toLowerCase().startsWith(p)) return;
+      seen.add(k);
+      out.push({ username, name: name || username });
     };
-    [...chatMessages()].reverse().forEach((m) => (add(m.user), add(m.toUser)));
-    friendLists().friends.forEach((f) => add(f.user));
+    [...chatMessages()].reverse().forEach((m) => (add(m.user, m.name), add(m.toUser, m.toName)));
+    friendLists().friends.forEach((f) => add(f.user, f.name));
     return out;
   };
-  const applyTab = () => {
-    const t = tab!;
-    const name = t.names[t.i];
-    const v = field.value;
-    const after = v.slice(t.end).replace(/^ /, "");
-    field.value = `${v.slice(0, t.start)}${name} ${after}`;
-    t.end = t.start + name.length + 1;
-    field.setSelectionRange(t.end, t.end);
-    hints.hidden = t.names.length < 2;
-    hints.replaceChildren(
-      ...t.names.map((n, i) =>
-        h(
-          "button",
-          {
-            type: "button",
-            class: `chat-hint name${i === t.i ? " on" : ""}`,
-            onmousedown: (e: Event) => {
-              e.preventDefault();
-              t.i = i;
-              applyTab();
-              field.focus();
-            },
-          },
-          h("b", null, n),
-        ),
-      ),
-    );
+  /** The people we know, then the server's matches (if it answers), at most 8. */
+  const lookup = async (prefix: string) => {
+    const local = known(prefix);
+    if (local.length >= 8) return local.slice(0, 8);
+    try {
+      const me = getState().username.toLowerCase();
+      const more = (await playerNames(prefix)).filter((x) => x.username.toLowerCase() !== me && !local.some((l) => l.username.toLowerCase() === x.username.toLowerCase()));
+      return [...local, ...more].slice(0, 8);
+    } catch {
+      return local; // offline: the names we know will do
+    }
   };
-  field.addEventListener("keydown", async (e) => {
-    if (e.key !== "Tab") {
-      if (e.key !== "Shift") tab = null;
-      return;
-    }
-    if (looking) return e.preventDefault();
-    if (tab) {
-      e.preventDefault();
-      tab.i = (tab.i + (e.shiftKey ? tab.names.length - 1 : 1)) % tab.names.length;
-      return applyTab();
-    }
-    const caret = field.selectionStart ?? field.value.length;
-    // "/pa" + Tab: finish the command instead.
-    const cmd = field.value.slice(0, caret).match(/^\/\w*$/) && COMMANDS.find((c) => c.cmd.startsWith(field.value.slice(0, caret).toLowerCase()));
-    if (cmd) {
-      e.preventDefault();
-      field.value = cmd.cmd + field.value.slice(caret);
-      field.setSelectionRange(cmd.cmd.length, cmd.cmd.length);
-      return drawHints();
-    }
-    const word = field.value.slice(0, caret).match(/@?([A-Za-z0-9_]+)$/);
-    if (!word) return;
-    e.preventDefault();
-    const prefix = word[1];
-    const start = caret - prefix.length;
-    let names = knownNames(prefix);
-    if (names.length < 8) {
-      looking = true;
-      try {
-        const more = await playerNames(prefix);
-        const me = getState().username.toLowerCase();
-        names = [...names, ...more.filter((n) => n.toLowerCase() !== me && !names.some((x) => x.toLowerCase() === n.toLowerCase()))];
-      } catch {
-        // offline: the names we know will do
-      } finally {
-        looking = false;
-      }
-    }
-    // Typing went on while we asked the server.
-    if (field.value.slice(start, caret) !== prefix || !names.length) return;
-    tab = { start, end: caret, names, i: 0 };
-    applyTab();
-  });
 
-  // Typing @ and the start of a name lists matching players as you type (no Tab needed):
-  // Up/Down to choose, Tab or Enter to fill it in, Esc to close.
-  let suggest: { start: number; names: string[]; i: number } | null = null;
-  let suggestTimer = 0;
-  const drawSuggest = () => {
-    const sg = suggest;
-    hints.hidden = !sg;
-    if (!sg) return;
+  // The list above the box: shared by Tab and @.
+  let pick: { start: number; people: Person[]; i: number; via: "tab" | "at" } | null = null;
+  const drawList = () => {
+    const l = pick;
+    hints.hidden = !l || (l.via === "tab" && l.people.length < 2);
+    if (!l) return;
     hints.replaceChildren(
-      ...sg.names.map((n, i) =>
+      ...l.people.map((p, i) =>
         h(
           "button",
           {
             type: "button",
-            class: `chat-hint name${i === sg.i ? " on" : ""}`,
+            class: `chat-hint name${i === l.i ? " on" : ""}`,
             onmousedown: (e: Event) => {
               e.preventDefault();
-              sg.i = i;
-              pickSuggest();
+              l.i = i;
+              fill(true);
             },
           },
-          h("b", null, `@${n}`),
+          h("b", null, p.name),
+          p.name !== p.username ? h("span", null, `@${p.username}`) : "",
         ),
       ),
     );
   };
-  const pickSuggest = () => {
-    const sg = suggest!;
+  /** Put the chosen @username in place of the word being typed; `done` closes the pick. */
+  const fill = (done: boolean) => {
+    const l = pick!;
     const caret = field.selectionStart ?? field.value.length;
-    const name = sg.names[sg.i];
+    const name = l.people[l.i].username;
     const after = field.value.slice(caret).replace(/^[A-Za-z0-9_]*/, "").replace(/^ /, "");
-    field.value = `${field.value.slice(0, sg.start)}${name} ${after}`;
-    const at = sg.start + name.length + 1;
+    field.value = `${field.value.slice(0, l.start)}${name} ${after}`;
+    const at = l.start + name.length + 1;
     field.setSelectionRange(at, at);
-    suggest = null;
-    tab = null;
-    drawSuggest();
+    if (done) pick = null;
+    drawList();
     field.focus();
   };
+
+  let looking = false;
+  let lookupTimer = 0;
   field.addEventListener("input", () => {
-    clearTimeout(suggestTimer);
+    clearTimeout(lookupTimer);
     const caret = field.selectionStart ?? field.value.length;
-    const m = field.value.slice(0, caret).match(/(?:^|\s)@([A-Za-z0-9_]*)$/);
+    const m = field.value.slice(0, caret).match(/(?:^|\s)@([^\s@]*)$/);
     if (!m) {
-      if (suggest) ((suggest = null), drawSuggest());
+      if (pick?.via === "at") ((pick = null), drawList());
       return;
     }
     const prefix = m[1];
     const start = caret - prefix.length;
-    const show = (names: string[]) => {
-      suggest = names.length ? { start, names: names.slice(0, 8), i: 0 } : null;
-      drawSuggest();
+    const show = (people: Person[]) => {
+      pick = people.length ? { start, people, i: 0, via: "at" } : null;
+      drawList();
     };
-    show(knownNames(prefix));
-    // Ask the server for anyone else (after a short pause in typing).
-    if (prefix && (suggest?.names.length ?? 0) < 8) {
-      suggestTimer = setTimeout(async () => {
-        try {
-          const more = await playerNames(prefix);
-          const now = field.value.slice(0, field.selectionStart ?? field.value.length).match(/@([A-Za-z0-9_]*)$/);
-          if (now?.[1] !== prefix) return;
-          const me = getState().username.toLowerCase();
-          const local = knownNames(prefix);
-          show([...local, ...more.filter((n) => n.toLowerCase() !== me && !local.some((x) => x.toLowerCase() === n.toLowerCase()))]);
-        } catch {
-          // offline: the names we know will do
-        }
-      }, 150);
-    }
+    show(known(prefix).slice(0, 8));
+    if (!prefix) return;
+    // Ask the server too, after a short pause in typing.
+    lookupTimer = setTimeout(async () => {
+      const people = await lookup(prefix);
+      const now = field.value.slice(0, field.selectionStart ?? field.value.length).match(/@([^\s@]*)$/);
+      if (now?.[1] === prefix) show(people);
+    }, 150);
   });
   field.addEventListener("blur", () => {
-    suggest = null;
-    drawSuggest();
+    pick = null;
+    drawList();
   });
   // Registered before the Enter-to-send handler, so picking a name doesn't send.
   field.addEventListener(
     "keydown",
-    (e) => {
-      if (!suggest) return;
-      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-        e.preventDefault();
-        suggest.i = (suggest.i + (e.key === "ArrowDown" ? 1 : suggest.names.length - 1)) % suggest.names.length;
-        drawSuggest();
-      } else if (e.key === "Tab" || e.key === "Enter") {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        pickSuggest();
-      } else if (e.key === "Escape") {
-        suggest = null;
-        drawSuggest();
+    async (e) => {
+      if (pick?.via === "at") {
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          e.preventDefault();
+          pick.i = (pick.i + (e.key === "ArrowDown" ? 1 : pick.people.length - 1)) % pick.people.length;
+          drawList();
+        } else if (e.key === "Tab" || e.key === "Enter") {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          fill(true);
+        } else if (e.key === "Escape") {
+          pick = null;
+          drawList();
+        }
+        return;
       }
+      if (e.key !== "Tab") {
+        if (e.key !== "Shift" && pick?.via === "tab") ((pick = null), drawList());
+        return;
+      }
+      e.stopImmediatePropagation();
+      if (looking) return e.preventDefault();
+      // Tab again: the next (Shift: previous) match.
+      if (pick?.via === "tab") {
+        e.preventDefault();
+        pick.i = (pick.i + (e.shiftKey ? pick.people.length - 1 : 1)) % pick.people.length;
+        return fill(false);
+      }
+      const caret = field.selectionStart ?? field.value.length;
+      const before = field.value.slice(0, caret);
+      // "/pa" + Tab: finish the command instead.
+      const cmd = /^\/\w*$/.test(before) && COMMANDS.find((c) => c.cmd.startsWith(before.toLowerCase()));
+      if (cmd) {
+        e.preventDefault();
+        field.value = cmd.cmd + field.value.slice(caret);
+        field.setSelectionRange(cmd.cmd.length, cmd.cmd.length);
+        return drawHints();
+      }
+      const word = before.match(/@?([A-Za-z0-9_]+)$/);
+      if (!word) return;
+      e.preventDefault();
+      const prefix = word[1];
+      const start = caret - prefix.length;
+      looking = true;
+      const people = await lookup(prefix);
+      looking = false;
+      // Typing went on while we asked the server.
+      if (field.value.slice(start, caret) !== prefix || !people.length) return;
+      pick = { start, people, i: 0, via: "tab" };
+      fill(false);
     },
     { capture: true },
   );

@@ -4,6 +4,7 @@ import { set as setFriends } from "../friends";
 import { h, money, mult, toast } from "./dom";
 import { gameName } from "./game-names";
 import { tagOf } from "../tags";
+import { lookOf, type Look } from "../looks";
 import { icon } from "./icons";
 
 // Mini profiles. userLink() is the clickable name used wherever a player shows up;
@@ -17,9 +18,23 @@ export function hue(user: string) {
   return x % 360;
 }
 
-export function avatar(user: string, name: string, size = 40) {
+/**
+ * A player's picture: their initial on a colour picked from their username, or the colour
+ * and up to three symbols they chose (`look` overrides what the server last sent, for previews).
+ */
+export function avatar(user: string, name: string, size = 40, look: Look | null = lookOf(user)) {
   const letter = [...(name || user).trim()][0]?.toUpperCase() ?? "?";
-  return h("span", { class: "avatar", style: `--h:${hue(user)};width:${size}px;height:${size}px;font-size:${Math.round(size * 0.45)}px`, "aria-hidden": "true" }, letter);
+  const text = look?.s || letter;
+  const n = [...new Intl.Segmenter().segment(text)].length;
+  const font = Math.round(size * (n <= 1 ? 0.45 : n === 2 ? 0.36 : 0.27));
+  const bg = look?.c ? `background:${look.c};color:${readableOn(look.c)};` : "";
+  return h("span", { class: "avatar", style: `--h:${hue(user)};${bg}width:${size}px;height:${size}px;font-size:${font}px`, "aria-hidden": "true" }, text);
+}
+
+/** Dark or light text, whichever reads better on a background colour. */
+function readableOn(hex: string) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  return 0.299 * r + 0.587 * g + 0.114 * b > 150 ? "#14161c" : "#f4f6fa";
 }
 
 /** A player's name that opens their mini profile. */
@@ -118,6 +133,7 @@ export function profileCard(p: Profile, opts: { compact?: boolean; onChange?: ()
         h("span", { class: "pc-meta" }, ...(status ? [status, " · "] : []), `Joined ${fmtDate(p.joinedAt)}`),
       ),
     ),
+    p.bio ? h("p", { class: "pc-bio" }, p.bio) : "",
     h("div", { class: "pc-stats" }, ...stats),
     ...(p.balance == null && !me ? [h("p", { class: "pc-note" }, "Become friends to see their balance and inventory.")] : []),
     ...(actions.length ? [h("div", { class: "pc-actions" }, ...actions)] : []),

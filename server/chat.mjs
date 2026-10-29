@@ -76,6 +76,7 @@ export class Chat {
       return { ...base, amount: m.data.amount / 100, count: m.data.count, level: m.data.level, yours: yours == null ? null : yours / 100, mine: viewerId === m.userId, house: !!m.data.house };
     }
     if (m.kind === "pay") return { ...base, amount: m.data.amount / 100, toUser: m.data.toUser, toName: m.data.toName, fromMe: viewerId === m.userId };
+    if (m.data.mentions) return { ...base, mentions: m.data.mentions };
     return base;
   }
 
@@ -126,7 +127,13 @@ export class Chat {
       if (c === "pay" || c === "tip") return this.#pay(user, args[0], args[1]);
       throw new GameError("bad_input", "Unknown command. Try /rain <amount> or /pay <user> <amount>");
     }
-    this.#push(userId, user, "msg", text, clan ? { clan } : {});
+    // @usernames that exist are shown with the player's display name.
+    const mentions = {};
+    for (const [, name] of text.matchAll(/@([A-Za-z0-9_]{3,20})\b/g)) {
+      const u = this.q.byName.get(name);
+      if (u && !u.banned) mentions[u.username.toLowerCase()] = u.display_name || u.username;
+    }
+    this.#push(userId, user, "msg", text, { ...(clan ? { clan } : {}), ...(Object.keys(mentions).length ? { mentions } : {}) });
     return {};
   }
 

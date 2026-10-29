@@ -11,8 +11,9 @@ let clockOffset = 0;
 
 export const getStatus = () => status;
 export const isConnected = () => connected;
-/** The live connection was started (logged in) and is down right now: the page shows "offline". */
-export const isOffline = () => es != null && !connected;
+/** The live connection worked and has dropped (the page shows "offline"); not while it first connects. */
+let everConnected = false;
+export const isOffline = () => everConnected && !connected;
 setOfflineCheck(isOffline);
 export const serverNow = () => Date.now() + clockOffset;
 
@@ -111,7 +112,7 @@ export function startLive() {
     const s: ServerStatus = JSON.parse((e as MessageEvent).data);
     clockOffset = s.now - Date.now();
     status = s;
-    connected = true;
+    connected = everConnected = true;
     statusListeners.forEach((fn) => fn());
     updating = updating.then(() => pull(s.version)).catch((err) => console.error("price refresh failed", err));
   });

@@ -17,6 +17,7 @@ import { casePage } from "./ui/case-page";
 import { inventoryPage } from "./ui/inventory-page";
 import { holdemPage, holdemView } from "./ui/holdem-page";
 import "./holdem";
+import { onLooks } from "./looks";
 import { historyPage } from "./ui/history-page";
 import { clickerPage } from "./ui/clicker-page";
 import { upgraderPage } from "./ui/upgrader-page";
@@ -260,11 +261,6 @@ function topbar() {
   onPrices(sync);
   sync();
 
-  const soundBtn = h("button", { class: "btn btn-ghost btn-sm icon-btn", title: "Sound", "aria-label": "Toggle sound" }, icon(soundEnabled() ? "sound" : "mute"));
-  soundBtn.addEventListener("click", () => {
-    setSound(!soundEnabled());
-    soundBtn.replaceChildren(icon(soundEnabled() ? "sound" : "mute"));
-  });
   // Friends, with a badge for pending requests.
   const requests = h("span", { class: "dot-badge", hidden: true });
   const friendsBtn = h("a", { class: "btn btn-ghost btn-sm icon-btn", href: "#/friends", title: "Friends", "aria-label": "Friends" }, icon("friends"), requests);
@@ -279,6 +275,7 @@ function topbar() {
   const myName = h("button", { type: "button", class: "user-name", title: "Your account", "aria-haspopup": "menu", onclick: () => toggleAccountMenu(myName) });
   const syncName = () => myName.replaceChildren(avatar(getState().username, getState().displayName, 22), h("span", { class: "user-name-text" }, getState().displayName), icon("chevron", 12));
   subscribe(syncName);
+  onLooks(syncName);
   syncName();
 
   const menuBtn = h(
@@ -301,11 +298,10 @@ function topbar() {
     h(
       "div",
       { class: "profile" },
-      chatButton(),
       friendsBtn,
-      soundBtn,
       myName,
-      h("button", { class: "btn btn-ghost btn-sm icon-btn", title: "Log out", "aria-label": "Log out", onclick: () => logout() }, icon("logout")),
+      // Far right, next to the column it opens and closes.
+      chatButton(),
     ),
   );
 }
@@ -339,6 +335,7 @@ function toggleAccountMenu(anchor: HTMLElement) {
       icon("friends", 15),
       " Add another account",
     ),
+    soundRow(),
     h("button", { class: "acct-action danger", onclick: () => logout() }, icon("logout", 15), " Log out"),
   );
   const r = anchor.getBoundingClientRect();
@@ -378,6 +375,22 @@ function toggleAccountMenu(anchor: HTMLElement) {
     .then((r) => drawList(r.saved))
     .catch(() => drawList([]));
 }
+/** Sound on or off, in the account menu. */
+function soundRow() {
+  const label = h("span");
+  const btn = h("button", { class: "acct-action" });
+  const draw = () => {
+    btn.replaceChildren(icon(soundEnabled() ? "sound" : "mute", 15), label);
+    label.textContent = soundEnabled() ? " Sound: on" : " Sound: off";
+  };
+  btn.addEventListener("click", () => {
+    setSound(!soundEnabled());
+    draw();
+  });
+  draw();
+  return btn;
+}
+
 function closeAccountMenu() {
   accountMenu?.remove();
   accountMenu = null;

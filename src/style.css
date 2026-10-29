@@ -8030,3 +8030,99 @@ body.rain-shake .shell {
   background: rgba(239, 91, 91, 0.12);
   font-size: 13px;
 }
+
+/* ---------- profile editor ---------- */
+.profile-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-2);
+}
+.profile-editor h2 {
+  margin: 0 0 4px;
+}
+.profile-editor .field-label {
+  margin-top: 8px;
+}
+.profile-editor .hint {
+  margin: 0;
+}
+.pe-picture {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.pe-picture-opts {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 240px;
+}
+.pe-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.pe-swatch {
+  width: 26px;
+  height: 26px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.pe-swatch.auto {
+  width: auto;
+  padding: 0 10px;
+  border-color: var(--line);
+  border-radius: 999px;
+  background: var(--bg-3);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+.pe-swatch.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(245, 165, 36, 0.35);
+}
+.pe-custom {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.pe-symbols-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.pe-symbols {
+  width: 90px;
+  font-size: 16px;
+  text-align: center;
+}
+.pe-bio {
+  min-height: 52px;
+  resize: vertical;
+  font: inherit;
+}
+.pe-count {
+  color: var(--muted);
+  font-weight: 400;
+}
+.pc-bio {
+  margin: 10px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

@@ -1,6 +1,6 @@
 import { onServerEvent, serverNow } from "./live";
 import { setCaseSale } from "./catalog";
-import { setClickBoost } from "./state";
+import { reloadOnce, setClickBoost } from "./state";
 import { h, toast } from "./ui/dom";
 import { icon } from "./ui/icons";
 import { openModal } from "./ui/modal";
@@ -99,14 +99,10 @@ onServerEvent<SiteState>("site", (s) => {
 // The server says which build it serves, on every (re)connect. A different one than this
 // page was loaded with means the site was updated: reload to get it (spread over a few
 // seconds so the server isn't hit by everyone at once).
-let build: string | null = null;
 onServerEvent<{ build: string }>("build", (b) => {
-  if (build == null) build = b.build;
-  else if (b.build !== build) {
-    build = b.build;
-    toast("Updating to the latest version...", "info", 5000);
-    setTimeout(() => location.reload(), 1000 + Math.random() * 3000);
-  }
+  if (b.build === "dev" || b.build === __BUILD__) return;
+  toast("Updating to the latest version...", "info", 5000);
+  reloadOnce();
 });
 
 // The admin's pop-up announcement: a dialog on every open page.
