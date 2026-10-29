@@ -244,7 +244,7 @@ function sidebar() {
   return h(
     "aside",
     { class: "sidebar", id: "sidebar" },
-    h("a", { class: "logo", href: "#/" }, "STRAFE", h("span", null, "CLICKER")),
+    h("a", { class: "logo", href: "#/" }, h("img", { class: "logo-mark", src: `${import.meta.env.BASE_URL}logo-mark.png`, alt: "" }), "STRAFE", h("span", null, "CLICKER")),
     scroll,
   );
 }
