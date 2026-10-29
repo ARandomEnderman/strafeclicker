@@ -7286,3 +7286,40 @@ body.rain-shake .shell {
 .upg-centre {
   pointer-events: none;
 }
+
+/* ---------- admin pop-up announcement ---------- */
+.admin-popup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+.admin-popup-icon {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: rgba(245, 165, 36, 0.15);
+  color: var(--accent);
+}
+.admin-popup-text {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.admin-popup-row {
+  flex-wrap: wrap;
+}
+.admin-popup-title {
+  flex: 0 1 220px;
+}
+.admin-popup-msg {
+  flex: 1 1 320px;
+  min-height: 60px;
+  resize: vertical;
+  font: inherit;
+}

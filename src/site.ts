@@ -3,6 +3,8 @@ import { setCaseSale } from "./catalog";
 import { setClickBoost } from "./state";
 import { h, toast } from "./ui/dom";
 import { icon } from "./ui/icons";
+import { openModal } from "./ui/modal";
+import { playReveal } from "./ui/sound";
 
 // Site-wide notices from the admin: an announcement, maintenance mode, and running events
 // (each with a countdown).
@@ -99,6 +101,22 @@ onServerEvent<SiteState>("site", (s) => {
 onServerEvent("reload", () => {
   toast("Updating StrafeClicker...", "info", 4000);
   setTimeout(() => location.reload(), 500 + Math.random() * 2500);
+});
+
+// The admin's pop-up announcement: a dialog on every open page.
+onServerEvent<{ title: string; text: string }>("popup", (p) => {
+  let close = () => {};
+  close = openModal(
+    p.title,
+    h(
+      "div",
+      { class: "popup-body admin-popup" },
+      h("div", { class: "admin-popup-icon" }, icon("announce", 26)),
+      h("p", { class: "admin-popup-text" }, p.text),
+      h("button", { class: "btn btn-primary", onclick: () => close() }, "Got it"),
+    ),
+  );
+  playReveal("covert");
 });
 
 // One-off messages for this player (an event's free case, say).

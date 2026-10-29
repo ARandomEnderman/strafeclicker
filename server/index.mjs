@@ -491,6 +491,15 @@ function checkMaintenance(userId, action, body) {
 }
 
 /** POST /api/<action> handlers for logged-in users. Each returns its result plus the account view. */
+/** An admin message that pops up on every open page right now. */
+function popupAll(body) {
+  const text = String(body.text ?? "").trim().slice(0, 1000);
+  if (!text) throw new GameError("bad_input", "Write a message");
+  const title = String(body.title ?? "").trim().slice(0, 80) || "Announcement";
+  broadcast("popup", { title, text });
+  return { ok: true, pages: clients.size };
+}
+
 /** Usernames starting with a prefix, most recently active first (chat's Tab completion). */
 const namesLike = db.prepare("SELECT username FROM users WHERE username LIKE ? ESCAPE '\\' AND banned = 0 ORDER BY last_active DESC NULLS LAST LIMIT 8");
 
@@ -569,6 +578,7 @@ const actions = {
       : a === "caseDrop" ? admin.caseDrop(body.caseId)
       : a === "force" ? admin.forceRound(body)
       : a === "reloadAll" ? (broadcast("reload", {}), { ok: true, pages: clients.size })
+      : a === "popup" ? popupAll(body)
       : a === "forcePlayer" ? admin.forcePlayer(body.username, body)
       : null;
     if (!r) throw new GameError("bad_input", "Unknown action");

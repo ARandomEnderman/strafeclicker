@@ -162,10 +162,38 @@ export function adminPage() {
     );
   };
 
+  // A message that pops up on every open page (unlike the banner, it's shown once, now).
+  const popupRow = () => {
+    const title = h("input", { class: "search admin-popup-title", placeholder: "Title (optional)", maxlength: "80" }) as HTMLInputElement;
+    const text = h("textarea", { class: "search admin-popup-msg", placeholder: "Pop-up message for everyone online right now", maxlength: "1000", rows: "3" }) as HTMLTextAreaElement;
+    return h(
+      "div",
+      { class: "admin-row admin-popup-row" },
+      title,
+      text,
+      h(
+        "button",
+        {
+          class: "btn btn-primary",
+          onclick: async () => {
+            if (!text.value.trim()) return toast("Write a message", "error");
+            const r = await run(() => adminAction<{ pages: number }>("popup", { title: title.value, text: text.value }));
+            if (r) {
+              toast(`Popped up on ${r.pages} open page${r.pages === 1 ? "" : "s"}`);
+              title.value = text.value = "";
+            }
+          },
+        },
+        icon("announce", 14),
+        " Pop up for everyone",
+      ),
+    );
+  };
+
   // ---------- site ----------
   const siteSection = () => {
     const o = ov!;
-    const ann = h("input", { class: "search", placeholder: "Announcement shown to everyone", maxlength: "300", value: o.settings.announcement ?? "" }) as HTMLInputElement;
+    const ann = h("input", { class: "search", placeholder: "Banner at the top of every page (stays until cleared)", maxlength: "300", value: o.settings.announcement ?? "" }) as HTMLInputElement;
     const setSettings = (body: object, ok: string) =>
       run(async () => {
         ov = (await adminAction<Overview>("settings", body)) as Overview;
@@ -201,6 +229,7 @@ export function adminPage() {
         h("button", { class: "btn btn-primary", onclick: () => void setSettings({ announcement: ann.value.trim() || null }, ann.value.trim() ? "Announcement posted" : "Announcement cleared") }, "Post"),
         h("button", { class: "btn btn-ghost", onclick: () => void setSettings({ announcement: null }, "Announcement cleared") }, "Clear"),
       ),
+      popupRow(),
       h(
         "div",
         { class: "admin-row" },
