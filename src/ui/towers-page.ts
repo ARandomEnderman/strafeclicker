@@ -24,7 +24,7 @@ export function towersPage() {
   }
   let run: TowerRun | null = null;
   /** The floors of the run that just ended, to keep them on screen. */
-  let ended: { floors: TowerFloor[]; caught: boolean } | null = null;
+  let ended: { floors: TowerFloor[]; caught: boolean; ahead: number[][] } | null = null;
   let busy = false;
 
   const tower = h("div", { class: "tw-tower" });
@@ -33,7 +33,8 @@ export function towersPage() {
 
   const diff = () => (run?.difficulty as TowerDifficulty) ?? difficulty;
 
-  const floorRow = (n: number, state: "done" | "current" | "locked" | "caught", floor?: TowerFloor) => {
+  // "ghost": a floor you didn't reach, after the run, showing where its Ts were.
+  const floorRow = (n: number, state: "done" | "current" | "locked" | "caught" | "ghost", floor?: TowerFloor) => {
     const d = TOWER_DIFFICULTIES[diff()];
     const doors = Array.from({ length: d.doors }, (_, i) => {
       const isT = floor?.ts.includes(i);
@@ -43,6 +44,9 @@ export function towersPage() {
       if (state === "done" || state === "caught") {
         if (picked && !isT) ((cls += " safe"), (content = icon("check", 22)));
         else if (isT) ((cls += picked ? " caught" : " t"), (content = icon("skull", 22)));
+        else cls += " rest";
+      } else if (state === "ghost") {
+        if (isT) ((cls += " t"), (content = icon("skull", 22)));
         else cls += " rest";
       }
       return h("button", { type: "button", class: cls, disabled: state !== "current" || busy, onclick: () => void pick(i) }, content);
@@ -61,7 +65,10 @@ export function towersPage() {
     floors.forEach((f, i) => rows.push(floorRow(i + 1, ended?.caught && i === floors.length - 1 ? "caught" : "done", f)));
     const next = floors.length + 1;
     if (run) rows.push(floorRow(next, "current"));
-    for (let k = run ? 1 : 0; k < AHEAD; k++) rows.push(floorRow(next + k, "locked"));
+    for (let k = run ? 1 : 0; k < AHEAD; k++) {
+      const ts = !run ? ended?.ahead[k] : undefined;
+      rows.push(ts ? floorRow(next + k, "ghost", { door: -1, ts }) : floorRow(next + k, "locked"));
+    }
     // Bottom floor at the bottom.
     tower.replaceChildren(...rows.reverse());
     // Keep the current floor (or the last one played) in view.
@@ -139,7 +146,7 @@ export function towersPage() {
       const r = await towersAction("pick", { door });
       if (r.result === "caught") {
         playBoom();
-        ended = { floors: r.floors!, caught: true };
+        ended = { floors: r.floors!, caught: true, ahead: r.ahead ?? [] };
         run = null;
         banner.textContent = `A T was behind that door on floor ${r.floors!.length}.`;
         banner.className = "bh-banner lost";
@@ -147,7 +154,7 @@ export function towersPage() {
       }
       playSafe();
       if (r.result === "top") {
-        ended = { floors: r.floors!, caught: false };
+        ended = { floors: r.floors!, caught: false, ahead: r.ahead ?? [] };
         run = null;
         banner.textContent = `You reached the top: ${mult(r.mult!)}, +${money(r.payout!)}`;
         banner.className = "bh-banner won";
@@ -160,7 +167,7 @@ export function towersPage() {
     guard(async () => {
       const floors = run?.floors ?? [];
       const r = await towersAction("cashout");
-      ended = { floors, caught: false };
+      ended = { floors, caught: false, ahead: r.ahead ?? [] };
       run = null;
       if (r.result === "cashed") {
         banner.textContent = `Cashed out on floor ${floors.length}: ${mult(r.mult!)}, +${money(r.payout!)}`;

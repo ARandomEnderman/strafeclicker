@@ -8126,3 +8126,11 @@ body.rain-shake .shell {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* Towers: floors you didn't reach, after the run, showing where the Ts were. */
+.tw-floor.ghost {
+  opacity: 0.6;
+}
+.tw-floor.ghost .tw-door.t {
+  opacity: 0.85;
+}

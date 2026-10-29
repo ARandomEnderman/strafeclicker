@@ -476,6 +476,8 @@ export interface TowerRun {
 export interface TowerResult {
   result?: "safe" | "caught" | "top" | "cashed" | "cancelled";
   floors?: TowerFloor[];
+  /** When the run ends: where the Ts were on the next floors you didn't reach. */
+  ahead?: number[][];
   mult?: number;
   payout?: number;
   run: TowerRun | null;
