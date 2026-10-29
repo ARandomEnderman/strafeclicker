@@ -27,10 +27,14 @@ export interface BjTable {
   dealer: (BjCard | null)[];
   dealerTotal: number | null;
   seats: BjSeat[];
+  /** Bets placed during this hand, playing the next one. */
+  waiting?: { user: string; name: string; stake: number }[];
 }
 export interface BjState {
   tables: number;
   seated?: boolean;
+  /** You've bet and play the next hand at this table. */
+  queued?: boolean;
   table: BjTable | null;
 }
 

@@ -8,6 +8,10 @@
 //            one card every BJ_DEALER_CARD_MS, the same for everyone watching
 //   result   payouts (blackjack 3:2, win 1:1, push returns the bet), then a new round
 //
+// Everyone plays at the same table while it has room: a bet placed while a hand is being
+// played waits for the next hand at that table (t.waiting) instead of opening a new
+// table. A second table only opens once every table is full.
+//
 // The shoe (6 decks) and the hole card stay on the server. Stakes are debited when the
 // bet is placed and kept in bj_bets, so a restart refunds a round that was in progress.
 
@@ -83,25 +87,34 @@ export class Blackjack {
   }
 
   #newTable() {
-    const t = { id: this.nextId++, round: 0, phase: "idle", seats: [], dealer: [], deadline: null, shoe: newShoe(), timer: null };
+    const t = { id: this.nextId++, round: 0, phase: "idle", seats: [], waiting: [], dealer: [], deadline: null, shoe: newShoe(), timer: null };
     this.tables.set(t.id, t);
     return t;
   }
 
   /**
-   * Seat a player at the table taking bets with the most other players (anyone can join
-   * anyone), staying at their own table on a tie; a new table only when none has room.
-   * Without this, two players who once landed at different tables would each keep
-   * playing alone at their own.
+   * The table for a new bet: the one with the most other players (in the hand or waiting
+   * for the next) that still has room, whatever it's doing; on a tie your own table, then
+   * one taking bets. A new table only when every table is full.
    */
   #tableFor(userId) {
     const mine = this.tables.get(this.at.get(userId));
-    const others = (t) => t.seats.filter((s) => s.userId !== userId).length;
-    const open = [...this.tables.values()].filter(
-      (t) => others(t) < BJ_SEATS && (t.phase === "idle" || t.phase === "betting" || (t === mine && t.phase === "result")),
-    );
+    const others = (t) => [...t.seats, ...t.waiting].filter((s) => s.userId !== userId).length;
+    const open = [...this.tables.values()].filter((t) => others(t) < BJ_SEATS);
     if (!open.length) return this.#newTable();
-    return open.reduce((best, t) => (others(t) > others(best) || (others(t) === others(best) && t === mine) ? t : best));
+    const rank = (t) => others(t) * 4 + (t === mine ? 2 : 0) + (t.phase === "idle" || t.phase === "betting" ? 1 : 0);
+    return open.reduce((best, t) => (rank(t) > rank(best) ? t : best));
+  }
+
+  /** Start taking bets (with a deadline), dealing at once if the table is full. */
+  #openBetting(t) {
+    t.phase = "betting";
+    t.deadline = Date.now() + BJ_BET_MS;
+    t.timer = setTimeout(() => this.#deal(t), BJ_BET_MS);
+    if (t.seats.length >= BJ_SEATS) {
+      clearTimeout(t.timer);
+      this.#deal(t);
+    }
   }
 
   #draw(t) {
@@ -113,8 +126,9 @@ export class Blackjack {
   refundPending() {
     let n = 0;
     for (const t of this.tables.values()) {
-      if (t.phase !== "betting") continue;
-      for (const s of t.seats) {
+      const seats = [...(t.phase === "betting" ? t.seats : []), ...t.waiting];
+      if (!seats.length) continue;
+      for (const s of seats) {
         const { account } = this.game.act(s.userId, (a) => {
           a.balanceCents += s.stakeCents;
           return {};
@@ -123,7 +137,8 @@ export class Blackjack {
         this.io.toUser(s.userId, "account", account);
         n++;
       }
-      this.#reset(t);
+      t.waiting = [];
+      if (t.phase === "betting") this.#reset(t);
     }
     if (n) this.publish();
     return n;
@@ -133,13 +148,19 @@ export class Blackjack {
 
   bet(userId, body) {
     const current = this.tables.get(this.at.get(userId));
+    if (current?.waiting.some((s) => s.userId === userId)) throw new GameError("busy", "You're already in for the next hand");
     if (current?.seats.some((s) => s.userId === userId) && current.phase !== "result" && current.phase !== "idle") {
       if (current.phase !== "betting") throw new GameError("busy", "Finish this hand first");
       throw new GameError("busy", "You've already bet this round");
     }
     const t = this.#tableFor(userId);
-    // A table showing last round's result starts the next round now.
-    if (t.phase === "result") this.#reset(t);
+    // A table showing only your own last result starts the next round now; with others
+    // there, the result stays up and you're in for the next hand.
+    if (t.phase === "result" && t.seats.every((s) => s.userId === userId)) {
+      this.#reset(t);
+      t.seats = t.waiting;
+      t.waiting = [];
+    }
     let seat;
     const out = this.game.act(userId, (a) => {
       const stake = stakeCents(a, body.bet);
@@ -148,18 +169,19 @@ export class Blackjack {
       seat = { userId, user: a.username, name: a.displayName, betId: Number(lastInsertRowid), stakeCents: stake, cards: [], status: "betting", doubled: false, result: null, payoutCents: 0 };
       return {};
     });
-    t.seats.push(seat);
     this.at.set(userId, t.id);
     if (t.phase === "idle") {
-      t.phase = "betting";
-      t.deadline = Date.now() + BJ_BET_MS;
-      t.timer = setTimeout(() => this.#deal(t), BJ_BET_MS);
-    }
-    // A full table doesn't wait out the timer.
-    if (t.seats.length >= BJ_SEATS) {
-      clearTimeout(t.timer);
-      this.#deal(t);
-    } else this.publish();
+      t.seats.push(seat);
+      this.#openBetting(t);
+    } else if (t.phase === "betting") {
+      t.seats.push(seat);
+      // A full table doesn't wait out the timer.
+      if (t.seats.length >= BJ_SEATS) {
+        clearTimeout(t.timer);
+        this.#deal(t);
+      }
+    } else t.waiting.push(seat);
+    this.publish();
     return out;
   }
 
@@ -293,6 +315,12 @@ export class Blackjack {
     this.publish();
     t.timer = setTimeout(() => {
       this.#reset(t);
+      // Whoever bet during the hand plays the next one.
+      if (t.waiting.length) {
+        t.seats = t.waiting;
+        t.waiting = [];
+        this.#openBetting(t);
+      }
       this.publish();
     }, BJ_RESULT_MS);
   }
@@ -308,11 +336,15 @@ export class Blackjack {
 
   // ---------- what browsers see ----------
 
-  /** The table this user sits (or last sat) at; the hole card stays hidden until the dealer plays. */
+  /** The table this user should see; the hole card stays hidden until the dealer plays. */
   view(userId) {
-    const busy = [...this.tables.values()].filter((x) => x.seats.length);
+    const busy = [...this.tables.values()].filter((x) => x.seats.length || x.waiting.length);
     // Someone who hasn't sat down yet watches the fullest table.
-    const t = this.tables.get(this.at.get(userId)) ?? busy.sort((a, b) => b.seats.length - a.seats.length)[0];
+    // Your table while you're in its hand or waiting for the next; otherwise the busiest
+    // one (so you see where everyone is), or your old one if nobody is playing.
+    const mine = this.tables.get(this.at.get(userId));
+    const inMine = mine && [...mine.seats, ...mine.waiting].some((x) => x.userId === userId);
+    const t = inMine ? mine : (busy.sort((a, b) => b.seats.length + b.waiting.length - a.seats.length - a.waiting.length)[0] ?? mine);
     const open = busy.length;
     if (!t) return { table: null, tables: open };
     const showHole = t.holeShown || t.phase === "result";
@@ -320,7 +352,9 @@ export class Blackjack {
     return {
       tables: open,
       seated: t.seats.some((s) => s.userId === userId),
+      queued: t.waiting.some((s) => s.userId === userId),
       table: {
+        waiting: t.waiting.map((s) => ({ user: s.user, name: s.name, stake: s.stakeCents / 100 })),
         id: t.id,
         round: t.round,
         phase: t.phase,

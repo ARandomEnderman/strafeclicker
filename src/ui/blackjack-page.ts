@@ -108,20 +108,25 @@ export function blackjackPage() {
       lastDealer = t.dealer.length;
     }
 
+    const mine = t?.waiting?.find((w) => w.user === me);
     if (seat && t) seatEl(mySeat, seat, t.round);
+    else if (st.queued && mine)
+      mySeat.replaceChildren(h("div", { class: "bj-empty" }, h("b", null, `You're in for the next hand (${money(mine.stake)}).`), " It's dealt as soon as this one ends."));
     else mySeat.replaceChildren(h("div", { class: "bj-empty" }, "Place a bet to sit down. Everyone at the table plays their hand at the same time."));
     mySeat.hidden = false;
     const rest = (t?.seats ?? []).filter((s) => s.user !== me);
+    const next = (t?.waiting ?? []).filter((w) => w.user !== me);
     others.replaceChildren(
       ...rest.map((s) => seatEl(h("div"), s, t!.round)),
-      ...Array.from({ length: Math.max(0, BJ_SEATS - 1 - rest.length) }, () => h("div", { class: "bj-seat open" }, h("div", { class: "bj-empty" }, "Open seat"))),
+      ...next.map((w) => h("div", { class: "bj-seat open next" }, h("div", { class: "bj-empty" }, userLink(w.user, w.name), ` joins next hand · ${money(w.stake)}`))),
+      ...Array.from({ length: Math.max(0, BJ_SEATS - 1 - rest.length - next.length) }, () => h("div", { class: "bj-seat open" }, h("div", { class: "bj-empty" }, "Open seat"))),
     );
 
     const playing = seat?.status === "playing" && t?.phase === "playing";
     playRow.hidden = !playing;
     doubleBtn.disabled = !playing || seat!.cards.length !== 2;
     // You can bet when you're not in the current hand (or it's over).
-    const canBet = !seat || t?.phase === "result" || t?.phase === "idle";
+    const canBet = !st.queued && (!seat || t?.phase === "result" || t?.phase === "idle");
     betRow.hidden = !canBet;
   };
 
@@ -136,7 +141,7 @@ export function blackjackPage() {
       status.textContent = `Dealing in ${(left / 1000).toFixed(1)}s`;
       bar.style.width = `${(left / BJ_BET_MS) * 100}%`;
     } else if (t.phase === "playing") {
-      status.textContent = `${Math.ceil(left / 1000)}s to play your hand`;
+      status.textContent = bjState()?.seated ? `${Math.ceil(left / 1000)}s to play your hand` : `${Math.ceil(left / 1000)}s left in this hand`;
       bar.style.width = `${(left / BJ_PLAY_MS) * 100}%`;
     } else if (t.phase === "dealer") status.textContent = "Dealer plays";
     else status.textContent = t.dealerTotal != null && t.dealerTotal > 21 ? "Dealer busts" : `Dealer has ${t.dealerTotal}`;
