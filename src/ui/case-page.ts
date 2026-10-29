@@ -13,7 +13,7 @@ import { playTick, playReveal } from "./sound";
 
 // The reel copies CS2's own case-opening popup (panorama popup_capability_decodable.js/.css):
 // 38 tiles, the scroll starts on tile 35 and stops on the dropped item at tile 3, a random
-// 10–90% across it, over 6 s with cubic-bezier(0.075, 0.82, 0.165, 1), then the item is
+// 10–90% across it, over 6 s, then the item is
 // revealed. CS2 lays tiles out right-to-left; ours go left-to-right, so its tile i is our 37 - i.
 // Our tiles are narrower than CS2's, so PAD extra filler tiles on each side keep the
 // strip full edge to edge; the 32-tile trip from start to winner is unchanged.
@@ -23,7 +23,11 @@ const REEL_LENGTH = CS2_TILES + 2 * PAD;
 const WIN_INDEX = PAD + (CS2_TILES - 1 - 3);
 const START_INDEX = PAD + (CS2_TILES - 1 - 35);
 const SPIN_MS = 6000;
-const SPIN_EASING = "cubic-bezier(0.075, 0.82, 0.165, 1)";
+/**
+ * Starts fast and brakes steadily. CS2's own curve, cubic-bezier(0.075, 0.82, 0.165, 1),
+ * crawled across the last tile for 2.7 s on our narrower tiles; this one takes about 1.3 s.
+ */
+export const SPIN_EASING = "cubic-bezier(0.15, 0.6, 0.55, 1)";
 /** CS2's per-item display weights for filler tiles, by rarity (Mil-Spec / High Grade first). */
 const FILLER_WEIGHT = { milspec: 1250, restricted: 250, classified: 50, covert: 10, gold: 0 } as const;
 

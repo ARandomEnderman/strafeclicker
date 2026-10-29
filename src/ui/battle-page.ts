@@ -1,3 +1,4 @@
+import { SPIN_EASING } from "./case-page";
 import { battleById, onBattles, type Battle } from "../battles";
 import { getCase, getItem, imageOf } from "../catalog";
 import { serverNow } from "../live";
@@ -16,7 +17,7 @@ import { playReveal, playTick } from "./sound";
 // the same moment.
 
 const TILE = 96; // px per reel tile
-const EASING = "cubic-bezier(0.075, 0.82, 0.165, 1)";
+const EASING = SPIN_EASING;
 
 function tile(item: Item, image: string) {
   return h("div", { class: "bt-tile", style: `--rarity:${item.color}` }, h("img", { src: image, alt: "", loading: "lazy" }));
