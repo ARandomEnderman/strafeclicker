@@ -244,8 +244,9 @@ function fillReel(reel: HTMLElement, c: Case, winner: Item | null) {
     tiles.push(reelTile(item, c));
   }
   reel.replaceChildren(...tiles);
-  // Idle reels rest on the start tile, where the spin begins.
-  requestAnimationFrame(() => reel.isConnected && !reel.getAnimations().length && (reel.style.transform = `translateX(${xFor(reel, START_INDEX, 0.5)}px)`));
+  // Idle reels rest on the start tile, where the spin begins. A reel filled for a win is
+  // placed by animate() or snapTo() instead (this would undo a skip-animation snap).
+  if (!winner) requestAnimationFrame(() => reel.isConnected && !reel.getAnimations().length && (reel.style.transform = `translateX(${xFor(reel, START_INDEX, 0.5)}px)`));
 }
 
 function reelTile(item: Item, c: Case) {
