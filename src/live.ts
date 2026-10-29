@@ -42,6 +42,33 @@ export function onPricesForPage(fn: () => void) {
 }
 export function clearPageListeners() {
   pageListeners.clear();
+  pagePending = false;
+}
+
+// A page's price redraw waits while someone is typing in one of its fields (a redraw
+// would wipe what they typed), and runs once they leave the field.
+let pagePending = false;
+const typingInPage = () => {
+  const el = document.activeElement;
+  return !!el && el.matches("input, textarea, select, [contenteditable]") && !!el.closest(".page");
+};
+function runPageListeners() {
+  if (typingInPage()) {
+    if (pagePending) return;
+    pagePending = true;
+    document.activeElement!.addEventListener(
+      "focusout",
+      () =>
+        setTimeout(() => {
+          if (!pagePending) return;
+          pagePending = false;
+          runPageListeners();
+        }),
+      { once: true },
+    );
+    return;
+  }
+  pageListeners.forEach((fn) => fn());
 }
 
 let updating = Promise.resolve();
@@ -69,7 +96,7 @@ function saveSeen() {
 function emit(change: InventoryChange) {
   saveSeen();
   priceListeners.forEach((fn) => fn(change));
-  pageListeners.forEach((fn) => fn());
+  runPageListeners();
 }
 
 // Other server events (live feed, game rounds): name -> handlers.

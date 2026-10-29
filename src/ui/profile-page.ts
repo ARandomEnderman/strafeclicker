@@ -170,20 +170,38 @@ export function profilePage(username: string) {
     );
   };
 
+  // The page is drawn into slots, and an open editor (or the password form) is built once
+  // and kept, so a redraw (new prices, a balance change) never wipes what's being typed.
+  const slots = { card: h("div"), edit: h("div"), showcase: h("div"), password: h("div"), inv: h("div") };
+  let editorEl: HTMLElement | null = null;
+  let showcaseEls: Node[] | null = null;
+  let passwordEl: HTMLElement | null = null;
+  /** Fill a slot, leaving it alone when it already holds exactly these nodes. */
+  const put = (slot: HTMLElement, nodes: Node[]) => {
+    if (nodes.length === slot.childNodes.length && nodes.every((n, i) => slot.childNodes[i] === n)) return;
+    slot.replaceChildren(...nodes);
+  };
+
   const draw = () => {
     if (!profile) return;
     const p = profile;
-    const items = p.relation === "self" ? getState().inventory : (p.inventory ?? []);
+    const self = p.relation === "self";
+    const items = self ? getState().inventory : (p.inventory ?? []);
     const sorted = [...items].sort((a, b) => (sort === "value" ? priceOf(b) - priceOf(a) : b.obtainedAt - a.obtainedAt));
     const sortBtn = (s: Sort, label: string) => h("button", { class: `chip${sort === s ? " active" : ""}`, onclick: () => ((sort = s), draw()) }, label);
-    root.replaceChildren(
-      profileCard(p, { onChange: () => void load() }),
-      ...(p.relation === "self"
-        ? [editingProfile ? profileEditor(p) : h("div", { class: "toolbar" }, h("button", { class: "btn", onclick: () => ((editingProfile = true), draw()) }, "Edit profile"))]
-        : []),
-      ...showcase(p),
-      ...(p.relation === "self" ? [passwordForm()] : []),
-      ...(p.inventory || p.relation === "self"
+    if (root.firstChild !== slots.card) root.replaceChildren(...Object.values(slots));
+    put(slots.card, [profileCard(p, { onChange: () => void load() })]);
+    if (!editingProfile) editorEl = null;
+    put(
+      slots.edit,
+      self ? [editingProfile ? (editorEl ??= profileEditor(p)) : h("div", { class: "toolbar" }, h("button", { class: "btn", onclick: () => ((editingProfile = true), draw()) }, "Edit profile"))] : [],
+    );
+    if (!editing) showcaseEls = null;
+    put(slots.showcase, editing ? (showcaseEls ??= showcase(p)) : showcase(p));
+    put(slots.password, self ? [(passwordEl ??= passwordForm())] : []);
+    put(
+      slots.inv,
+      p.inventory || self
         ? [
             h(
               "div",
@@ -193,7 +211,7 @@ export function profilePage(username: string) {
             ),
             sorted.length ? h("div", { class: "item-grid" }, ...sorted.map((it) => dropCard(it))) : h("p", { class: "empty" }, "Nothing in this inventory."),
           ]
-        : []),
+        : [],
     );
   };
 
@@ -207,7 +225,7 @@ export function profilePage(username: string) {
     }
   };
 
-  onLeave(subscribe(() => profile?.relation === "self" && !editing && !editingProfile && draw()));
+  onLeave(subscribe(() => profile?.relation === "self" && draw()));
   onPricesForPage(draw);
   root.append(h("p", { class: "empty" }, "Loading..."));
   void load();
