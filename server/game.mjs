@@ -790,6 +790,9 @@ export class Game {
       if (!perk) throw new GameError("unknown_perk", "No such upgrade", 404);
       const next = perk.levels[a.perks[id] + 1];
       if (!next) throw new GameError("maxed", `${perk.name} is already maxed`);
+      // A side branch: only once the level it grows from is owned.
+      const req = perk.requires;
+      if (req && (a.perks[req.perk] ?? 0) < req.level) throw new GameError("locked", `Unlock ${PERKS[req.perk].name} level ${req.level} first`);
       if (spendable(a) < cents(next.cost)) throw new GameError("insufficient", "Not enough balance");
       a.balanceCents -= cents(next.cost);
       a.perks[id]++;

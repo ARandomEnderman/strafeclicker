@@ -124,7 +124,7 @@ export function casePage(c: Case) {
       if (reels.children.length !== won.length) makeReels(won.length);
       const wraps = [...reels.children] as HTMLElement[];
       wraps.forEach((wrap, i) => fillReel(wrap.firstElementChild as HTMLElement, c, getItem(won[i].itemId)));
-      if (!fast) await Promise.all(wraps.map((wrap, i) => animate(wrap.firstElementChild as HTMLElement, i === 0)));
+      if (!fast || !perkValue(getState().perks, "skipAnimation")) await Promise.all(wraps.map((wrap, i) => animate(wrap.firstElementChild as HTMLElement, i === 0)));
       else wraps.forEach((wrap) => snapTo(wrap.firstElementChild as HTMLElement));
       wraps.forEach((wrap) => ensureLanded(wrap.firstElementChild as HTMLElement, wrap));
       const best = won.map((w) => getItem(w.itemId)).sort((a, b) => TIER_RANK[b.tier] - TIER_RANK[a.tier])[0];
@@ -208,12 +208,15 @@ export function casePage(c: Case) {
           { class: "case-actions" },
           openBtn,
           countPicker,
-          h(
-            "label",
-            { class: "toggle" },
-            h("input", { type: "checkbox", checked: fast, onchange: (e: Event) => (fast = (e.target as HTMLInputElement).checked) }),
-            " Skip animation",
-          ),
+          // Skipping the reel is an upgrade (a side branch off Multi-open level 2).
+          perkValue(getState().perks, "skipAnimation")
+            ? h(
+                "label",
+                { class: "toggle" },
+                h("input", { type: "checkbox", checked: fast, onchange: (e: Event) => (fast = (e.target as HTMLInputElement).checked) }),
+                " Skip animation",
+              )
+            : h("a", { class: "chip locked", href: "#/tree", title: "Unlock in the upgrade tree" }, icon("lock", 12), " Skip animation"),
         ),
       ),
     ),

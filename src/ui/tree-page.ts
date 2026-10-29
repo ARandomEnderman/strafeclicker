@@ -11,7 +11,11 @@ import { onLeave } from "./page";
 // shows the details in a tooltip, clicking pins it so the upgrade can be bought there.
 
 // Five branches 72° apart around the centre.
-const BRANCHES: { id: PerkId; angle: number; icon: IconName; about: string; effect: (v: number) => string }[] = [
+/**
+ * Each perk's branch. A side branch (`from`) grows out of a level of another branch instead
+ * of the centre, at `angle` from that node.
+ */
+const BRANCHES: { id: PerkId; angle: number; icon: IconName; about: string; effect: (v: number) => string; from?: { perk: PerkId; level: number } }[] = [
   {
     id: "multiOpen",
     angle: -Math.PI / 2 - (4 * Math.PI) / 5,
@@ -46,6 +50,15 @@ const BRANCHES: { id: PerkId; angle: number; icon: IconName; about: string; effe
     icon: "maxBet",
     about: "The most you can bet on one round of any game.",
     effect: (v) => (Number.isFinite(v) ? `Bet up to ${money(v)}` : "No max bet"),
+  },
+  {
+    id: "skipAnimation",
+    // Off to the side of Multi-open level 2.
+    angle: -Math.PI / 2 - (4 * Math.PI) / 5 + 2 * 0.16 - Math.PI / 2,
+    from: { perk: "multiOpen", level: 2 },
+    icon: "timer",
+    about: "Adds the Skip animation switch to the case page: openings land straight away.",
+    effect: (v) => (v ? "Skip the case-opening animation" : "Every opening plays its reel"),
   },
 ];
 
@@ -91,11 +104,13 @@ function buildGraph() {
   const nodes: GNode[] = [{ key: "root", branch: null, level: 0, home: { x: 0, y: 0 }, x: 0, y: 0, vx: 0, vy: 0, phase: 0, r: 24 }];
   const edges: [GNode, GNode][] = [];
   for (const b of BRANCHES) {
-    let prev = nodes[0];
+    // Side branches start at the node they grow from (built earlier: they're listed last).
+    const base = b.from ? nodes.find((x) => x.key === `${b.from!.perk}:${b.from!.level}`)! : nodes[0];
+    let prev = base;
     PERKS[b.id].levels.slice(1).forEach((_, i) => {
       const level = i + 1;
       const a = b.angle + level * TWIST;
-      const home = { x: Math.cos(a) * RING * level, y: Math.sin(a) * RING * level };
+      const home = { x: base.home.x + Math.cos(a) * RING * level, y: base.home.y + Math.sin(a) * RING * level };
       // Start slightly scattered so the graph "settles" in, like Obsidian's does.
       const n: GNode = {
         key: `${b.id}:${level}`,
@@ -136,7 +151,10 @@ export function treePage() {
   const stateOf = (n: GNode): State => {
     if (!n.branch) return "root";
     const owned = getState().perks[n.branch];
-    return n.level <= owned ? "owned" : n.level === owned + 1 ? "next" : "locked";
+    if (n.level <= owned) return "owned";
+    const req = PERKS[n.branch].requires;
+    if (req && getState().perks[req.perk] < req.level) return "locked";
+    return n.level === owned + 1 ? "next" : "locked";
   };
 
   // ---------- SVG scene ----------
@@ -391,7 +409,13 @@ export function treePage() {
 
     let action: HTMLElement;
     if (st === "owned") action = h("div", { class: "tip-owned" }, "Owned");
-    else if (st === "locked") action = h("div", { class: "tip-locked" }, icon("lock", 13), ` Unlock level ${n.level - 1} first`);
+    else if (st === "locked")
+      action = h(
+        "div",
+        { class: "tip-locked" },
+        icon("lock", 13),
+        perk.requires && n.level === 1 ? ` Unlock ${PERKS[perk.requires.perk].name} level ${perk.requires.level} first` : ` Unlock level ${n.level - 1} first`,
+      );
     else
       action = h(
         "button",

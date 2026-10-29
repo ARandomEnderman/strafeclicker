@@ -53,6 +53,16 @@ export const PHASE_WEIGHTS = {
  * Level 0 is what every account starts with.
  */
 export const PERKS = {
+  // A side branch off Multi-open level 2 (see `requires`): the case page's skip-animation switch.
+  skipAnimation: {
+    name: "Skip animation",
+    unit: "",
+    requires: { perk: "multiOpen", level: 2 },
+    levels: [
+      { value: 0, cost: 0 },
+      { value: 1, cost: 75 },
+    ],
+  },
   multiOpen: {
     name: "Multi-open",
     unit: "cases at once",
@@ -117,7 +127,7 @@ export const PERKS = {
   },
 };
 
-export const NO_PERKS = { multiOpen: 0, clickPower: 0, offlineIncome: 0, battleRounds: 0, maxBet: 0 };
+export const NO_PERKS = { multiOpen: 0, clickPower: 0, offlineIncome: 0, battleRounds: 0, maxBet: 0, skipAnimation: 0 };
 
 /** Offline income only counts gaps of at least this long, and pays at most this many hours. */
 export const OFFLINE_MIN_GAP_MS = 5 * 60_000;
