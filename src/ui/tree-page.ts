@@ -31,7 +31,7 @@ const BRANCHES: { id: PerkId; angle: number; icon: IconName; about: string; effe
     angle: -Math.PI / 2 + (4 * Math.PI) / 5,
     icon: "offlineIncome",
     about: `Paid when you come back after 5+ minutes away, for up to ${OFFLINE_CAP_HOURS} hours. It's some minutes of full-speed clicking per hour away, so click power raises it too.`,
-    effect: (v) => `${v} min of clicking per hour away (${money(v * perkValue(getState().perks, "clickPower") * CLICK_CPS_LIMIT * 60)}/h at your click power)`,
+    effect: (v) => `${Number.isInteger(v) ? `${v} min` : `${v * 60} sec`} of clicking per hour away (${money(v * perkValue(getState().perks, "clickPower") * CLICK_CPS_LIMIT * 60)}/h at your click power)`,
   },
   {
     id: "battleRounds",
