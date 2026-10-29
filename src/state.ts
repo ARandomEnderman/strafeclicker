@@ -78,18 +78,30 @@ export class ServerError extends Error {
 /** Show an account the server sent earlier (see `defer` below). */
 export const applyAccount = (a: Account) => set(a);
 
+/** Whether the live connection is down (set by live.ts, which imports this file). */
+let offline = () => false;
+export const setOfflineCheck = (fn: () => boolean) => (offline = fn);
+/** What still works while offline: logging in and out, switching accounts, clicks, lookups. */
+const OFFLINE_OK = new Set(["login", "register", "logout", "accounts", "switch", "forget", "clicks", "players", "bets"]);
+
 /**
  * POST an action. With `defer`, the new account isn't shown yet: the caller applies
  * it with applyAccount once its animation is done, so the result isn't spoiled early.
+ *
+ * While the page is offline (the timer says so) bets are refused here: it may be an old
+ * version of the site. Every action also carries this build's id; the server refuses
+ * actions from an outdated page, which then reloads.
  */
 async function post<T>(action: string, body: object = {}, defer = false): Promise<T & { account: Account }> {
+  if (offline() && !OFFLINE_OK.has(action)) throw new ServerError("offline", "You're offline, reconnecting. Bets are paused until you're back.");
   const res = await fetch(`/api/${action}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "X-Build": __BUILD__ },
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    if (data.error === "outdated") setTimeout(() => location.reload(), 1500);
     if (res.status === 401 && data.error === "auth") onLoggedOut();
     if (data.account) set(data.account);
     if (data.error === "insufficient") throw new InsufficientFunds(data.message);

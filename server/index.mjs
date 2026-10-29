@@ -58,16 +58,22 @@ import { Profiles } from "./profiles.mjs";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = join(ROOT, "dist");
 /**
- * Which build of the site this server is serving: a hash of dist/index.html (its asset
- * names change with every build). Pages get it on every (re)connect and reload when it
- * isn't the one they were loaded from, so an update reaches everyone without a reload
- * button, including pages that were asleep or offline when it went out.
+ * Which build of the site this server is serving: the id vite.config.ts writes to
+ * dist/build.txt (older builds: a hash of dist/index.html). Pages get it on every
+ * (re)connect and reload when it isn't the one they were loaded from, so an update
+ * reaches everyone, including pages that were asleep or offline when it went out. Pages
+ * also send their own build with every action, and actions from another build are
+ * refused (see OUTDATED).
  */
 let BUILD = "dev";
 try {
-  BUILD = createHash("sha256").update(readFileSync(join(DIST, "index.html"))).digest("hex").slice(0, 12);
+  BUILD = readFileSync(join(DIST, "build.txt"), "utf8").trim();
 } catch {
-  // no build yet (dev mode)
+  try {
+    BUILD = createHash("sha256").update(readFileSync(join(DIST, "index.html"))).digest("hex").slice(0, 12);
+  } catch {
+    // no build yet (dev mode)
+  }
 }
 const SNAPSHOT = join(ROOT, "server/snapshot.json.gz");
 const DATA_DIR = resolve(ROOT, process.env.DATA_DIR ?? "data");
@@ -811,6 +817,10 @@ async function api(req, res, url) {
       if (isAuth) return send(req, res, 200, await authActions[action](req, body, headers), undefined, headers);
       const userId = sessionUser(req);
       if (!userId) throw new GameError("auth", "Please log in", 401);
+      // A page from another build of the site (open since before an update) can't play:
+      // it reloads into the current one when it gets this.
+      const pageBuild = req.headers["x-build"];
+      if (pageBuild && BUILD !== "dev" && pageBuild !== BUILD) throw new GameError("outdated", "StrafeClicker was updated. Reloading...", 409);
       checkMaintenance(userId, action, body);
       return send(req, res, 200, await actions[action](userId, body, req));
     } catch (err) {

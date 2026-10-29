@@ -1,6 +1,6 @@
 import type { OwnedItem, ServerStatus } from "./types";
 import { priceOf, refreshPrices } from "./catalog";
-import { applyAccount, getState, subscribe } from "./state";
+import { applyAccount, getState, setOfflineCheck, subscribe } from "./state";
 
 // The server decides when prices change; this module only listens.
 
@@ -11,6 +11,9 @@ let clockOffset = 0;
 
 export const getStatus = () => status;
 export const isConnected = () => connected;
+/** The live connection was started (logged in) and is down right now: the page shows "offline". */
+export const isOffline = () => es != null && !connected;
+setOfflineCheck(isOffline);
 export const serverNow = () => Date.now() + clockOffset;
 
 /** Value of every inventory item just before and just after one price update. */
