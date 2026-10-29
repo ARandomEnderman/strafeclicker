@@ -12,7 +12,11 @@ import { playRain } from "./sound";
 //   4 Thunderstorm  repeated lightning, the screen shakes
 //   5 Monsoon       a gold storm, a huge banner, the works
 
-const PIECES = [16, 36, 70, 120, 180, 260];
+/**
+ * Coins and bills that fall: 40 × log10(amount + 1), so every extra zero adds 40
+ * ($1: 12, $100: 80, $10,000: 160, $1M: 240), at least 10 and at most 400.
+ */
+const piecesFor = (usd: number) => Math.min(400, Math.max(10, Math.round(40 * Math.log10(usd + 1))));
 const STREAKS = [0, 0, 40, 70, 110, 160];
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
 
@@ -21,7 +25,7 @@ export function rainFx(m: ChatMessage) {
   const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const layer = h("div", { class: `rain-fx lv${level}`, "aria-hidden": "true" });
   const spread = 1.2 + level * 0.5; // seconds over which pieces start falling
-  const n = Math.round(PIECES[level] * (calm ? 0.25 : 1));
+  const n = Math.round(piecesFor(m.amount ?? 0) * (calm ? 0.25 : 1));
   for (let i = 0; i < n; i++) {
     const kind = level >= 5 && Math.random() < 0.25 ? "gem" : level >= 1 && Math.random() < 0.4 ? "bill" : "coin";
     const piece = h("i", { class: `rf-${kind}` }, kind === "gem" ? "" : "$");
