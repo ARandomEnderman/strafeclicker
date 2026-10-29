@@ -35,6 +35,11 @@ function beep(freq: number, ms: number, gain: number, type: OscillatorType = "sq
 }
 
 export const playTick = () => beep(1800, 25, 0.03);
+/** Someone @mentioned you in chat: two quick rising notes. */
+export const playPing = () => {
+  beep(880, 120, 0.06, "sine");
+  setTimeout(() => beep(1320, 160, 0.06, "sine"), 110);
+};
 /** A low thud for a bomb. */
 export const playBoom = () => {
   beep(90, 500, 0.25, "sawtooth");

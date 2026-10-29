@@ -1,9 +1,17 @@
-// Live wins feed: the sidebar list every browser sees. Only items (skins, stickers,
-// knives, gloves) are announced, and only ones worth a look:
+// Live feed: the sidebar list every browser sees. Two kinds of entries:
 //
+// Items won (skins, stickers, knives, gloves) from cases, the upgrader, battles, jackpot
+// and coinflip, when they're worth a look:
 //   - knives, gloves and Covert / Extraordinary items, always;
 //   - anything worth ANNOUNCE_USD or more;
 //   - or at least ANNOUNCE_MULT times what its case cost, if worth ANNOUNCE_MULT_MIN_USD.
+//
+// Big bets from every game but plinko, measured against the typical bet on the site (a
+// running geometric mean of stakes, so a few whales don't drag it up):
+//   - a win whose profit is SIGNIFICANT times the typical bet (games that win items show
+//     the item instead);
+//   - a loss of SIGNIFICANT times the typical bet.
+// Either way it has to be at least BIG_MIN_USD.
 //
 // On top of that, flood control: one entry per player every PER_USER_MS, and once
 // BUSY_COUNT entries went out in the last minute only BUSY_USD+ items get through.
@@ -20,6 +28,15 @@ const BUSY_COUNT = 8;
 const BUSY_USD = 50;
 const HUGE_USD = 100;
 const KEEP = 40;
+const SIGNIFICANT = 10;
+const BIG_MIN_USD = 5;
+/** How fast the typical bet follows new bets (about the last 100 bets count). */
+const AVG_WEIGHT = 0.01;
+/** Games whose wins already show as the item won. */
+const ITEM_GAMES = new Set(["cases", "upgrade", "battle", "jackpot", "coinflip"]);
+const SKIP_GAMES = new Set(["plinko"]);
+/** Held back until the browser's animation has shown the result. */
+const BET_DELAY_MS = { cases: 6500, upgrade: 4400, keno: 1600 };
 
 /** @param {{ tier: string, value: number, stake: number }} w */
 export function worthAnnouncing({ tier, value, stake }) {
@@ -32,8 +49,11 @@ export class Feed {
   /** @param {import("node:sqlite").DatabaseSync} db */
   constructor(db) {
     db.exec("CREATE TABLE IF NOT EXISTS wins (id INTEGER PRIMARY KEY, data TEXT NOT NULL)");
-    // Older versions also announced plinko / flashbang / b-hop payouts.
-    db.exec(`DELETE FROM wins WHERE data NOT LIKE '%"drop":%'`);
+    // Older versions also announced plinko / flashbang / b-hop payouts (without a "kind").
+    db.exec(`DELETE FROM wins WHERE data NOT LIKE '%"drop":%' AND data NOT LIKE '%"kind":%'`);
+    this.db = db;
+    /** log of the typical bet (USD); seeded from bet history on first use. */
+    this.avgLog = null;
     this.q = {
       add: db.prepare("INSERT INTO wins (data) VALUES (?)"),
       recent: db.prepare("SELECT id, data FROM wins ORDER BY id DESC LIMIT ?"),
@@ -68,11 +88,43 @@ export class Feed {
    */
   push(win, delayMs = 0) {
     if (!win.drop || !worthAnnouncing(win)) return;
+    this.#publish({ kind: "item", ...win }, delayMs);
+  }
+
+  /** The typical bet on the site right now, USD. */
+  typical() {
+    if (this.avgLog == null) {
+      const rows = this.db.prepare("SELECT stake_cents FROM bets WHERE game != 'plinko' ORDER BY id DESC LIMIT 2000").all();
+      this.avgLog = rows.length ? rows.reduce((s, r) => s + Math.log(r.stake_cents / 100), 0) / rows.length : 0;
+    }
+    return Math.exp(this.avgLog);
+  }
+
+  /**
+   * A settled bet (see Game#track): goes in the feed if it's a big win or a big loss
+   * next to the typical bet, which it then counts towards.
+   * @param {{ game: string, stakeCents: number, payoutCents: number }} ev
+   */
+  bet(user, name, ev) {
+    if (SKIP_GAMES.has(ev.game) || !(ev.stakeCents > 0)) return;
+    const stake = ev.stakeCents / 100;
+    const payout = ev.payoutCents / 100;
+    const typical = this.typical();
+    this.avgLog += AVG_WEIGHT * (Math.log(stake) - this.avgLog);
+    const bar = Math.max(BIG_MIN_USD, SIGNIFICANT * typical);
+    const profit = payout - stake;
+    const mult = Math.round((payout / stake) * 100) / 100;
+    const base = { user, name, game: ev.game, stake, mult, typical: Math.round(typical * 100) / 100 };
+    if (profit >= bar && !ITEM_GAMES.has(ev.game)) this.#publish({ ...base, kind: "win", value: payout }, BET_DELAY_MS[ev.game] ?? 0);
+    else if (-profit >= bar) this.#publish({ ...base, kind: "loss", value: -profit }, BET_DELAY_MS[ev.game] ?? 0);
+  }
+
+  #publish(win, delayMs) {
     const publish = () => {
       const now = Date.now();
       if (!this.#floodOk(win, now)) return;
       this.lastByUser.set(win.user, now);
-      const entry = { ...win, mult: win.stake > 0 ? Math.round((win.value / win.stake) * 100) / 100 : null, at: now };
+      const entry = { ...win, mult: win.mult ?? (win.stake > 0 ? Math.round((win.value / win.stake) * 100) / 100 : null), at: now };
       const { lastInsertRowid } = this.q.add.run(JSON.stringify(entry));
       this.q.trim.run(KEEP - 1);
       const full = { ...entry, id: Number(lastInsertRowid) };

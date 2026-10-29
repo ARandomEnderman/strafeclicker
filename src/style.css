@@ -7323,3 +7323,59 @@ body.rain-shake .shell {
   resize: vertical;
   font: inherit;
 }
+
+/* ---------- chat mentions ---------- */
+.chat-mention {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #7fb2ff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.chat-mention.me {
+  padding: 0 3px;
+  border-radius: 4px;
+  background: rgba(245, 165, 36, 0.22);
+  color: var(--accent);
+}
+.chat-mention:hover {
+  text-decoration: underline;
+}
+.chat-msg.mentioned {
+  background: rgba(245, 165, 36, 0.08);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* ---------- live feed: big bets ---------- */
+.feed-typical {
+  margin-left: auto;
+  /* clear of the right column's close button */
+  margin-right: 34px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.win.cash {
+  border-left-color: var(--up);
+}
+.win.loss {
+  border-left-color: var(--down);
+  background: color-mix(in srgb, var(--down) 7%, var(--bg));
+}
+.win.loss .win-value {
+  color: var(--down);
+}
+.win.cash .win-art,
+.win.loss .win-art {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+.win.loss .win-art {
+  color: var(--down);
+}
+.win.cash .win-art {
+  color: var(--up);
+}

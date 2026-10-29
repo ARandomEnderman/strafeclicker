@@ -5,8 +5,9 @@ import { adminAction, getState, InsufficientFunds, playerNames, sendChat, Server
 import { onTags, tagOf } from "../tags";
 import { h, money, toast } from "./dom";
 import { icon } from "./icons";
-import { avatar, userLink } from "./profile-card";
+import { avatar, openMiniProfile, userLink } from "./profile-card";
 import { rainFx } from "./rain-fx";
+import { playPing } from "./sound";
 
 // The global chat: a column on the right on wide screens, a drawer on narrow ones.
 // /rain and /pay are typed here (the Rain button types /rain for you).
@@ -18,6 +19,24 @@ const COMMANDS = [
 ];
 
 const time = (t: number) => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+const MENTION = /(@[A-Za-z0-9_]{3,20})\b/;
+/** Whether a chat message @mentions you (not counting your own messages). */
+const mentionsMe = (m: ChatMessage) => {
+  const me = getState().username.toLowerCase();
+  return m.kind === "msg" && m.user?.toLowerCase() !== me && m.text.split(/(@[A-Za-z0-9_]{3,20})\b/).some((p) => p.toLowerCase() === `@${me}`);
+};
+/** Message text with each @name drawn as a link to that player (yours stands out). */
+function withMentions(text: string) {
+  const me = getState().username.toLowerCase();
+  return text.split(new RegExp(MENTION.source)).map((part, i) => {
+    if (i % 2 === 0) return part;
+    const name = part.slice(1);
+    const el = h("button", { type: "button", class: `chat-mention${name.toLowerCase() === me ? " me" : ""}`, title: "View profile" }, part);
+    el.addEventListener("click", () => void openMiniProfile(name, el));
+    return el;
+  });
+}
 
 let input: HTMLInputElement | null = null;
 const openListeners = new Set<(open: boolean) => void>();
@@ -85,13 +104,13 @@ function messageEl(m: ChatMessage) {
   const me = m.user === getState().username;
   return h(
     "div",
-    { class: `chat-msg${me ? " me" : ""}${m.admin ? " admin" : ""}` },
+    { class: `chat-msg${me ? " me" : ""}${m.admin ? " admin" : ""}${mentionsMe(m) ? " mentioned" : ""}` },
     avatar(m.user!, m.name ?? m.user!, 26),
     h(
       "div",
       { class: "chat-body" },
       h("div", { class: "chat-meta" }, userLink(m.user!, m.name ?? m.user!), m.admin ? h("span", { class: "chat-admin" }, "admin") : "", h("time", null, time(m.at))),
-      h("div", { class: "chat-text" }, m.text),
+      h("div", { class: "chat-text" }, ...withMentions(m.text)),
     ),
     del,
   );
@@ -145,6 +164,11 @@ export function chatPanel() {
     // Everyone online sees a rain, chat open or not.
     if (m.kind === "rain") rainFx(m);
     if (m.kind === "pay" && !m.fromMe) toast(`${m.name ?? m.user} paid you ${money(m.amount ?? 0)}`);
+    // Mentioned: a ping, and a toast if the chat is closed or showing the other channel.
+    if (mentionsMe(m)) {
+      playPing();
+      if (!isChatOpen() || (m.channel ?? "global") !== channel) toast(`${m.name ?? m.user} mentioned you: ${m.text.slice(0, 80)}`, "info", 5000);
+    }
     if (m.kind !== "pay" && (m.channel ?? "global") !== channel) return;
     const stick = nearBottom();
     list.querySelector(".chat-empty")?.remove();

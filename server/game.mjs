@@ -286,8 +286,10 @@ export class Game {
    */
   #act(userId, fn) {
     const changes = {};
+    let acc = null;
     const out = tx(this.db, () => {
       const a = this.#load(userId);
+      acc = a;
       const offline = this.#payOffline(a);
       const streakPaid = this.#payStreak(a);
       ensureMissions(a);
@@ -297,6 +299,8 @@ export class Game {
       return { ...result, account: { ...this.#view(a), ...(offline ? { offline } : {}), ...(streakPaid ? { streakPaid } : {}), ...(unlocked.length ? { unlocked } : {}) } };
     });
     for (const { win, delayMs } of changes.wins ?? []) this.feed?.push(win, delayMs);
+    // Settled bets go to the live feed once they're saved (it shows the big wins and losses).
+    for (const ev of acc?.feedBets ?? []) this.feed?.bet(acc.username, acc.displayName, ev);
     return out;
   }
 
@@ -371,7 +375,10 @@ export class Game {
    */
   track(a, ev) {
     trackMissions(a, ev);
-    if ((ev.type === "game" || ev.type === "cases") && ev.stakeCents > 0) this.betQ.add.run(a.id, ev.game, ev.stakeCents, ev.payoutCents, ev.n ?? 1, Date.now());
+    if ((ev.type === "game" || ev.type === "cases") && ev.stakeCents > 0) {
+      this.betQ.add.run(a.id, ev.game, ev.stakeCents, ev.payoutCents, ev.n ?? 1, Date.now());
+      (a.feedBets ??= []).push(ev);
+    }
     // Cashback event: part of a losing bet's loss comes straight back.
     const cb = this.settings?.event("cashback");
     if (cb && ev.stakeCents > 0 && ev.payoutCents < ev.stakeCents) {

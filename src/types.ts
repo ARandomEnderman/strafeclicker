@@ -126,11 +126,16 @@ export interface Account {
 /** An entry in the live big-wins feed. */
 export interface Win {
   id: number;
+  /** An item won, a big cash win, or a big loss (missing on old entries: an item). */
+  kind?: "item" | "win" | "loss";
   user: string;
   name?: string;
-  game: "case" | "upgrader" | "plinko" | "flashbang" | "bhop" | "battle" | "jackpot";
-  /** Payout, USD. */
+  /** For items "case", "upgrader", "battle", "jackpot" or "coinflip"; for bets the game's stats id. */
+  game: string;
+  /** Item value or payout; for a loss, the amount lost. USD. */
   value: number;
+  /** The site's typical bet when this happened (bets only). */
+  typical?: number;
   stake: number;
   mult: number | null;
   at: number;
