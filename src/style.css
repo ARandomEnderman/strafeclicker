@@ -7891,9 +7891,20 @@ body.rain-shake .shell {
   .he-seat-box .avatar {
     display: none;
   }
+  /* Small enough to stay clear of the side seats. */
+  .he-board {
+    gap: 4px;
+  }
   .he-board .bj-card {
-    width: 36px;
-    height: 52px;
+    width: 28px;
+    height: 42px;
+    padding: 2px 3px;
+  }
+  .he-board .bj-rank {
+    font-size: 12px;
+  }
+  .he-board .bj-suit {
+    font-size: 15px;
   }
 }
 .he-felt.seats2 .he-seat.pos0 {
@@ -7975,4 +7986,9 @@ body.rain-shake .shell {
 .he-felt.seats6 .he-seat.pos5 {
   left: 97%;
   top: 72%;
+}
+/* Hold'em cards side by side, never tucked under each other: the suit matters here. */
+.he-board .bj-card,
+.he-seat-cards .bj-card {
+  margin-left: 0;
 }
