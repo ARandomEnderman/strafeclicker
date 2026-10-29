@@ -11,7 +11,6 @@ export const nextMidnight = (t = Date.now()) => {
 const NAMES = {
   plinko: "Plinko",
   roulette: "Roulette",
-  keno: "Keno",
   blackjack: "Blackjack",
   poker: "Video poker",
   bombplant: "Bomb plant",
@@ -33,7 +32,7 @@ const KINDS = [
   { kind: "cases", tiers: [[5, 100], [15, 250], [40, 500]], label: (m) => `Open ${m.target} cases` },
   { kind: "clicks", tiers: [[300, 100], [1000, 250], [2500, 500]], label: (m) => `Click ${m.target.toLocaleString("en-US")} times on the clicker` },
   { kind: "wager", tiers: [[2500, 100], [10000, 250], [30000, 500]], label: (m) => `Wager ${usd(m.target)} in total`, money: true },
-  ...["plinko", "roulette", "keno", "blackjack", "poker", "towers", "defuse", "bhop", "flashbang", "race", "bombplant"].map((game) => ({
+  ...["plinko", "roulette", "blackjack", "poker", "towers", "defuse", "bhop", "flashbang", "race", "bombplant"].map((game) => ({
     kind: `play:${game}`,
     game,
     tiers: [[5, 100], [12, 250], [25, 500]],
@@ -42,7 +41,6 @@ const KINDS = [
   { kind: "win:blackjack", game: "blackjack", tiers: [[2, 100], [5, 250], [10, 500]], label: (m) => `Win ${m.target} hands of Blackjack` },
   { kind: "win:coinflip", game: "coinflip", tiers: [[1, 100], [3, 250], null], label: (m) => (m.target === 1 ? "Win a coinflip" : `Win ${m.target} coinflips`) },
   { kind: "win:battle", game: "battle", tiers: [null, [1, 250], [3, 500]], label: (m) => (m.target === 1 ? "Win a case battle" : `Win ${m.target} case battles`) },
-  { kind: "win:rps", game: "rps", tiers: [[1, 100], [3, 250], null], label: (m) => (m.target === 1 ? "Win a rock paper scissors duel" : `Win ${m.target} rock paper scissors duels`) },
   { kind: "win:upgrade", game: "upgrade", tiers: [[1, 100], [3, 250], null], label: (m) => (m.target === 1 ? "Win an upgrade" : `Win ${m.target} upgrades`) },
   ...[
     ["towers", 5],
@@ -93,7 +91,11 @@ export function trackMissions(a, ev) {
   for (const m of a.stats.missions?.list ?? []) {
     if (m.progress >= m.target) continue;
     const k = BY_KIND[m.kind];
-    if (!k) continue;
+    // A mission for a game that has been removed (keno, RPS duels) completes by itself.
+    if (!k) {
+      m.progress = m.target;
+      continue;
+    }
     let add = 0;
     if (m.kind === "cases" && ev.type === "cases") add = ev.n;
     else if (m.kind === "clicks" && ev.type === "clicks") add = ev.n;
@@ -128,7 +130,7 @@ export function missionsView(missions) {
       return {
         id: m.id,
         tier: m.tier,
-        label: k ? k.label(m) : m.kind,
+        label: k ? k.label(m) : "Bonus: a game from this mission was removed, so it's yours",
         progress: money ? m.progress / 100 : m.progress,
         target: money ? m.target / 100 : m.target,
         money,

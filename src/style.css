@@ -7594,3 +7594,385 @@ body.rain-shake .shell {
 .bj-empty {
   overflow-wrap: anywhere;
 }
+
+/* ---------- Texas Hold'em ---------- */
+.he-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-2);
+}
+.he-row.mine {
+  border-color: rgba(245, 165, 36, 0.5);
+}
+.he-row.done {
+  opacity: 0.7;
+}
+.he-row-seats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 140px;
+}
+.he-row-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.he-row-info span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.he-stage {
+  /* Seats sit across the felt's edge: room above for the top seat's cards, below for yours. */
+  padding: 92px 70px 24px;
+}
+.he-stage .rl-under {
+  margin-top: 96px;
+}
+.he-felt {
+  position: relative;
+  height: 330px;
+  border: 10px solid #4a2f1b;
+  border-radius: 170px;
+  background: radial-gradient(ellipse at center, #1d6b45 0%, #0f4a2f 75%);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.45), 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+.he-centre {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  pointer-events: none;
+}
+.he-centre > div {
+  pointer-events: auto;
+}
+.he-board {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+.he-board .bj-card.slot {
+  border: 2px dashed rgba(255, 255, 255, 0.18);
+  background: transparent;
+  box-shadow: none;
+}
+.he-pot {
+  margin-top: 8px;
+  font-size: 18px;
+  font-weight: 800;
+}
+.he-blinds {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 12px;
+}
+.he-results {
+  margin-top: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  font-size: 13px;
+}
+.he-results b {
+  color: var(--accent);
+}
+.he-wait {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.he-wait span {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+}
+.he-seat {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 132px;
+  transform: translate(-50%, -50%);
+}
+.he-seat-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(8, 10, 14, 0.85);
+}
+.he-seat.me .he-seat-box {
+  border-color: rgba(245, 165, 36, 0.6);
+}
+.he-seat.turn .he-seat-box {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(245, 165, 36, 0.25);
+}
+.he-seat.won .he-seat-box {
+  border-color: var(--up);
+  box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.25);
+}
+.he-seat.folded,
+.he-seat.out {
+  opacity: 0.45;
+}
+.he-seat-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.he-seat-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.he-seat-name .user-link,
+.he-seat-name > b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.he-seat-chips {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.he-dealer {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  color: #111;
+  font-size: 10px;
+  font-weight: 800;
+}
+.he-seat-cards {
+  display: flex;
+  gap: 3px;
+  min-height: 46px;
+}
+.bj-card.sm {
+  width: 32px;
+  height: 46px;
+  padding: 2px 4px;
+}
+.bj-card.sm .bj-rank {
+  font-size: 12px;
+}
+.bj-card.sm .bj-suit {
+  font-size: 14px;
+}
+.he-seat-last {
+  max-width: 100%;
+  min-height: 16px;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 11px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.he-bet {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #e8c35a;
+  color: #2a1d00;
+  font-size: 11px;
+  font-weight: 800;
+}
+.he-myhand {
+  margin: 10px 0;
+  text-align: center;
+}
+.he-myhand b {
+  color: var(--accent);
+}
+.he-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 10px;
+  margin: 12px 0;
+}
+.he-actions > .btn {
+  min-width: 110px;
+}
+.he-raise {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 260px;
+}
+.he-presets {
+  display: flex;
+  gap: 4px;
+}
+.he-presets .btn {
+  flex: 1;
+}
+.he-raise-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.he-raise-range {
+  flex: 1;
+  accent-color: var(--accent);
+}
+.he-raise-input {
+  width: 90px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+.he-leave {
+  display: block;
+  margin: 6px auto 0;
+}
+.he-final {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 12px 0;
+  font-size: 18px;
+  font-weight: 800;
+}
+.he-final.won {
+  color: var(--up);
+}
+.he-log {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-2);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+@media (max-width: 700px) {
+  .he-stage {
+    padding: 80px 34px 20px;
+  }
+  .he-felt {
+    height: 300px;
+    border-width: 6px;
+  }
+  .he-seat {
+    width: 96px;
+  }
+  .he-seat-box {
+    gap: 4px;
+    padding: 4px;
+  }
+  .he-seat-box .avatar {
+    display: none;
+  }
+  .he-board .bj-card {
+    width: 36px;
+    height: 52px;
+  }
+}
+.he-felt.seats2 .he-seat.pos0 {
+  left: 50%;
+  top: 100%;
+}
+.he-felt.seats2 .he-seat.pos1 {
+  left: 50%;
+  top: 0%;
+}
+.he-felt.seats3 .he-seat.pos0 {
+  left: 50%;
+  top: 100%;
+}
+.he-felt.seats3 .he-seat.pos1 {
+  left: 6%;
+  top: 30%;
+}
+.he-felt.seats3 .he-seat.pos2 {
+  left: 94%;
+  top: 30%;
+}
+.he-felt.seats4 .he-seat.pos0 {
+  left: 50%;
+  top: 100%;
+}
+.he-felt.seats4 .he-seat.pos1 {
+  left: 2%;
+  top: 50%;
+}
+.he-felt.seats4 .he-seat.pos2 {
+  left: 50%;
+  top: 0%;
+}
+.he-felt.seats4 .he-seat.pos3 {
+  left: 98%;
+  top: 50%;
+}
+.he-felt.seats5 .he-seat.pos0 {
+  left: 50%;
+  top: 100%;
+}
+.he-felt.seats5 .he-seat.pos1 {
+  left: 3%;
+  top: 62%;
+}
+.he-felt.seats5 .he-seat.pos2 {
+  left: 22%;
+  top: 2%;
+}
+.he-felt.seats5 .he-seat.pos3 {
+  left: 78%;
+  top: 2%;
+}
+.he-felt.seats5 .he-seat.pos4 {
+  left: 97%;
+  top: 62%;
+}
+.he-felt.seats6 .he-seat.pos0 {
+  left: 50%;
+  top: 100%;
+}
+.he-felt.seats6 .he-seat.pos1 {
+  left: 3%;
+  top: 72%;
+}
+.he-felt.seats6 .he-seat.pos2 {
+  left: 8%;
+  top: 14%;
+}
+.he-felt.seats6 .he-seat.pos3 {
+  left: 50%;
+  top: 0%;
+}
+.he-felt.seats6 .he-seat.pos4 {
+  left: 92%;
+  top: 14%;
+}
+.he-felt.seats6 .he-seat.pos5 {
+  left: 97%;
+  top: 72%;
+}

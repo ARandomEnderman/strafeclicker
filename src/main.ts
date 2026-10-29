@@ -15,6 +15,8 @@ import { h, money, toast } from "./ui/dom";
 import { casesPage } from "./ui/cases-page";
 import { casePage } from "./ui/case-page";
 import { inventoryPage } from "./ui/inventory-page";
+import { holdemPage, holdemView } from "./ui/holdem-page";
+import "./holdem";
 import { historyPage } from "./ui/history-page";
 import { clickerPage } from "./ui/clicker-page";
 import { upgraderPage } from "./ui/upgrader-page";
@@ -31,13 +33,11 @@ import { jackpotPage } from "./ui/jackpot-page";
 import { siteBanner } from "./site";
 import { adminPage } from "./ui/admin-page";
 import { spinPage } from "./ui/spin-page";
-import { kenoPage } from "./ui/keno-page";
 import { towersPage } from "./ui/towers-page";
 import { racePage } from "./ui/race-page";
 import { blackjackPage } from "./ui/blackjack-page";
 import { pokerPage } from "./ui/poker-page";
 import { bombplantPage } from "./ui/bombplant-page";
-import { rpsPage, rpsView } from "./ui/rps-page";
 import { clanView, clansPage } from "./ui/clans-page";
 import { marketPage } from "./ui/market-page";
 import { bracketView, bracketsPage } from "./ui/bracket-page";
@@ -46,7 +46,6 @@ import "./tags";
 import "./ui/event-fx";
 import "./race";
 import "./bombplant";
-import "./rps";
 import "./blackjack";
 import "./jackpot";
 import "./roulette";
@@ -75,25 +74,29 @@ const MAIN_NAV: NavItem[] = [
   { route: "clicker", href: "#/clicker", label: "Clicker", icon: "clicker" },
   { route: "cases", href: "#/", label: "Cases", icon: "cases" },
   { route: "battles", href: "#/battles", label: "Case battles", icon: "battles" },
-  { route: "brackets", href: "#/brackets", label: "Brackets", icon: "bracket" },
   { route: "upgrader", href: "#/upgrader", label: "Upgrader", icon: "upgrader" },
   { route: "market", href: "#/market", label: "Marketplace", icon: "store" },
 ];
-/** The casino games: a group in the sidebar that folds up when there isn't room. */
-const GAMES_NAV: NavItem[] = [
+/**
+ * The casino games, in two groups that fold up when there isn't room: live games, played
+ * with everyone else (shared rounds and player-vs-player), and solo games.
+ */
+const LIVE_NAV: NavItem[] = [
+  { route: "holdem", href: "#/holdem", label: "Hold'em", icon: "holdem" },
+  { route: "blackjack", href: "#/blackjack", label: "Blackjack", icon: "blackjack" },
+  { route: "roulette", href: "#/roulette", label: "Roulette", icon: "roulette" },
+  { route: "flashbang", href: "#/flashbang", label: "Flashbang", icon: "flashbang" },
+  { route: "bombplant", href: "#/bombplant", label: "Bomb plant", icon: "target" },
+  { route: "race", href: "#/race", label: "Bot race", icon: "race" },
   { route: "coinflip", href: "#/coinflip", label: "Coinflip", icon: "coins" },
   { route: "jackpot", href: "#/jackpot", label: "Jackpot", icon: "jackpot" },
-  { route: "rps", href: "#/rps", label: "RPS", icon: "scissors" },
+  { route: "brackets", href: "#/brackets", label: "Brackets", icon: "bracket" },
+];
+const SOLO_NAV: NavItem[] = [
   { route: "plinko", href: "#/plinko", label: "Plinko", icon: "plinko" },
-  { route: "flashbang", href: "#/flashbang", label: "Flashbang", icon: "flashbang" },
-  { route: "roulette", href: "#/roulette", label: "Roulette", icon: "roulette" },
-  { route: "race", href: "#/race", label: "Bot race", icon: "race" },
-  { route: "bombplant", href: "#/bombplant", label: "Bomb plant", icon: "target" },
-  { route: "bhop", href: "#/bhop", label: "B-hop", icon: "bhop" },
-  { route: "defuse", href: "#/defuse", label: "Defuse", icon: "bomb" },
-  { route: "keno", href: "#/keno", label: "Keno", icon: "keno" },
   { route: "towers", href: "#/towers", label: "Towers", icon: "towers" },
-  { route: "blackjack", href: "#/blackjack", label: "Blackjack", icon: "blackjack" },
+  { route: "defuse", href: "#/defuse", label: "Defuse", icon: "bomb" },
+  { route: "bhop", href: "#/bhop", label: "B-hop", icon: "bhop" },
   { route: "poker", href: "#/poker", label: "Video poker", icon: "poker" },
 ];
 const BOTTOM_NAV: NavItem[] = [
@@ -219,12 +222,14 @@ function sidebar() {
   const scroll = h("div", { class: "side-scroll" });
   const fit = () => fitSidebar(scroll, groups);
   // Many games: two to a row so the list stays short.
-  const games = sideGroup("games", "Games", GAMES_NAV, {}, fit, 2);
+  const live = sideGroup("live", "Live games", LIVE_NAV, {}, fit, 2);
+  const solo = sideGroup("solo", "Solo games", SOLO_NAV, {}, fit, 2);
   rewards = sideGroup("rewards", "Rewards", REWARDS_NAV, { achievements: toClaim, spin: spinReady, missions: missionsReady }, fit);
-  const groups = [games, rewards];
+  const groups = [live, solo, rewards];
   scroll.append(
     h("nav", { class: "side-nav" }, ...MAIN_NAV.map((n) => navLink(n))),
-    games.el,
+    live.el,
+    solo.el,
     rewards.el,
     h(
       "nav",
@@ -418,6 +423,7 @@ function route() {
     active = "cases";
   } else if (page === "inventory") view = inventoryPage();
   else if (page === "history") view = historyPage();
+  else if (page === "holdem") view = arg ? holdemView(Number(arg)) : holdemPage(new URLSearchParams(query).get("code"));
   else if (page === "clicker") view = clickerPage();
   else if (page === "upgrader") view = upgraderPage();
   else if (page === "tree") view = treePage();
@@ -429,7 +435,6 @@ function route() {
   else if (page === "roulette") view = roulettePage();
   else if (page === "jackpot") view = jackpotPage();
   else if (page === "spin") view = spinPage();
-  else if (page === "keno") view = kenoPage();
   else if (page === "towers") view = towersPage();
   else if (page === "race") view = racePage();
   else if (page === "blackjack") view = blackjackPage();
@@ -438,7 +443,6 @@ function route() {
   else if (page === "brackets") view = arg ? bracketView(Number(arg)) : bracketsPage(new URLSearchParams(query).get("code"));
   else if (page === "market") view = marketPage();
   else if (page === "clans") view = arg ? clanView(Number(arg)) : clansPage();
-  else if (page === "rps") view = arg ? rpsView(Number(arg)) : rpsPage(new URLSearchParams(query).get("code"));
   else if (page === "missions") view = missionsPage();
   else if (page === "leaderboard") view = leaderboardPage();
   else if (page === "admin" && getState().isAdmin) view = adminPage();

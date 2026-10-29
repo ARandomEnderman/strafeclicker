@@ -359,11 +359,6 @@ export async function bracketAction(action: "create" | "join" | "bots" | "leave"
   return post<{ id: number }>("bracket", { action, ...body });
 }
 
-export async function rpsAction(action: "create" | "join" | "bot" | "cancel" | "pick", body: object) {
-  await flushClicks();
-  return post<{ id: number }>("rps", { action, ...body });
-}
-
 export async function coinflipAction(action: "create" | "join" | "bot" | "cancel", body: object) {
   await flushClicks();
   return post<{ id: number }>("coinflip", { action, ...body });
@@ -399,24 +394,17 @@ export async function pokerDraw(hold: boolean[]) {
   return { ...r, reveal: hidePayout(r.payout) };
 }
 
-export interface KenoResult {
-  drawn: number[];
-  hits: number;
-  mult: number;
-  payout: number;
-  stake: number;
-  reveal: () => void;
-}
-export async function playKeno(bet: number, picks: number[]): Promise<KenoResult> {
-  await flushClicks();
-  const r = await post<Omit<KenoResult, "reveal">>("keno", { bet, picks });
-  return { ...r, reveal: hidePayout(r.payout) };
-}
+
 
 export const sendChat = (text: string, channel: "global" | "clan" = "global") => post("chat", { text, channel });
 export const redeemPromo = (code: string) => post<{ reward: string }>("promo", { code });
 export const claimMission = (id?: string) => post<{ reward: number }>("missions", { id });
 export const getLeaderboard = <T>() => post<{ board: T }>("leaderboard");
+
+export async function holdemAction(action: "create" | "join" | "bots" | "start" | "leave" | "act", body: object) {
+  await flushClicks();
+  return post<{ id: number }>("holdem", { action, ...body });
+}
 
 export async function blackjackAction(action: "bet" | "hit" | "stand" | "double" | "cancel", bet?: number) {
   await flushClicks();

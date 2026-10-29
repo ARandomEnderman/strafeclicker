@@ -13,6 +13,7 @@ export const GAME_NAMES: Record<string, string> = {
   race: "Bot race",
   blackjack: "Blackjack",
   poker: "Video poker",
+  holdem: "Hold'em",
   bombplant: "Bomb plant",
   rps: "Rock paper scissors",
   coinflip: "Coinflip",

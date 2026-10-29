@@ -419,17 +419,6 @@ export const DAILY_PRIZES = [
   { usd: 100, weight: 0.5 },
 ];
 
-// ---------- keno ----------
-// A 7×7 grid. Pick 1–10 tiles; the server draws KENO_DRAWS. KENO_TABLES[picks][hits] is
-// the multiplier; each row pays back about 99% (hypergeometric odds).
-
-export const KENO_TILES = 49;
-export const KENO_DRAWS = 10;
-export const KENO_MAX_PICKS = 10;
-export const KENO_TABLES = {"1":[0,4.85],"2":[0,1.39,13.8],"3":[0,0.83,4.44,35.9],"4":[0,0.63,2.24,11.6,110],"5":[0,0,1.4,8.15,52.4,621],"6":[0,0,1,4.35,21.5,157,2341],"7":[0,0,0.79,2.68,11,60.9,553,10000],"8":[0,0,0,1.76,8.98,45,311,3648,10000],"9":[0,0,0,1.31,5.46,23.5,133,1156,10000,10000],"10":[0,0,0,1.02,3.58,13.6,65.7,461,5337,10000,10000]};
-/** How long the browser takes to reveal the draw (ms). */
-export const KENO_REVEAL_MS = 1600;
-
 // ---------- towers ----------
 // Climb as far as you like: each floor has `doors` doors and `ts` of them hide a T.
 // After k safe floors the multiplier is 0.99 / p^k with p = (doors - ts) / doors.
@@ -519,6 +508,99 @@ export function pokerHand(cards) {
   else if (groups[0].n === 2 && groups[1].n === 2) id = "twoPair";
   else if (groups[0].n === 2 && groups[0].rank >= 11) id = "jacks";
   return id ? POKER_HANDS.find((x) => x.id === id) : null;
+}
+
+// ---------- Texas Hold'em ----------
+// Sit-and-go tables: everyone pays the same entry fee and starts with HOLDEM_CHIPS chips;
+// blinds go up every HOLDEM_HANDS_PER_LEVEL hands; the last player with chips wins all the
+// entry fees. Cards use the same ranks and suits as video poker.
+
+export const HOLDEM_SIZES = [2, 3, 4, 5, 6];
+export const HOLDEM_CHIPS = 1000;
+export const HOLDEM_BLINDS = [
+  [10, 20],
+  [15, 30],
+  [25, 50],
+  [50, 100],
+  [75, 150],
+  [100, 200],
+  [150, 300],
+  [250, 500],
+  [400, 800],
+  [600, 1200],
+];
+export const HOLDEM_HANDS_PER_LEVEL = 6;
+/** Time to act before the server checks (or folds) for you. */
+export const HOLDEM_TURN_MS = 20_000;
+/** Pause before each new street is dealt, and how long a hand's result stays up. */
+export const HOLDEM_STREET_MS = 900;
+export const HOLDEM_RESULT_MS = 5000;
+export const HOLDEM_CATEGORIES = ["High card", "Pair", "Two pair", "Three of a kind", "Straight", "Flush", "Full house", "Four of a kind", "Straight flush"];
+
+const RANK_WORD = { 2: "2s", 3: "3s", 4: "4s", 5: "5s", 6: "6s", 7: "7s", 8: "8s", 9: "9s", 10: "10s", 11: "Jacks", 12: "Queens", 13: "Kings", 14: "Aces" };
+const RANK_ONE = { 11: "Jack", 12: "Queen", 13: "King", 14: "Ace" };
+
+/** Score of exactly five cards: [category, ...tie-breakers], higher is better (see compareScores). */
+function score5(cards) {
+  const v = cards.map((c) => POKER_RANKS.indexOf(c.r) + 2).sort((a, b) => b - a);
+  const flush = cards.every((c) => c.s === cards[0].s);
+  const uniq = [...new Set(v)];
+  let high = 0;
+  if (uniq.length === 5) {
+    if (uniq[0] - uniq[4] === 4) high = uniq[0];
+    else if (uniq.join() === "14,5,4,3,2") high = 5;
+  }
+  const counts = {};
+  for (const x of v) counts[x] = (counts[x] ?? 0) + 1;
+  const g = Object.entries(counts)
+    .map(([r, n]) => [Number(r), n])
+    .sort((a, b) => b[1] - a[1] || b[0] - a[0]);
+  const ranks = g.map(([r]) => r);
+  if (high && flush) return [8, high];
+  if (g[0][1] === 4) return [7, ...ranks];
+  if (g[0][1] === 3 && g[1][1] === 2) return [6, ...ranks];
+  if (flush) return [5, ...v];
+  if (high) return [4, high];
+  if (g[0][1] === 3) return [3, ...ranks];
+  if (g[0][1] === 2 && g[1][1] === 2) return [2, ...ranks];
+  if (g[0][1] === 2) return [1, ...ranks];
+  return [0, ...v];
+}
+
+export function compareScores(a, b) {
+  for (let i = 0; i < Math.max(a.length, b.length); i++) if ((a[i] ?? 0) !== (b[i] ?? 0)) return (a[i] ?? 0) - (b[i] ?? 0);
+  return 0;
+}
+
+/** A hand's name from its score, e.g. "Two pair, Aces and 7s". */
+export function handName(score) {
+  const [cat, a, b] = score;
+  const one = (r) => RANK_ONE[r] ?? String(r);
+  if (cat === 8) return a === 14 ? "Royal flush" : `Straight flush, ${one(a)} high`;
+  if (cat === 7) return `Four ${RANK_WORD[a]}`;
+  if (cat === 6) return `Full house, ${RANK_WORD[a]} full of ${RANK_WORD[b]}`;
+  if (cat === 5) return `Flush, ${one(a)} high`;
+  if (cat === 4) return `Straight, ${one(a)} high`;
+  if (cat === 3) return `Three ${RANK_WORD[a]}`;
+  if (cat === 2) return `Two pair, ${RANK_WORD[a]} and ${RANK_WORD[b]}`;
+  if (cat === 1) return `Pair of ${RANK_WORD[a]}`;
+  return `${one(a)} high`;
+}
+
+/** The best five of up to seven cards: { score, cards, name }. */
+export function bestHand(cards) {
+  let best = null;
+  const n = cards.length;
+  const pick = (start, chosen) => {
+    if (chosen.length === Math.min(5, n)) {
+      const s = chosen.length === 5 ? score5(chosen) : [0, ...chosen.map((c) => POKER_RANKS.indexOf(c.r) + 2).sort((a, b) => b - a)];
+      if (!best || compareScores(s, best.score) > 0) best = { score: s, cards: [...chosen] };
+      return;
+    }
+    for (let i = start; i < n; i++) pick(i + 1, [...chosen, cards[i]]);
+  };
+  pick(0, []);
+  return { ...best, name: handName(best.score) };
 }
 
 // ---------- Bomb plant ----------

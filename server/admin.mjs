@@ -46,12 +46,6 @@ function interp(table, rig) {
   return table.at(-1)[1];
 }
 
-/** RPS against the bot, best of 3: a round you win has chance (1 - rig) / (2 + rig) among decided rounds. */
-function rpsRtp(rig) {
-  const p = (1 - rig) / (2 + rig);
-  return 2 * p * p * (3 - 2 * p);
-}
-
 const pct = (x) => Math.round(x * 1000) / 10;
 const money = (x) => `$${x.toFixed(2)}`;
 /** Average daily spin prize when the top half of the prizes are (1 - rig) as likely. */
@@ -75,15 +69,13 @@ export function rigReport(settings) {
     { game: "bhop", rig: r("bhop"), rtp: pct(0.99 * (1 - r("bhop")) ** 5), note: `Shown for 5 jumps; each jump's real safety is ${pct(1 - r("bhop"))}% of what's shown (Medium: ${pct(bh.p * (1 - r("bhop")))}% instead of ${pct(bh.p)}%). The longer the run, the worse.` },
     { game: "defuse", rig: r("defuse"), rtp: pct(0.99 * (1 - r("defuse")) ** 5), note: `Shown for 5 tiles; ${pct(r("defuse"))}% of safe picks get a bomb moved under them.` },
     { game: "coinflipBot", rig: r("coinflipBot"), rtp: pct(1 - r("coinflipBot") / 2), note: `Against a bot you win ${pct(0.5 - r("coinflipBot") / 2)}% of flips. Player-vs-player flips are always 50/50.` },
-    { game: "rpsBot", rig: r("rpsBot"), rtp: pct(rpsRtp(r("rpsBot"))), note: `Against the bot: ${pct(r("rpsBot"))}% of the bot's hands are picked to beat yours. Player-vs-player duels are always fair.` },
     { game: "towers", rig: r("towers"), rtp: pct(0.99 * (1 - r("towers")) ** 5), note: `Shown for 5 floors; ${pct(r("towers"))}% of safe picks get a T moved behind them.` },
-    { game: "keno", rig: r("keno"), rtp: r("keno") ? null : 99, note: `${pct(r("keno"))}% of rounds are drawn twice and the draw with fewer hits counts. 99% with no rig.` },
     { game: "race", rig: r("race"), rtp: pct(0.99 * (1 - r("race"))), note: `Up to this for a lone bettor: ${pct(r("race"))}% of races go to the bot that pays the players least. Odds pay back 99% with no rig.` },
     { game: "bombplant", rig: r("bombplant"), rtp: pct(0.99 * (1 - r("bombplant"))), note: `Up to this for a lone bettor: ${pct(r("bombplant"))}% of rounds end the way that pays the players least. 99% with no rig.` },
     { game: "blackjack", rig: r("blackjack"), rtp: pct(interp(BJ_RTP, r("blackjack"))), note: `With perfect basic strategy; real players do worse. ${pct(r("blackjack"))}% of the dealer's draws are the best of three cards. About 99% with no rig.` },
     { game: "poker", rig: r("poker"), rtp: pct(interp(POKER_RTP, r("poker"))), note: `Jacks or Better 9/6, with perfect play (a simple strategy gets about 97%). ${pct(r("poker"))}% of draws also try the next cards and keep the worse hand. 99.5% with no rig.` },
     { game: "dailySpin", rig: r("dailySpin"), rtp: null, note: `Free, so no payback: worth ${money(dailyEv(r("dailySpin")))} a day on average (${money(dailyEv(0))} with no rig). The rig makes the top four prizes rarer.` },
-    { game: "battles / jackpot / coinflip / RPS / brackets (players)", rig: null, rtp: 100, note: "Player against player: nothing to rig, there's no house." },
+    { game: "battles / jackpot / coinflip / hold'em / brackets (players)", rig: null, rtp: 100, note: "Player against player: nothing to rig, there's no house." },
   ];
 }
 

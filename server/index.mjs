@@ -37,12 +37,11 @@ import { Defuse } from "./games/defuse.mjs";
 import { Towers } from "./games/towers.mjs";
 import { Poker } from "./games/poker.mjs";
 import { BombPlant } from "./games/bombplant.mjs";
-import { Rps } from "./games/rps.mjs";
 import { Brackets } from "./games/brackets.mjs";
 import { Roulette } from "./games/roulette.mjs";
 import { Coinflip } from "./games/coinflip.mjs";
+import { Holdem } from "./games/holdem.mjs";
 import { Jackpot } from "./games/jackpot.mjs";
-import { keno } from "./games/keno.mjs";
 import { Race } from "./games/race.mjs";
 import { Blackjack } from "./games/blackjack.mjs";
 import { Chat } from "./chat.mjs";
@@ -296,8 +295,8 @@ battles.start();
 const trades = new Trades(game, db, friends, { toUser });
 const coinflip = new Coinflip(game, db, friends, { broadcastPer, toUser });
 coinflip.start();
-const rps = new Rps(game, db, friends, { broadcastPer, toUser });
-rps.start();
+const holdem = new Holdem(game, db, friends, { broadcastPer, toUser });
+holdem.start();
 const brackets = new Brackets(game, db, friends, { broadcastPer, toUser });
 brackets.start();
 const blackjack = new Blackjack(game, db, { broadcastPer, toUser });
@@ -346,7 +345,7 @@ function friendsChanged(...userIds) {
   for (const id of userIds) toUser(id, "friends", friends.list(id, isOnline));
   battles.publish();
   coinflip.publish();
-  rps.publish();
+  holdem.publish();
   brackets.publish();
 }
 
@@ -377,7 +376,7 @@ function events(req, res) {
   res.userId = sessionUser(req);
   res.write(`event: battles\ndata: ${JSON.stringify(battles.list(res.userId))}\n\n`);
   res.write(`event: flips\ndata: ${JSON.stringify(coinflip.list(res.userId))}\n\n`);
-  res.write(`event: rps\ndata: ${JSON.stringify(rps.list(res.userId))}\n\n`);
+  res.write(`event: holdem\ndata: ${JSON.stringify(holdem.list(res.userId))}\n\n`);
   res.write(`event: brackets\ndata: ${JSON.stringify(brackets.list(res.userId))}\n\n`);
   res.write(`event: bj\ndata: ${JSON.stringify(blackjack.view(res.userId))}\n\n`);
   res.write(`event: tags\ndata: ${JSON.stringify(clans.tags())}\n\n`);
@@ -519,14 +518,13 @@ const STARTS = {
   jackpot: (b) => b.action !== "withdraw",
   flashbang: (b) => b.action === "bet",
   coinflip: (b) => ["create", "join", "bot"].includes(b.action),
-  rps: (b) => ["create", "join", "bot"].includes(b.action),
+  holdem: (b) => ["create", "join"].includes(b.action),
   bracket: (b) => ["create", "join", "bots"].includes(b.action),
   battle: (b) => ["create", "join", "bots"].includes(b.action),
   bhop: (b) => b.action === "start",
   defuse: (b) => b.action === "start" || b.action === "auto",
   towers: (b) => b.action === "start",
   poker: (b) => b.action === "deal",
-  keno: true,
   market: (b) => b.action === "buy",
   race: true,
   bombplant: true,
@@ -653,7 +651,6 @@ const actions = {
   },
   roulette: (userId, body) => roulette.bet(userId, body),
   spin: (userId) => game.dailySpin(userId),
-  keno: (userId, body) => keno(game, userId, body),
   race: (userId, body) => race.bet(userId, body),
   bombplant: (userId, body) => bombplant.bet(userId, body),
   blackjack: (userId, body) => {
@@ -673,12 +670,13 @@ const actions = {
     if (body.action === "pick") return brackets.pick(userId, body);
     throw new GameError("bad_input", "Unknown action");
   },
-  rps: (userId, body) => {
-    if (body.action === "create") return rps.create(userId, body);
-    if (body.action === "join") return rps.join(userId, body);
-    if (body.action === "bot") return rps.bot(userId, body);
-    if (body.action === "cancel") return rps.cancel(userId, body);
-    if (body.action === "pick") return rps.pick(userId, body);
+  holdem: (userId, body) => {
+    if (body.action === "create") return holdem.create(userId, body);
+    if (body.action === "join") return holdem.join(userId, body);
+    if (body.action === "bots") return holdem.bots(userId, body);
+    if (body.action === "start") return holdem.startNow(userId, body);
+    if (body.action === "leave") return holdem.leave(userId, body);
+    if (body.action === "act") return holdem.act(userId, body);
     throw new GameError("bad_input", "Unknown action");
   },
   coinflip: (userId, body) => {
@@ -890,9 +888,9 @@ for (const sig of ["SIGINT", "SIGTERM"]) {
     jackpot.stop();
     race.stop();
     bombplant.stop();
-    rps.stop();
     brackets.stop();
     blackjack.stop();
+    holdem.stop();
     leaderboard.stop();
     void steam.stop().finally(() => {
       db.close();

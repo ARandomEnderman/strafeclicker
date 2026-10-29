@@ -23,7 +23,7 @@ const GAME_ICON: Record<string, IconName> = {
   defuse: "bomb",
   bombplant: "bomb",
   towers: "towers",
-  keno: "keno",
+  holdem: "holdem",
   race: "race",
   blackjack: "blackjack",
   poker: "poker",

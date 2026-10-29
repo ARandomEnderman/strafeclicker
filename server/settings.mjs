@@ -35,7 +35,7 @@ export const EVENT_TYPES = {
 export const RAIN_STORM_MS = 5 * 60_000;
 
 /** Games the rig applies to (player-vs-player games have no house to favour). */
-export const RIGGABLE = ["cases", "upgrader", "plinko", "flashbang", "roulette", "bhop", "defuse", "towers", "keno", "race", "bombplant", "blackjack", "poker", "coinflipBot", "rpsBot", "dailySpin"];
+export const RIGGABLE = ["cases", "upgrader", "plinko", "flashbang", "roulette", "bhop", "defuse", "towers", "race", "bombplant", "blackjack", "poker", "coinflipBot", "dailySpin"];
 
 export class Settings {
   /** @param {import("node:sqlite").DatabaseSync} db */
