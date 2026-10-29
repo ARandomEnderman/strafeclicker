@@ -517,8 +517,10 @@ export async function sell(uids: string[]): Promise<number> {
 
 /** The returned account must be passed to applyAccount after the spin. */
 /** Stake items on a target. A won item stays hidden until `reveal`, when the dial stops. */
-export async function upgrade(uids: string[], target: Pick<Drop, "itemId" | "phase" | "wear" | "stattrak">) {
-  const r = await post<{ won: boolean; chance: number; item: OwnedItem | null }>("upgrade", { uids, target }, true);
+/** `zone`: where the win zone starts on the ring (degrees clockwise from the top). */
+export async function upgrade(uids: string[], target: Pick<Drop, "itemId" | "phase" | "wear" | "stattrak">, zone: number) {
+  // `land`: where the server says the arrow stops (same degrees).
+  const r = await post<{ won: boolean; chance: number; item: OwnedItem | null; land: number; zone: number }>("upgrade", { uids, target, zone }, true);
   const reveal = hideItems(r.item ? [r.item.uid] : []);
   set(r.account);
   return { ...r, reveal };

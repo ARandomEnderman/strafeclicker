@@ -657,7 +657,7 @@ const actions = {
   sell: (userId, body) => game.sell(userId, body.uids),
   lock: (userId, body) => game.setLocked(userId, body.uids, !!body.locked),
   bets: (userId, body) => ({ bets: game.betHistory(userId, body.limit) }),
-  upgrade: (userId, body) => game.upgrade(userId, body.uids, body.target),
+  upgrade: (userId, body) => game.upgrade(userId, body.uids, body.target, body.zone),
   reset: (userId) => {
     bhop.forget(userId); // their stakes are part of what's being wiped
     defuse.forget(userId);

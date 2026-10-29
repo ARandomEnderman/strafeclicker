@@ -766,7 +766,12 @@ export class Game {
   }
 
   /** Stake inventory items on one pricier target. */
-  upgrade(userId, uids, target) {
+  /**
+   * `zone` is where the win zone starts on the ring, in degrees clockwise from the top
+   * (the player drags it around); it covers `chance` of the ring from there. The arrow's
+   * landing angle is rolled here and sent back, and the upgrade wins when it's in the zone.
+   */
+  upgrade(userId, uids, target, zone) {
     return this.#act(userId, (a, changes) => {
       const picked = [...new Set(Array.isArray(uids) ? uids : [])];
       if (!picked.length || picked.length > UPGRADE_MAX_ITEMS) throw new GameError("bad_input", `Pick 1–${UPGRADE_MAX_ITEMS} items`);
@@ -792,11 +797,21 @@ export class Game {
         throw new GameError("bad_chance", `Chance must be between ${UPGRADE_MIN_CHANCE * 100}% and ${UPGRADE_MAX_CHANCE * 100}%`);
       }
 
-      const [roll, floatR] = randomFloats(2);
-      // The rig shrinks the real chance below the one shown.
+      const [roll, floatR, rigR, spotR] = randomFloats(4);
+      const width = chance * 360;
+      const start = Number.isFinite(Number(zone)) ? ((Number(zone) % 360) + 360) % 360 : 180 - width / 2;
+      let land = roll * 360;
+      let won = (((land - start) % 360) + 360) % 360 < width;
+      // An admin override or the rig (which shrinks the real chance below the one shown)
+      // picks the result instead; the arrow then lands somewhere that matches it.
       const forced = this.forcedUpgrades.get(a.id);
       this.forcedUpgrades.delete(a.id);
-      const won = forced ?? roll < chance * (1 - this.rig("upgrader"));
+      const decided = forced ?? (won && rigR < this.rig("upgrader") ? false : won);
+      if (decided !== won) {
+        won = decided;
+        land = won ? start + width * (0.1 + 0.8 * spotR) : start + width + (360 - width) * (0.05 + 0.9 * spotR);
+      }
+      land = Math.round((((land % 360) + 360) % 360) * 100) / 100;
       const gone = new Set(picked);
       a.inventory = a.inventory.filter((it) => !gone.has(it.uid));
       changes.removed = picked;
@@ -814,7 +829,7 @@ export class Game {
       }
       a.stats.upgrades++;
       this.track(a, { type: "game", game: "upgrade", stakeCents: inputCents, payoutCents: won ? targetCents : 0 });
-      return { won, chance, item: owned };
+      return { won, chance, item: owned, land, zone: Math.round(start * 100) / 100 };
     });
   }
 

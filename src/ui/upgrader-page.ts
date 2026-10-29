@@ -27,15 +27,35 @@ const SPIN_MS = 4200;
 let minMult = 2;
 let query = "";
 
+const ZONE_KEY = "strafeclicker:upgradeZone";
+/** Where you last put the win zone's centre (degrees from the top; the bottom by default). */
+function savedZone() {
+  try {
+    const v = Number(localStorage.getItem(ZONE_KEY));
+    return localStorage.getItem(ZONE_KEY) != null && Number.isFinite(v) ? v : 180;
+  } catch {
+    return 180;
+  }
+}
+function saveZone(deg: number) {
+  try {
+    localStorage.setItem(ZONE_KEY, String(Math.round(deg)));
+  } catch {
+    // ignore
+  }
+}
+
 export function upgraderPage() {
   const selected = new Set<string>();
   let target: Variant | null = null;
   let spinning = false;
-  // The win zone is centred on the bottom of the ring (180°), half on each side; the arrow rests there.
+  // Angles are degrees clockwise from the top of the ring. The win zone is centred on
+  // `zoneCentre` (the bottom unless you drag it somewhere else); the arrow starts at the bottom.
   const START_DEG = 180;
   let rotation = START_DEG;
-  /** The last spin's chance, so its zone stays on the ring (with the arrow on it) until you pick again. */
-  let landed: number | null = null;
+  let zoneCentre = savedZone();
+  /** The last spin's zone (start, size), so it stays on the ring with the arrow on it until you pick again. */
+  let landed: { start: number; chance: number } | null = null;
 
   const inputSlot = h("div", { class: "upg-slot" });
   const targetSlot = h("div", { class: "upg-slot" });
@@ -76,13 +96,56 @@ export function upgraderPage() {
   const centre = h("div", { class: "upg-centre" });
   dial.append(svg, centre);
 
-  const arcPath = (fraction: number) => {
+  /** The zone as an arc from `startDeg`, covering `fraction` of the ring. */
+  const arcPath = (startDeg: number, fraction: number) => {
     if (fraction <= 0) return "";
     const a = Math.min(fraction, 0.9999) * 2 * Math.PI;
-    const mid = (START_DEG * Math.PI) / 180;
+    const from = (startDeg * Math.PI) / 180;
     const pt = (t: number) => `${(110 + 92 * Math.sin(t)).toFixed(2)} ${(110 - 92 * Math.cos(t)).toFixed(2)}`;
-    return `M${pt(mid - a / 2)} A92 92 0 ${a > Math.PI ? 1 : 0} 1 ${pt(mid + a / 2)}`;
+    return `M${pt(from)} A92 92 0 ${a > Math.PI ? 1 : 0} 1 ${pt(from + a)}`;
   };
+
+  // Move the zone: drag it around the ring, or use the slider under the dial.
+  const zoneSlider = h("input", {
+    type: "range",
+    min: "0",
+    max: "359",
+    step: "1",
+    value: String(Math.round(zoneCentre)),
+    class: "upg-zone-range",
+    "aria-label": "Where the win zone sits on the ring",
+    oninput: (e: Event) => moveZone(Number((e.target as HTMLInputElement).value)),
+  }) as HTMLInputElement;
+  const moveZone = (deg: number) => {
+    if (spinning) return;
+    zoneCentre = ((deg % 360) + 360) % 360;
+    zoneSlider.value = String(Math.round(zoneCentre));
+    landed = null;
+    dial.classList.remove("won", "lost");
+    saveZone(zoneCentre);
+    // The arc's shape transition would lag behind (and shrink) while it's being moved.
+    dial.classList.add("moving");
+    clearTimeout(moveTimer);
+    moveTimer = setTimeout(() => dial.classList.remove("moving"), 250);
+    drawDial();
+  };
+  let moveTimer = 0;
+  let dragging = false;
+  const angleAt = (e: PointerEvent) => {
+    const r = svg.getBoundingClientRect();
+    const dx = e.clientX - (r.left + r.width / 2);
+    const dy = e.clientY - (r.top + r.height / 2);
+    return (Math.atan2(dx, -dy) * 180) / Math.PI;
+  };
+  svg.addEventListener("pointerdown", (e) => {
+    if (spinning) return;
+    dragging = true;
+    svg.setPointerCapture(e.pointerId);
+    moveZone(angleAt(e));
+  });
+  svg.addEventListener("pointermove", (e) => dragging && moveZone(angleAt(e)));
+  svg.addEventListener("pointerup", () => (dragging = false));
+  svg.addEventListener("pointercancel", () => (dragging = false));
 
   const drawDial = () => {
     const c = chance();
@@ -90,7 +153,8 @@ export function upgraderPage() {
       landed = null;
       dial.classList.remove("won", "lost");
     }
-    arc.setAttribute("d", arcPath(landed ?? (chanceOk(c) ? c : 0)));
+    arc.setAttribute("d", landed ? arcPath(landed.start, landed.chance) : chanceOk(c) ? arcPath(zoneCentre - c * 180, c) : "");
+    zoneSlider.disabled = spinning;
     const mult = target && inputValue() > 0 ? priceOf(target) / inputValue() : 0;
     centre.replaceChildren(
       h("b", null, target && selected.size ? `${(c * 100).toFixed(2)}%` : "–"),
@@ -221,7 +285,7 @@ export function upgraderPage() {
     let result: Awaited<ReturnType<typeof upgrade>>;
     try {
       holdToastsFor(SPIN_MS + 600);
-      result = await upgrade([...selected], t);
+      result = await upgrade([...selected], t, (((zoneCentre - chance() * 180) % 360) + 360) % 360);
       onLeave(result.reveal); // leaving mid-spin still puts a won item in the inventory
     } catch (e) {
       spinning = false;
@@ -229,12 +293,12 @@ export function upgraderPage() {
       if (e instanceof ServerError) return toast(e.message, "error");
       throw e;
     }
-    // The server only says won or lost; land the pointer somewhere that matches.
-    const winDeg = result.chance * 360;
-    const land = result.won ? winDeg * (0.1 + 0.8 * Math.random()) : winDeg + (360 - winDeg) * (0.05 + 0.9 * Math.random());
+    // The server rolled where the arrow stops; show its zone (it may be a hair wider or
+    // narrower if prices moved) and spin forward five turns to that spot.
+    landed = { start: result.zone, chance: result.chance };
+    arc.setAttribute("d", arcPath(result.zone, result.chance));
     dial.classList.remove("won", "lost");
-    // `land` is measured from the zone's left edge; spin forward five turns and stop there.
-    const stop = (((START_DEG - winDeg / 2 + land - rotation) % 360) + 360) % 360;
+    const stop = (((result.land - rotation) % 360) + 360) % 360;
     rotation += 360 * 5 + stop;
     pointer.style.transition = `transform ${SPIN_MS}ms cubic-bezier(0.15, 0.85, 0.2, 1)`;
     pointer.style.transform = `rotate(${rotation}deg)`;
@@ -249,8 +313,9 @@ export function upgraderPage() {
     } else showOutcome(false, null, staked);
     target = null;
     dial.classList.add(result.won ? "won" : "lost");
-    landed = result.chance;
     redraw();
+    landed = { start: result.zone, chance: result.chance };
+    drawDial();
   }
 
   const outcome = h("div", { class: "result" });
@@ -288,7 +353,13 @@ export function upgraderPage() {
     { class: "page" },
     h("h1", null, "Upgrader"),
     h("p", { class: "hint" }, "Stake items for a pricier one. Lose and they're gone."),
-    h("div", { class: "upg-top" }, inputSlot, h("div", { class: "upg-mid" }, dial, goBtn), targetSlot),
+    h(
+      "div",
+      { class: "upg-top" },
+      inputSlot,
+      h("div", { class: "upg-mid" }, dial, h("label", { class: "upg-zone" }, h("span", null, "Drag the green zone, or slide it"), zoneSlider), goBtn),
+      targetSlot,
+    ),
     outcome,
     h(
       "div",
