@@ -9,6 +9,7 @@ import { icon } from "./icons";
 import { itemPicker } from "./item-picker";
 import { onLeave } from "./page";
 import { avatar, userLink } from "./profile-card";
+import { codeBox } from "./code-box";
 import { playReveal, playTick } from "./sound";
 
 // Coinflip with skins: the lobby (#/coinflip) and one flip (#/coinflip/<id>). The coin
@@ -215,7 +216,7 @@ export function coinflipView(id: number) {
         h("div", { class: "cf-center" }, c, h("div", { class: "cf-pot" }, money(f.value + (f.joiner?.value ?? 0))), banner),
         playerEl(f.joiner, other(f.side), true),
       ),
-      ...(f.code && f.status === "waiting" ? [h("div", { class: "bt-meta bt-codebox cf-code" }, h("span", null, "Private, code"), h("b", { class: "mono" }, f.code))] : []),
+      ...(f.code && f.status === "waiting" ? [codeBox(f.code, "coinflip", f.visibility, "cf-code")] : []),
       ...extra,
     );
     if (f.status === "waiting") {

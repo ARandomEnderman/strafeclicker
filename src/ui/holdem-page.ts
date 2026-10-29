@@ -7,6 +7,7 @@ import { decimalInput, h, money, parseDecimal, toast } from "./dom";
 import { icon } from "./icons";
 import { onLeave } from "./page";
 import { avatar, userLink } from "./profile-card";
+import { codeBox } from "./code-box";
 import { playReveal, playSafe, playTick } from "./sound";
 
 // Texas Hold'em: the lobby (#/holdem) and one table (#/holdem/<id>). Sit-and-go: everyone
@@ -251,7 +252,7 @@ export function holdemView(id: number) {
         );
       else if (me != null) controls.push(h("button", { class: "btn btn-ghost", onclick: () => void act("leave", { id }) }, "Get up (fee back)"));
       else if (g.players.length < g.size) controls.push(h("button", { class: "btn btn-primary btn-lg", onclick: () => void act("join", { id }) }, `Sit down for ${money(g.fee)}`));
-      if (g.code && me != null) controls.push(h("p", { class: "hint" }, "Private table. Share the code ", h("b", null, g.code), " to let people join."));
+      if (g.code && me != null) controls.push(codeBox(g.code, "holdem", g.visibility));
     } else if (g.status === "playing" && hd?.you && me != null) {
       const y = hd.you;
       const tk = `${hd.no}:${hd.street}:${hd.currentBet}`;

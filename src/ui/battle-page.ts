@@ -10,6 +10,7 @@ import { displayName } from "./item-card";
 import { icon } from "./icons";
 import { onLeave } from "./page";
 import { userLink } from "./profile-card";
+import { codeBox } from "./code-box";
 import { playReveal, playTick } from "./sound";
 
 // One battle. Every browser plays the rounds back on the same clock
@@ -83,24 +84,7 @@ export function battlePage(id: number) {
       ),
       h("div", { class: "bt-meta" }, h("span", null, "Cost per player"), h("b", null, money(b.cost))),
       b.code && b.status === "waiting"
-        ? h(
-            "div",
-            { class: "bt-meta bt-codebox" },
-            h("span", null, b.visibility === "private" ? "Private, code" : "Code"),
-            h("b", { class: "mono" }, b.code),
-            h(
-              "button",
-              {
-                class: "btn btn-ghost btn-sm icon-btn",
-                title: "Copy invite link",
-                onclick: () => {
-                  const link = `${location.origin}${location.pathname}#/battles?code=${b.code}`;
-                  void navigator.clipboard?.writeText(link).then(() => toast("Invite link copied"), () => toast(link));
-                },
-              },
-              icon("copy", 14),
-            ),
-          )
+        ? codeBox(b.code, "battles", b.visibility)
         : b.visibility === "friends"
           ? h("div", { class: "bt-meta" }, h("span", null, "Visibility"), h("b", null, "Friends only"))
           : "",

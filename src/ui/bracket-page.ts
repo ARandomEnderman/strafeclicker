@@ -8,6 +8,7 @@ import { h, money, toast } from "./dom";
 import { icon, type IconName } from "./icons";
 import { onLeave } from "./page";
 import { userLink } from "./profile-card";
+import { codeBox } from "./code-box";
 import { playReveal, playTick } from "./sound";
 
 // Bracket tournaments: the lobby (#/brackets) and one bracket (#/brackets/<id>).
@@ -326,7 +327,8 @@ export function bracketView(id: number) {
     requestAnimationFrame(tree.drawLines);
     root.replaceChildren(
       h("div", { class: "bt-crumbs" }, h("a", { href: "#/brackets" }, "Brackets"), h("h1", null, `${b.size}-player bracket · ${money(b.pot)} pot`)),
-      h("p", { class: "hint" }, `${money(b.fee)} entry${b.code ? ` · Code ${b.code}` : ""}`),
+      h("p", { class: "hint" }, `${money(b.fee)} entry`),
+      b.code && b.status === "waiting" ? codeBox(b.code, "brackets", b.visibility, "cf-code") : "",
       champ
         ? h("div", { class: "br-champion" }, icon("crown", 22), h("span", null, champ.bot ? champ.name : userLink(champ.user!, champ.name), ` wins ${money(b.pot)}`))
         : "",
