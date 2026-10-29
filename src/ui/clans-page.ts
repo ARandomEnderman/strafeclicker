@@ -5,7 +5,7 @@ import { segmented } from "./bet-input";
 import { h, money, toast } from "./dom";
 import { icon } from "./icons";
 import { onLeave } from "./page";
-import { userLink } from "./profile-card";
+import { clanTag, COLOURS, userLink } from "./profile-card";
 
 // Clans: your clan (members, join requests, settings), the weekly clan board, and
 // making or joining one. #/clans/<id> shows another clan.
@@ -63,7 +63,7 @@ function clanCard(c: Clan, reload: () => void) {
   return h(
     "div",
     { class: "clan-card" },
-    h("div", { class: "clan-head" }, h("span", { class: "clan-tag big" }, c.tag), h("div", null, h("h2", null, c.name), h("span", { class: "hint" }, `${c.members.length} / ${c.max} members · ${c.open ? "Open to anyone" : "Join by request"} · ${money(c.weekWagered)} wagered this week`))),
+    h("div", { class: "clan-head" }, clanTag(c.tag, c.color, true), h("div", null, h("h2", null, c.name), h("span", { class: "hint" }, `${c.members.length} / ${c.max} members · ${c.open ? "Open to anyone" : "Join by request"} · ${money(c.weekWagered)} wagered this week`))),
     owner
       ? h(
           "div",
@@ -77,6 +77,7 @@ function clanCard(c: Clan, reload: () => void) {
             c.open ? "open" : "closed",
             (v) => void run(() => clansAction("settings", { open: v === "open" }), "Saved").then(reload),
           ).el,
+          tagColorPicker(c, reload),
         )
       : "",
     owner && c.requests.length
@@ -97,6 +98,24 @@ function clanCard(c: Clan, reload: () => void) {
       : "",
     h("div", { class: "clan-members" }, ...c.members.map(memberRow)),
     actions.length ? h("div", { class: "bt-actions" }, ...actions) : "",
+  );
+}
+
+/** Owner: the colour of the clan's tag, from the presets or any colour. */
+function tagColorPicker(c: Clan, reload: () => void) {
+  const save = (color: string | null) => void run(() => clansAction("settings", { color }), "Saved").then(reload);
+  const custom = h("input", { type: "color", class: "pe-custom", value: c.color ?? "#f5a524", title: "Any colour", onchange: (e: Event) => save((e.target as HTMLInputElement).value) });
+  return h(
+    "div",
+    { class: "clan-colors" },
+    h("span", { class: "field-label" }, "Tag colour"),
+    h(
+      "div",
+      { class: "pe-swatches" },
+      h("button", { type: "button", class: `pe-swatch auto${c.color == null ? " active" : ""}`, title: "The site's orange", onclick: () => save(null) }, "Default"),
+      ...COLOURS.map((col) => h("button", { type: "button", class: `pe-swatch${c.color === col ? " active" : ""}`, style: `background:${col}`, title: col, "aria-label": `Colour ${col}`, onclick: () => save(col) })),
+      custom,
+    ),
   );
 }
 
@@ -144,7 +163,7 @@ export function clansPage() {
                 "a",
                 { class: `lb-row${o.mine?.id === c.id ? " me" : ""}`, href: `#/clans/${c.id}` },
                 h("span", { class: `lb-rank r${c.rank}` }, String(c.rank)),
-                h("span", { class: "clan-tag" }, c.tag),
+                clanTag(c.tag, c.color),
                 h("span", { class: "lb-name" }, c.name),
                 h("span", { class: "lb-extra" }, `${c.members} member${c.members === 1 ? "" : "s"}${c.open ? "" : " · by request"}`),
                 h("b", { class: "lb-value" }, money(c.wagered)),

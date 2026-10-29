@@ -6,7 +6,7 @@ import { h, money, toast } from "./dom";
 import { dropCard } from "./item-card";
 import { itemPicker } from "./item-picker";
 import { onLeave } from "./page";
-import { avatar, forgetProfile, profileCard } from "./profile-card";
+import { avatar, forgetProfile, profileCard, COLOURS } from "./profile-card";
 
 // A player's profile: the card, their inventory (friends and yourself), and for your
 // own profile the editor (name, picture, bio, banner) and the password form.
@@ -21,7 +21,6 @@ export function profilePage(username: string) {
   // Your own profile's editor: display name first, then your picture (colour and up to
   // three symbols), a short bio and the banner colour. One Save for all of it.
   let editingProfile = false;
-  const COLOURS = ["#e5484d", "#f76b15", "#f5a524", "#ffc53d", "#46a758", "#12a594", "#0090ff", "#3e63dd", "#8e4ec6", "#d6409f", "#8d8d8d", "#e6e9f0"];
   const profileEditor = (p: Profile) => {
     const me = getState();
     let color: string | null = p.look.color;

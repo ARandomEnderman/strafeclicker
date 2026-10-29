@@ -3,7 +3,7 @@ import { openChat } from "./chat-panel";
 import { set as setFriends } from "../friends";
 import { h, money, mult, toast } from "./dom";
 import { gameName } from "./game-names";
-import { tagOf } from "../tags";
+import { tagColor, tagOf } from "../tags";
 import { lookOf, type Look } from "../looks";
 import { icon } from "./icons";
 
@@ -31,8 +31,20 @@ export function avatar(user: string, name: string, size = 40, look: Look | null 
   return h("span", { class: "avatar", style: `--h:${hue(user)};${bg}width:${size}px;height:${size}px;font-size:${font}px`, "aria-hidden": "true" }, text);
 }
 
+/** The preset colours for avatars and clan tags. */
+export const COLOURS = ["#e5484d", "#f76b15", "#f5a524", "#ffc53d", "#46a758", "#12a594", "#0090ff", "#3e63dd", "#8e4ec6", "#d6409f", "#8d8d8d", "#e6e9f0"];
+
+/**
+ * A clan tag in its colour: tinted like the default one, or filled when the colour is too
+ * dark to read as text on the site's dark background.
+ */
+export function clanTag(tag: string, color: string | null = tagColor(tag), big = false) {
+  const style = !color ? "" : readableOn(color) === "#f4f6fa" ? `background:${color};color:#f4f6fa` : `background:${color}2e;color:${color}`;
+  return h("span", { class: `clan-tag${big ? " big" : ""}`, style }, tag);
+}
+
 /** Dark or light text, whichever reads better on a background colour. */
-function readableOn(hex: string) {
+export function readableOn(hex: string) {
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
   return 0.299 * r + 0.587 * g + 0.114 * b > 150 ? "#14161c" : "#f4f6fa";
 }
@@ -43,7 +55,7 @@ export function userLink(user: string, name = user, opts: { avatar?: boolean } =
     "button",
     { type: "button", class: "user-link", title: name !== user ? `@${user}` : "View profile" },
     ...(opts.avatar ? [avatar(user, name, 18)] : []),
-    ...(tagOf(user) ? [h("span", { class: "clan-tag" }, tagOf(user)!)] : []),
+    ...(tagOf(user) ? [clanTag(tagOf(user)!)] : []),
     h("span", null, name),
   );
   el.addEventListener("click", (e) => {

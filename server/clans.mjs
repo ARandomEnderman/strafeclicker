@@ -13,6 +13,7 @@ export const CLAN_MAX_MEMBERS = 20;
 export const CLAN_COST_USD = 25;
 const TAG_RE = /^[A-Z0-9]{2,4}$/;
 const NAME_RE = /^[\p{L}\p{N} _'-]{3,24}$/u;
+const COLOR_RE = /^#[0-9a-f]{6}$/;
 
 export class Clans {
   /**
@@ -36,10 +37,13 @@ export class Clans {
       clan_id INTEGER NOT NULL REFERENCES clans(id) ON DELETE CASCADE,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       at INTEGER NOT NULL, PRIMARY KEY (clan_id, user_id))`);
+    // The tag's colour, picked by the owner (null: the site's accent).
+    if (!db.prepare("PRAGMA table_info(clans)").all().some((c) => c.name === "color")) db.exec("ALTER TABLE clans ADD COLUMN color TEXT");
     this.q = {
       clan: db.prepare("SELECT * FROM clans WHERE id = ?"),
       add: db.prepare("INSERT INTO clans (name, tag, open, created_at) VALUES (?, ?, ?, ?)"),
       setOpen: db.prepare("UPDATE clans SET open = ? WHERE id = ?"),
+      setColor: db.prepare("UPDATE clans SET color = ? WHERE id = ?"),
       del: db.prepare("DELETE FROM clans WHERE id = ?"),
       byName: db.prepare("SELECT 1 FROM clans WHERE name = ? OR tag = ?"),
       member: db.prepare("SELECT * FROM clan_members WHERE user_id = ?"),
@@ -55,16 +59,17 @@ export class Clans {
       dropRequestsOf: db.prepare("DELETE FROM clan_requests WHERE user_id = ?"),
       myRequests: db.prepare("SELECT clan_id FROM clan_requests WHERE user_id = ?"),
       userByName: db.prepare("SELECT id FROM users WHERE username = ? COLLATE NOCASE"),
-      tags: db.prepare("SELECT u.username, c.tag FROM clan_members m JOIN users u ON u.id = m.user_id JOIN clans c ON c.id = m.clan_id"),
-      board: db.prepare(`SELECT c.id, c.name, c.tag, c.open, COUNT(m.user_id) AS members, COALESCE(SUM(l.wagered_cents), 0) AS wagered
+      tags: db.prepare("SELECT u.username, c.tag, c.color FROM clan_members m JOIN users u ON u.id = m.user_id JOIN clans c ON c.id = m.clan_id"),
+      board: db.prepare(`SELECT c.id, c.name, c.tag, c.color, c.open, COUNT(m.user_id) AS members, COALESCE(SUM(l.wagered_cents), 0) AS wagered
         FROM clans c JOIN clan_members m ON m.clan_id = c.id LEFT JOIN lb l ON l.user_id = m.user_id AND l.period = ?
         GROUP BY c.id ORDER BY wagered DESC, members DESC, c.id LIMIT 50`),
     };
   }
 
-  /** username -> tag for every clan member (sent to browsers so names can show tags). */
+  /** Every clan member's tag and its colour (sent to browsers so names can show tags). */
   tags() {
-    return Object.fromEntries(this.q.tags.all().map((r) => [r.username, r.tag]));
+    const rows = this.q.tags.all();
+    return { users: Object.fromEntries(rows.map((r) => [r.username, r.tag])), colors: Object.fromEntries(rows.filter((r) => r.color).map((r) => [r.tag, r.color])) };
   }
   #changed(...userIds) {
     this.io.broadcast("tags", this.tags());
@@ -179,7 +184,13 @@ export class Clans {
 
   settings(userId, body) {
     const own = this.#owner(userId);
-    this.q.setOpen.run(body.open ? 1 : 0, own.clan_id);
+    if ("open" in body) this.q.setOpen.run(body.open ? 1 : 0, own.clan_id);
+    if ("color" in body) {
+      const color = body.color == null ? null : String(body.color).toLowerCase();
+      if (color != null && !COLOR_RE.test(color)) throw new GameError("bad_input", "Pick a colour");
+      this.q.setColor.run(color, own.clan_id);
+      this.#changed();
+    }
     return { clan: this.view(own.clan_id, userId) };
   }
 
@@ -196,6 +207,7 @@ export class Clans {
       id: c.id,
       name: c.name,
       tag: c.tag,
+      color: c.color ?? null,
       open: !!c.open,
       createdAt: c.created_at,
       weekWagered: wagered / 100,
@@ -213,7 +225,7 @@ export class Clans {
     const mine = this.clanOf(userId);
     return {
       mine: mine ? this.view(mine, userId) : null,
-      board: this.q.board.all(periodKey("weekly")).map((r, i) => ({ rank: i + 1, id: r.id, name: r.name, tag: r.tag, open: !!r.open, members: r.members, wagered: r.wagered / 100 })),
+      board: this.q.board.all(periodKey("weekly")).map((r, i) => ({ rank: i + 1, id: r.id, name: r.name, tag: r.tag, color: r.color ?? null, open: !!r.open, members: r.members, wagered: r.wagered / 100 })),
       cost: CLAN_COST_USD,
       max: CLAN_MAX_MEMBERS,
     };

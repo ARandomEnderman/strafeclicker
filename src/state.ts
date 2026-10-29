@@ -316,6 +316,7 @@ export interface Clan {
   id: number;
   name: string;
   tag: string;
+  color: string | null;
   open: boolean;
   createdAt: number;
   weekWagered: number;
@@ -327,7 +328,7 @@ export interface Clan {
 }
 export interface ClanOverview {
   mine: Clan | null;
-  board: { rank: number; id: number; name: string; tag: string; open: boolean; members: number; wagered: number }[];
+  board: { rank: number; id: number; name: string; tag: string; color: string | null; open: boolean; members: number; wagered: number }[];
   cost: number;
   max: number;
 }
