@@ -1,6 +1,7 @@
 import { CHAT_MAX_LEN, RAIN_LEVELS } from "../../shared/game.js";
 import { chatMessages, onChat, type ChatMessage } from "../chat";
-import { adminAction, getState, InsufficientFunds, sendChat, ServerError } from "../state";
+import { friendLists } from "../friends";
+import { adminAction, getState, InsufficientFunds, playerNames, sendChat, ServerError } from "../state";
 import { onTags, tagOf } from "../tags";
 import { h, money, toast } from "./dom";
 import { icon } from "./icons";
@@ -183,6 +184,98 @@ export function chatPanel() {
   };
   field.addEventListener("input", drawHints);
   field.addEventListener("blur", () => (hints.hidden = true));
+
+  // Tab completes a username: the word before the cursor (an @ in front stays). Press Tab
+  // again (Shift+Tab back) to go through the other matches. People in the chat and your
+  // friends come first, then anyone else the server knows.
+  let tab: { start: number; end: number; names: string[]; i: number } | null = null;
+  let looking = false;
+  const knownNames = (prefix: string) => {
+    const p = prefix.toLowerCase();
+    const me = getState().username.toLowerCase();
+    const seen = new Set<string>();
+    const out: string[] = [];
+    const add = (n?: string | null) => {
+      const k = n?.toLowerCase();
+      if (!n || !k!.startsWith(p) || k === me || seen.has(k!)) return;
+      seen.add(k!);
+      out.push(n);
+    };
+    [...chatMessages()].reverse().forEach((m) => (add(m.user), add(m.toUser)));
+    friendLists().friends.forEach((f) => add(f.user));
+    return out;
+  };
+  const applyTab = () => {
+    const t = tab!;
+    const name = t.names[t.i];
+    const v = field.value;
+    const after = v.slice(t.end).replace(/^ /, "");
+    field.value = `${v.slice(0, t.start)}${name} ${after}`;
+    t.end = t.start + name.length + 1;
+    field.setSelectionRange(t.end, t.end);
+    hints.hidden = t.names.length < 2;
+    hints.replaceChildren(
+      ...t.names.map((n, i) =>
+        h(
+          "button",
+          {
+            type: "button",
+            class: `chat-hint name${i === t.i ? " on" : ""}`,
+            onmousedown: (e: Event) => {
+              e.preventDefault();
+              t.i = i;
+              applyTab();
+              field.focus();
+            },
+          },
+          h("b", null, n),
+        ),
+      ),
+    );
+  };
+  field.addEventListener("keydown", async (e) => {
+    if (e.key !== "Tab") {
+      if (e.key !== "Shift") tab = null;
+      return;
+    }
+    if (looking) return e.preventDefault();
+    if (tab) {
+      e.preventDefault();
+      tab.i = (tab.i + (e.shiftKey ? tab.names.length - 1 : 1)) % tab.names.length;
+      return applyTab();
+    }
+    const caret = field.selectionStart ?? field.value.length;
+    // "/pa" + Tab: finish the command instead.
+    const cmd = field.value.slice(0, caret).match(/^\/\w*$/) && COMMANDS.find((c) => c.cmd.startsWith(field.value.slice(0, caret).toLowerCase()));
+    if (cmd) {
+      e.preventDefault();
+      field.value = cmd.cmd + field.value.slice(caret);
+      field.setSelectionRange(cmd.cmd.length, cmd.cmd.length);
+      return drawHints();
+    }
+    const word = field.value.slice(0, caret).match(/@?([A-Za-z0-9_]+)$/);
+    if (!word) return;
+    e.preventDefault();
+    const prefix = word[1];
+    const start = caret - prefix.length;
+    let names = knownNames(prefix);
+    if (names.length < 8) {
+      looking = true;
+      try {
+        const more = await playerNames(prefix);
+        const me = getState().username.toLowerCase();
+        names = [...names, ...more.filter((n) => n.toLowerCase() !== me && !names.some((x) => x.toLowerCase() === n.toLowerCase()))];
+      } catch {
+        // offline: the names we know will do
+      } finally {
+        looking = false;
+      }
+    }
+    // Typing went on while we asked the server.
+    if (field.value.slice(start, caret) !== prefix || !names.length) return;
+    tab = { start, end: caret, names, i: 0 };
+    applyTab();
+  });
 
   const send = async () => {
     const text = field.value.trim();

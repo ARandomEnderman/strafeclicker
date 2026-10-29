@@ -491,6 +491,9 @@ function checkMaintenance(userId, action, body) {
 }
 
 /** POST /api/<action> handlers for logged-in users. Each returns its result plus the account view. */
+/** Usernames starting with a prefix, most recently active first (chat's Tab completion). */
+const namesLike = db.prepare("SELECT username FROM users WHERE username LIKE ? ESCAPE '\\' AND banned = 0 ORDER BY last_active DESC NULLS LAST LIMIT 8");
+
 const actions = {
   click: (userId, body) => game.click(userId, body.clicks, body.times),
   plinko: (userId, body) => plinko(game, userId, body),
@@ -657,6 +660,12 @@ const actions = {
   sell: (userId, body) => game.sell(userId, body.uids),
   lock: (userId, body) => game.setLocked(userId, body.uids, !!body.locked),
   bets: (userId, body) => ({ bets: game.betHistory(userId, body.limit) }),
+  players: (userId, body) => {
+    const q = String(body.q ?? "")
+      .replace(/[^A-Za-z0-9_]/g, "")
+      .slice(0, 20);
+    return { names: q ? namesLike.all(`${q.replace(/_/g, "\\_")}%`).map((r) => r.username) : [] };
+  },
   upgrade: (userId, body) => game.upgrade(userId, body.uids, body.target, body.zone),
   reset: (userId) => {
     bhop.forget(userId); // their stakes are part of what's being wiped

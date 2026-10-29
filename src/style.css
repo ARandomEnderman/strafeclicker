@@ -5216,6 +5216,10 @@ body.chat-open .rightbar {
 .chat-hint:hover {
   background: rgba(255, 255, 255, 0.05);
 }
+.chat-hint.on {
+  background: rgba(245, 165, 36, 0.14);
+  color: var(--accent);
+}
 .chat-hint span {
   color: var(--muted);
 }

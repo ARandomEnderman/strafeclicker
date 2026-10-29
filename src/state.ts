@@ -501,6 +501,11 @@ export interface BetRecord {
   n: number;
   at: number;
 }
+/** Usernames that start with `prefix` (for Tab completion in chat). */
+export async function playerNames(prefix: string) {
+  return (await post<{ names: string[] }>("players", { q: prefix })).names;
+}
+
 /** Your last bets and case openings, newest first. */
 export async function betHistory(limit = 100) {
   return (await post<{ bets: BetRecord[] }>("bets", { limit })).bets;
