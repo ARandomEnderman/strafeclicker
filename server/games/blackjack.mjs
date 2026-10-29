@@ -8,16 +8,16 @@
 //            one card every BJ_DEALER_CARD_MS, the same for everyone watching
 //   result   payouts (blackjack 3:2, win 1:1, push returns the bet), then a new round
 //
-// Everyone plays at the same table while it has room: a bet placed while a hand is being
-// played waits for the next hand at that table (t.waiting) instead of opening a new
-// table. A second table only opens once every table is full.
+// There is one table for everyone, with no seat limit (past BJ_SEATS the page draws the
+// extra players smaller). Bets join the hand while it's taking bets; once it's dealt, a
+// bet is a pre-bet for the next hand (t.waiting) and can be taken back until then.
 //
 // The shoe (6 decks) and the hole card stay on the server. Stakes are debited when the
 // bet is placed and kept in bj_bets, so a restart refunds a round that was in progress.
 
 import { randomInt } from "node:crypto";
 import { GameError, spendable } from "../game.mjs";
-import { BJ_BET_MS, BJ_DEALER_CARD_MS, BJ_PLAY_MS, BJ_RESULT_MS, BJ_SEATS } from "../../shared/game.js";
+import { BJ_BET_MS, BJ_DEALER_CARD_MS, BJ_PLAY_MS, BJ_RESULT_MS } from "../../shared/game.js";
 import { stakeCents } from "./bets.mjs";
 
 const DECKS = 6;
@@ -92,29 +92,16 @@ export class Blackjack {
     return t;
   }
 
-  /**
-   * The table for a new bet: the one with the most other players (in the hand or waiting
-   * for the next) that still has room, whatever it's doing; on a tie your own table, then
-   * one taking bets. A new table only when every table is full.
-   */
-  #tableFor(userId) {
-    const mine = this.tables.get(this.at.get(userId));
-    const others = (t) => [...t.seats, ...t.waiting].filter((s) => s.userId !== userId).length;
-    const open = [...this.tables.values()].filter((t) => others(t) < BJ_SEATS);
-    if (!open.length) return this.#newTable();
-    const rank = (t) => others(t) * 4 + (t === mine ? 2 : 0) + (t.phase === "idle" || t.phase === "betting" ? 1 : 0);
-    return open.reduce((best, t) => (rank(t) > rank(best) ? t : best));
+  /** The one table everyone plays at. */
+  #tableFor() {
+    return this.tables.values().next().value ?? this.#newTable();
   }
 
-  /** Start taking bets (with a deadline), dealing at once if the table is full. */
+  /** Start taking bets, with a deadline. */
   #openBetting(t) {
     t.phase = "betting";
     t.deadline = Date.now() + BJ_BET_MS;
     t.timer = setTimeout(() => this.#deal(t), BJ_BET_MS);
-    if (t.seats.length >= BJ_SEATS) {
-      clearTimeout(t.timer);
-      this.#deal(t);
-    }
   }
 
   #draw(t) {
@@ -153,7 +140,7 @@ export class Blackjack {
       if (current.phase !== "betting") throw new GameError("busy", "Finish this hand first");
       throw new GameError("busy", "You've already bet this round");
     }
-    const t = this.#tableFor(userId);
+    const t = this.#tableFor();
     // A table showing only your own last result starts the next round now; with others
     // there, the result stays up and you're in for the next hand.
     if (t.phase === "result" && t.seats.every((s) => s.userId === userId)) {
@@ -173,14 +160,27 @@ export class Blackjack {
     if (t.phase === "idle") {
       t.seats.push(seat);
       this.#openBetting(t);
-    } else if (t.phase === "betting") {
-      t.seats.push(seat);
-      // A full table doesn't wait out the timer.
-      if (t.seats.length >= BJ_SEATS) {
-        clearTimeout(t.timer);
-        this.#deal(t);
-      }
-    } else t.waiting.push(seat);
+    } else if (t.phase === "betting") t.seats.push(seat);
+    // Dealt already (or showing others' results): a pre-bet for the next hand.
+    else t.waiting.push(seat);
+    this.publish();
+    return out;
+  }
+
+  /** Take back a bet before its hand is dealt (a pre-bet, or one in the betting window). */
+  cancel(userId) {
+    const t = this.tables.get(this.at.get(userId));
+    const list = t?.waiting.some((s) => s.userId === userId) ? t.waiting : t?.phase === "betting" ? t.seats : null;
+    const seat = list?.find((s) => s.userId === userId);
+    if (!seat) throw new GameError("not_playing", "You have no bet waiting to be dealt");
+    list.splice(list.indexOf(seat), 1);
+    const out = this.game.act(userId, (a) => {
+      a.balanceCents += seat.stakeCents;
+      return {};
+    });
+    this.q.settle.run("refunded", seat.betId);
+    // Nobody left to deal to: back to waiting for a first bet.
+    if (t.phase === "betting" && !t.seats.length) this.#reset(t);
     this.publish();
     return out;
   }

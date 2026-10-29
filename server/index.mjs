@@ -645,6 +645,7 @@ const actions = {
     if (body.action === "hit") return blackjack.hit(userId);
     if (body.action === "stand") return blackjack.stand(userId);
     if (body.action === "double") return blackjack.double(userId);
+    if (body.action === "cancel") return blackjack.cancel(userId);
     throw new GameError("bad_input", "Unknown action");
   },
   jackpot: (userId, body) => (body.action === "withdraw" ? jackpot.withdraw(userId) : jackpot.deposit(userId, body)),

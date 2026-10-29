@@ -418,7 +418,7 @@ export const redeemPromo = (code: string) => post<{ reward: string }>("promo", {
 export const claimMission = (id?: string) => post<{ reward: number }>("missions", { id });
 export const getLeaderboard = <T>() => post<{ board: T }>("leaderboard");
 
-export async function blackjackAction(action: "bet" | "hit" | "stand" | "double", bet?: number) {
+export async function blackjackAction(action: "bet" | "hit" | "stand" | "double" | "cancel", bet?: number) {
   await flushClicks();
   return post("blackjack", { action, bet });
 }

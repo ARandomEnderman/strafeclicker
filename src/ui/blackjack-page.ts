@@ -9,7 +9,9 @@ import { userLink } from "./profile-card";
 import { playBoom, playReveal, playSafe, playTick } from "./sound";
 
 // Blackjack: one dealer, up to four players who all play their hand at the same time.
-// Your hand is shown big, the other seats at the table beside it.
+// One table for everyone. Your hand is shown big, the next BJ_SEATS - 1 players beside it,
+// anyone past that in a row of small seats. Once a hand is dealt you can only pre-bet on
+// the next one (and take that back until it's dealt).
 
 const SUITS: Record<BjCard["s"], string> = { s: "♠", h: "♥", d: "♦", c: "♣" };
 
@@ -31,11 +33,13 @@ export function blackjackPage() {
   const timer = h("div", { class: "fb-timer rl-timer" }, bar);
   const mySeat = h("div", { class: "bj-seat mine" });
   const others = h("div", { class: "bj-others" });
+  const extras = h("div", { class: "bj-extras" });
+  const nextHand = h("div", { class: "bj-next" });
 
   // ---------- controls ----------
   const bet = betInput();
   let busy = false;
-  const act = async (action: "bet" | "hit" | "stand" | "double") => {
+  const act = async (action: "bet" | "hit" | "stand" | "double" | "cancel") => {
     if (busy) return;
     busy = true;
     try {
@@ -52,7 +56,9 @@ export function blackjackPage() {
   const hitBtn = h("button", { class: "btn btn-primary", onclick: () => void act("hit") }, "Hit");
   const standBtn = h("button", { class: "btn", onclick: () => void act("stand") }, "Stand");
   const doubleBtn = h("button", { class: "btn", onclick: () => void act("double") }, "Double");
+  const cancelBtn = h("button", { class: "btn btn-ghost", onclick: () => void act("cancel") }, "Take bet back");
   const betRow = h("div", { class: "rl-controls bj-bet" }, bet.el, dealBtn);
+  const waitRow = h("div", { class: "rl-controls bj-bet bj-waiting" }, h("span", { class: "bj-wait-text" }), cancelBtn);
   const playRow = h("div", { class: "bj-actions" }, hitBtn, standBtn, doubleBtn);
 
   // Cards already on screen, so only new ones get the deal animation.
@@ -115,12 +121,21 @@ export function blackjackPage() {
     else mySeat.replaceChildren(h("div", { class: "bj-empty" }, "Place a bet to sit down. Everyone at the table plays their hand at the same time."));
     mySeat.hidden = false;
     const rest = (t?.seats ?? []).filter((s) => s.user !== me);
-    const next = (t?.waiting ?? []).filter((w) => w.user !== me);
+    const big = rest.slice(0, BJ_SEATS - 1);
     others.replaceChildren(
-      ...rest.map((s) => seatEl(h("div"), s, t!.round)),
-      ...next.map((w) => h("div", { class: "bj-seat open next" }, h("div", { class: "bj-empty" }, userLink(w.user, w.name), ` joins next hand · ${money(w.stake)}`))),
-      ...Array.from({ length: Math.max(0, BJ_SEATS - 1 - rest.length - next.length) }, () => h("div", { class: "bj-seat open" }, h("div", { class: "bj-empty" }, "Open seat"))),
+      ...big.map((s) => seatEl(h("div"), s, t!.round)),
+      ...Array.from({ length: Math.max(0, BJ_SEATS - 1 - big.length) }, () => h("div", { class: "bj-seat open" }, h("div", { class: "bj-empty" }, "Open seat"))),
     );
+    // More players than big seats: the rest get small seats underneath.
+    const small = rest.slice(BJ_SEATS - 1);
+    extras.hidden = !small.length;
+    extras.replaceChildren(...small.map((s) => seatEl(h("div"), s, t!.round)));
+    // seatEl sets the class; mark these small afterwards.
+    [...extras.children].forEach((el) => el.classList.add("small"));
+    // Pre-bets for the next hand.
+    const next = t?.waiting ?? [];
+    nextHand.hidden = !next.length;
+    nextHand.replaceChildren(h("b", null, "Next hand:"), ...next.map((w) => h("span", { class: "bj-next-player" }, userLink(w.user, w.name), ` ${money(w.stake)}`)));
 
     const playing = seat?.status === "playing" && t?.phase === "playing";
     playRow.hidden = !playing;
@@ -128,6 +143,13 @@ export function blackjackPage() {
     // You can bet when you're not in the current hand (or it's over).
     const canBet = !st.queued && (!seat || t?.phase === "result" || t?.phase === "idle");
     betRow.hidden = !canBet;
+    // Once a hand is dealt, a bet only gets you into the next one.
+    const dealt = !!t && (t.phase === "playing" || t.phase === "dealer" || (t.phase === "result" && t.seats.some((s) => s.user !== me)));
+    dealBtn.textContent = dealt ? "Pre-bet next hand" : "Place bet";
+    // Your bet before it's dealt can be taken back.
+    const waitingBet = st.queued ? mine?.stake : seat?.status === "betting" && t?.phase === "betting" ? seat.stake : null;
+    waitRow.hidden = waitingBet == null;
+    if (waitingBet != null) (waitRow.firstElementChild as HTMLElement).textContent = st.queued ? `Pre-bet ${money(waitingBet)} on the next hand` : `${money(waitingBet)} bet, waiting for the deal`;
   };
 
   // ---------- the clock ----------
@@ -162,8 +184,11 @@ export function blackjackPage() {
       h("div", { class: "bj-dealer" }, h("div", { class: "bj-dealer-head" }, h("span", null, "Dealer"), dealerTotal), dealerCards, h("div", { class: "bj-rules" }, "Blackjack pays 3:2 · Dealer stands on 17")),
       h("div", { class: "rl-under" }, status, timer),
       h("div", { class: "bj-table" }, mySeat, others),
+      extras,
+      nextHand,
     ),
     playRow,
     betRow,
+    waitRow,
   );
 }
