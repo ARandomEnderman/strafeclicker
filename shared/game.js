@@ -53,14 +53,16 @@ export const PHASE_WEIGHTS = {
  * Level 0 is what every account starts with.
  */
 export const PERKS = {
-  // A side branch off Multi-open level 2 (see `requires`): the case page's skip-animation switch.
+  // A side branch off Multi-open level 2 (see `requires`): the case page's skip-animation
+  // switch. The value is what a skipped opening costs, in multiples of the normal price.
   skipAnimation: {
     name: "Skip animation",
-    unit: "",
+    unit: "x the case price",
     requires: { perk: "multiOpen", level: 2 },
     levels: [
       { value: 0, cost: 0 },
-      { value: 1, cost: 75 },
+      { value: 10, cost: 75 },
+      { value: 4, cost: 100_000 },
     ],
   },
   multiOpen: {

@@ -525,9 +525,10 @@ export async function dropPlinko(bet: number, rows: number, risk: string): Promi
  * Open `count` of a case. The new items stay hidden from the inventory (and its value)
  * until `reveal` is called, when the reel has landed.
  */
-export async function openCases(c: Case, count: number): Promise<{ items: OwnedItem[]; reveal: () => void }> {
+/** `fast` skips the reel, at the Skip animation perk's multiple of the price. */
+export async function openCases(c: Case, count: number, fast = false): Promise<{ items: OwnedItem[]; reveal: () => void }> {
   await flushClicks();
-  const r = await post<{ items: OwnedItem[] }>("open", { caseId: c.id, count }, true);
+  const r = await post<{ items: OwnedItem[] }>("open", { caseId: c.id, count, fast }, true);
   const reveal = hideItems(r.items.map((it) => it.uid));
   set(r.account);
   return { items: r.items, reveal };

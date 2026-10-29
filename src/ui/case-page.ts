@@ -41,6 +41,7 @@ export function casePage(c: Case) {
   const stats = h("div", { class: "case-stats" });
   const contentsEl = h("div", { class: "contents" });
   let spinning = false;
+  let paidMult = 1; // the price multiple the last opening was charged
   let count = Math.min(lastCount, maxCount());
 
   const makeReels = (n: number) => {
@@ -54,9 +55,12 @@ export function casePage(c: Case) {
     );
   };
 
+  /** Skipping the reel costs a multiple of the price (the Skip animation perk's value). */
+  const skipMult = () => (fast ? perkValue(getState().perks, "skipAnimation") || 1 : 1);
+
   // Everything price-dependent is redrawn when the server pushes new prices.
   const drawPrices = () => {
-    const cost = openCost(c);
+    const cost = openCost(c) * skipMult();
     const price = casePrice(c);
     openBtn.textContent = price == null ? "Not on the market" : `Open ${count > 1 ? `${count} ` : ""}for ${money(cost * count)}`;
     openBtn.disabled = price == null || spinning;
@@ -112,8 +116,9 @@ export function casePage(c: Case) {
       let won: OwnedItem[];
       try {
         holdToastsFor(SPIN_MS + 800);
-        const opened = await openCases(c, count);
+        const opened = await openCases(c, count, fast && !!perkValue(getState().perks, "skipAnimation"));
         won = opened.items;
+        paidMult = skipMult();
         reveal = opened.reveal;
       } catch (e) {
         if (e instanceof InsufficientFunds) return toast("Not enough balance. Earn some on the Clicker page or sell items.", "error");
@@ -141,7 +146,7 @@ export function casePage(c: Case) {
   }
 
   function showResult(won: OwnedItem[]) {
-    const cost = openCost(c) * won.length;
+    const cost = openCost(c) * won.length * paidMult;
     const value = won.reduce((s, w) => s + priceOf(w), 0);
     const unsold = () => won.filter((w) => getState().inventory.some((i) => i.uid === w.uid));
     const sellBtn = (items: OwnedItem[], label: string) => {
@@ -213,8 +218,8 @@ export function casePage(c: Case) {
             ? h(
                 "label",
                 { class: "toggle" },
-                h("input", { type: "checkbox", checked: fast, onchange: (e: Event) => (fast = (e.target as HTMLInputElement).checked) }),
-                " Skip animation",
+                h("input", { type: "checkbox", checked: fast, onchange: (e: Event) => ((fast = (e.target as HTMLInputElement).checked), drawPrices()) }),
+                ` Skip animation (${perkValue(getState().perks, "skipAnimation")}x price)`,
               )
             : h("a", { class: "chip locked", href: "#/tree", title: "Unlock in the upgrade tree" }, icon("lock", 12), " Skip animation"),
         ),

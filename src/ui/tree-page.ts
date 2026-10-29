@@ -57,8 +57,8 @@ const BRANCHES: { id: PerkId; angle: number; icon: IconName; about: string; effe
     angle: -Math.PI / 2 - (4 * Math.PI) / 5 + 2 * 0.16 - Math.PI / 2,
     from: { perk: "multiOpen", level: 2 },
     icon: "timer",
-    about: "Adds the Skip animation switch to the case page: openings land straight away.",
-    effect: (v) => (v ? "Skip the case-opening animation" : "Every opening plays its reel"),
+    about: "Adds the Skip animation switch to the case page: openings land straight away, for a multiple of the case price.",
+    effect: (v) => (v ? `Skip the reel for ${v}x the case price` : "Every opening plays its reel"),
   },
 ];
 

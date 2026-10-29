@@ -737,7 +737,7 @@ const actions = {
     if (body.action === "cashout") return bhop.cashout(userId);
     throw new GameError("bad_input", "Unknown action");
   },
-  open: (userId, body) => game.open(userId, String(body.caseId ?? ""), body.count ?? 1),
+  open: (userId, body) => game.open(userId, String(body.caseId ?? ""), body.count ?? 1, body.fast === true),
   perk: (userId, body) => game.buyPerk(userId, String(body.perk ?? "")),
   sell: (userId, body) => game.sell(userId, body.uids),
   lock: (userId, body) => game.setLocked(userId, body.uids, !!body.locked),

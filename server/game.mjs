@@ -739,8 +739,11 @@ export class Game {
     });
   }
 
-  /** Open `count` of one case at once (up to the account's multi-open level). */
-  open(userId, caseId, count = 1) {
+  /**
+   * Open `count` of one case at once (up to the account's multi-open level). `fast` skips
+   * the reel, which costs the Skip animation perk's multiple of the price.
+   */
+  open(userId, caseId, count = 1, fast = false) {
     return this.#act(userId, (a, changes) => {
       const { cases, keyPrice } = this.market.contents();
       const c = cases.find((x) => x.id === caseId);
@@ -750,7 +753,10 @@ export class Game {
       if (!(n >= 1 && n <= max)) throw new GameError("bad_count", `You can open up to ${max} at once`);
       const casePrice = this.market.prices()[`case|${c.id}`];
       if (casePrice == null) throw new GameError("unavailable", "This container isn't on the market right now");
-      const cost = this.#onSale(cents(casePrice) + (needsKey(c) ? cents(keyPrice) : 0)) * n;
+      const skip = fast ? perkValue(a.perks, "skipAnimation") : 0;
+      if (fast && !skip) throw new GameError("locked", "Unlock Skip animation in the upgrade tree first");
+      const each = this.#onSale(cents(casePrice) + (needsKey(c) ? cents(keyPrice) : 0));
+      const cost = each * n * (skip || 1);
       if (spendable(a) < cost) throw new GameError("insufficient", "Not enough balance");
 
       const rig = this.rig("cases");
@@ -778,7 +784,7 @@ export class Game {
       // Only the best of a multi-open goes to the feed, held back until the reel lands (6 s).
       this.track(a, { type: "cases", game: "cases", n, stakeCents: cost, payoutCents: items.reduce((sum, it) => sum + cents(this.#price(it)), 0) });
       const best = items.reduce((x, y) => (this.#price(y) > this.#price(x) ? y : x));
-      this.announce(changes, a, "case", best, cost / n / 100, { source: c.name }, 6500);
+      this.announce(changes, a, "case", best, each / 100, { source: c.name }, 6500);
       return { items };
     });
   }
