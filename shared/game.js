@@ -350,6 +350,9 @@ export const BATTLE_MAX_ROUNDS = 35;
 /** Each round: the reels spin for BATTLE_SPIN_MS, then a pause before the next. */
 export const BATTLE_SPIN_MS = 4000;
 export const BATTLE_ROUND_MS = 5500;
+/** Playback speeds the creator can pick; both times above are divided by it. */
+export const BATTLE_SPEEDS = [1, 2, 4];
+export const battleSpeed = (s) => (BATTLE_SPEEDS.includes(s) ? s : 1);
 
 /** Battle reels: tiles per strip and the one the winning item sits on. */
 export const BATTLE_REEL_LEN = 32;

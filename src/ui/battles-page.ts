@@ -1,6 +1,6 @@
 import { battles, onBattles, type Battle } from "../battles";
 import { getCase, openableCases, openCost, round2 } from "../catalog";
-import { BATTLE_SIZES, PERKS, perkValue } from "../odds";
+import { BATTLE_SIZES, BATTLE_SPEEDS, PERKS, perkValue } from "../odds";
 import { battleAction, displayBalance, getState, InsufficientFunds, ServerError } from "../state";
 import { segmented } from "./bet-input";
 import { h, money, toast } from "./dom";
@@ -20,6 +20,7 @@ export function battlesPage(code: string | null = null) {
   let picked: string[] = [];
   let size = 2;
   let visibility: Visibility = "public";
+  let speed = 1;
   let query = "";
   const pickedEl = h("div", { class: "bt-picked" });
   const limitEl = h("span", { class: "bt-limit" });
@@ -95,9 +96,16 @@ export function battlesPage(code: string | null = null) {
     (v) => (visibility = v),
   );
 
+  const speedSeg = segmented<number>(
+    "Speed",
+    BATTLE_SPEEDS.map((n) => ({ value: n, label: `${n}x` })),
+    speed,
+    (v) => (speed = v),
+  );
+
   const create = async () => {
     try {
-      const { id } = await battleAction("create", { cases: picked, size, visibility });
+      const { id } = await battleAction("create", { cases: picked, size, visibility, speed });
       picked = [];
       drawPicked();
       location.hash = `#/battles/${id}`;
@@ -128,7 +136,7 @@ export function battlesPage(code: string | null = null) {
         "div",
         { class: "bt-card-head" },
         h("b", null, `${Array(b.size).fill("1").join("v")}`),
-        h("span", null, `${b.cases.length} round${b.cases.length === 1 ? "" : "s"} · by ${b.creatorName ?? b.creator}`),
+        h("span", null, `${b.cases.length} round${b.cases.length === 1 ? "" : "s"}${b.speed > 1 ? ` · ${b.speed}x speed` : ""} · by ${b.creatorName ?? b.creator}`),
         b.visibility !== "public" ? h("span", { class: "bt-vis" }, icon(b.visibility === "friends" ? "friends" : "lock", 12), VISIBILITY_LABEL[b.visibility]) : "",
       ),
       caseStrip,
@@ -185,7 +193,7 @@ export function battlesPage(code: string | null = null) {
       { class: "bt-create" },
       h("div", { class: "bt-create-head" }, icon("battles", 18), h("b", null, "New battle"), limitEl),
       pickedEl,
-      h("div", { class: "bt-create-row" }, sizeSeg.el, visSeg.el, h("div", { class: "bt-total" }, h("span", null, "Cost per player"), costEl), createBtn),
+      h("div", { class: "bt-create-row" }, sizeSeg.el, visSeg.el, speedSeg.el, h("div", { class: "bt-total" }, h("span", null, "Cost per player"), costEl), createBtn),
       search,
       grid,
     ),

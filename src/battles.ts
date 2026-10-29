@@ -18,6 +18,8 @@ export interface Battle {
   creatorName: string;
   cases: string[];
   size: number;
+  /** Playback speed: 1, 2 or 4 times as fast. */
+  speed: number;
   cost: number;
   slots: (BattleSlot | null)[];
   createdAt: number;

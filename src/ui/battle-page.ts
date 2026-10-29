@@ -2,7 +2,7 @@ import { SPIN_EASING } from "./case-page";
 import { battleById, onBattles, type Battle } from "../battles";
 import { getCase, getItem, imageOf } from "../catalog";
 import { serverNow } from "../live";
-import { BATTLE_ROUND_MS, BATTLE_SPIN_MS, BATTLE_WIN_AT, battleReel } from "../odds";
+import { BATTLE_ROUND_MS, BATTLE_SPIN_MS, BATTLE_WIN_AT, battleReel, battleSpeed } from "../odds";
 import { battleAction, getState, holdToastsFor, InsufficientFunds, ServerError } from "../state";
 import type { Drop, Item } from "../types";
 import { h, money, toast } from "./dom";
@@ -83,6 +83,7 @@ export function battlePage(id: number) {
         ),
       ),
       h("div", { class: "bt-meta" }, h("span", null, "Cost per player"), h("b", null, money(b.cost))),
+      b.speed > 1 ? h("div", { class: "bt-meta" }, h("span", null, "Speed"), h("b", null, `${b.speed}x`)) : "",
       b.code && b.status === "waiting"
         ? codeBox(b.code, "battles", b.visibility)
         : b.visibility === "friends"
@@ -144,6 +145,8 @@ export function battlePage(id: number) {
     const headEl = header(b, 0);
     root.replaceChildren(headEl, banner, h("div", { class: "bt-cols", style: `--n:${n}` }, ...cols));
 
+    const SPIN_MS = BATTLE_SPIN_MS / battleSpeed(b.speed);
+    const ROUND_MS = BATTLE_ROUND_MS / battleSpeed(b.speed);
     let shown = -1; // last round whose result is on screen
     let spinning = -1;
     const reveal = (r: number) => {
@@ -168,11 +171,11 @@ export function battlePage(id: number) {
         const hgt = reelWraps[i].clientHeight || 240;
         const end = hgt / 2 - (BATTLE_WIN_AT + reel.stop) * TILE;
         const anim = strip.animate([{ transform: `translateY(${hgt / 2 - 2.5 * TILE}px)` }, { transform: `translateY(${end}px)` }], {
-          duration: BATTLE_SPIN_MS,
+          duration: SPIN_MS,
           easing: EASING,
           fill: "forwards",
         });
-        anim.currentTime = Math.min(elapsed, BATTLE_SPIN_MS);
+        anim.currentTime = Math.min(elapsed, SPIN_MS);
         if (i === 0) {
           let lastTile = -1;
           const tick = () => {
@@ -210,8 +213,8 @@ export function battlePage(id: number) {
     // Follow the shared clock.
     const loop = () => {
       const t = serverNow() - b.startAt!;
-      const r = Math.floor(t / BATTLE_ROUND_MS);
-      const into = t - r * BATTLE_ROUND_MS;
+      const r = Math.floor(t / ROUND_MS);
+      const into = t - r * ROUND_MS;
       if (t < 0) {
         banner.textContent = `Starting in ${Math.ceil(-t / 1000)}`;
         banner.classList.add("show");
@@ -221,7 +224,7 @@ export function battlePage(id: number) {
         for (let k = shown + 1; k < Math.min(r, rounds.length); k++) reveal(k);
         if (r < rounds.length) {
           if (spinning !== r) spin(r, into);
-          if (into >= BATTLE_SPIN_MS && shown < r) reveal(r);
+          if (into >= SPIN_MS && shown < r) reveal(r);
         } else if (!banner.classList.contains("done")) {
           banner.classList.add("done");
           finish();
@@ -231,13 +234,13 @@ export function battlePage(id: number) {
       raf = requestAnimationFrame(loop);
     };
     // A finished battle opened later just shows the result.
-    if (serverNow() > b.startAt! + rounds.length * BATTLE_ROUND_MS) {
+    if (serverNow() > b.startAt! + rounds.length * ROUND_MS) {
       rounds.forEach((_, r) => reveal(r));
       reelWraps.forEach((w, i) => w.replaceChildren(h("div", { class: "bt-final" }, money(b.totals![i]))));
       banner.classList.add("done");
       finish();
     } else {
-      holdToastsFor(b.startAt! + rounds.length * BATTLE_ROUND_MS - serverNow() + 500);
+      holdToastsFor(b.startAt! + rounds.length * ROUND_MS - serverNow() + 500);
       raf = requestAnimationFrame(loop);
     }
   };

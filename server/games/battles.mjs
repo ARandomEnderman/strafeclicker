@@ -8,7 +8,7 @@
 // when the playback ends, so nothing is given away early.
 
 import { randomInt } from "node:crypto";
-import { BATTLE_MAX_ROUNDS, BATTLE_REEL_LEN, BATTLE_ROUND_MS, BATTLE_SIZES, battleReel } from "../../shared/game.js";
+import { BATTLE_MAX_ROUNDS, BATTLE_REEL_LEN, BATTLE_ROUND_MS, BATTLE_SIZES, battleReel, battleSpeed } from "../../shared/game.js";
 import { PERKS, perkValue } from "../../shared/game.js";
 import { GameError, randomFloats, spendable } from "../game.mjs";
 
@@ -96,6 +96,7 @@ export class Battles {
     const ids = Array.isArray(body.cases) ? body.cases.map(String) : [];
     const size = Number(body.size);
     const visibility = VISIBILITIES.includes(body.visibility) ? body.visibility : "public";
+    const speed = battleSpeed(Number(body.speed));
     if (!BATTLE_SIZES.includes(size)) throw new GameError("bad_input", "Pick 2, 3 or 4 players");
     if (!ids.length || ids.length > BATTLE_MAX_ROUNDS) throw new GameError("bad_input", `Pick 1 to ${BATTLE_MAX_ROUNDS} cases`);
     const open = [...this.battles.values()].filter((b) => b.status === "waiting" && b.creatorId === userId).length;
@@ -119,6 +120,7 @@ export class Battles {
         creatorName: a.displayName,
         cases: ids,
         size,
+        speed,
         costCents,
         caseCosts: ids.map((id) => this.game.caseCost(id).costCents),
         visibility,
@@ -204,7 +206,7 @@ export class Battles {
     b.winner = tied[tied.length > 1 ? randomInt(tied.length) : 0];
     b.status = "running";
     b.startAt = Date.now() + 1500; // a moment for everyone's page to switch over
-    const endAt = b.startAt + b.rounds.length * BATTLE_ROUND_MS;
+    const endAt = b.startAt + b.rounds.length * (BATTLE_ROUND_MS / battleSpeed(b.speed));
     this.#save(b);
 
     // Settle now (the items are the winner's from here on); show it when playback ends.
@@ -273,6 +275,7 @@ const publicBattle = (b, seated) => ({
   creatorName: b.creatorName ?? b.creator,
   cases: b.cases,
   size: b.size,
+  speed: battleSpeed(b.speed),
   cost: b.costCents / 100,
   slots: b.slots.map((s) => (s ? { user: s.user, name: s.name ?? s.user, bot: s.bot } : null)),
   createdAt: b.createdAt,
