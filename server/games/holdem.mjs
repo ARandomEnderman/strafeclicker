@@ -600,24 +600,37 @@ export class Holdem {
     return s;
   }
 
+  /**
+   * A bot's decision. Its hand strength becomes a rough chance of winning (lower with
+   * more opponents still in), which it weighs against the price of calling: call when
+   * the pot pays enough, raise strong hands, now and then bet with nothing.
+   */
   #botMove(g, seat) {
     const h = g.hand;
     const p = g.players[seat];
     const s = h.seats[seat];
-    const toCall = h.currentBet - s.bet;
+    const toCall = Math.min(h.currentBet - s.bet, p.chips);
     const pot = h.seats.reduce((x, y) => x + y.total, 0);
-    const str = Math.min(1, Math.max(0, this.#strength(h, seat) + (Math.random() - 0.5) * 0.16));
-    const odds = toCall / (pot + toCall || 1);
+    const str = Math.min(1, Math.max(0, this.#strength(h, seat) + (Math.random() - 0.5) * 0.12));
+    const opponents = this.#contenders(h).length - 1;
+    // Strength 0.2 (7-2 offsuit) is about a 1-in-3 shot heads-up; 1 (aces) about 85%.
+    const headsUp = Math.min(0.88, Math.max(0.2, 0.3 + (str - 0.2) * 0.72));
+    const equity = headsUp ** Math.max(1, opponents * 0.85);
+    const needs = toCall / (pot + toCall || 1);
     // Raises in whole small blinds, like a person would.
     const raiseTo = (frac) => ({ move: "raise", amount: Math.max(h.currentBet + h.minRaise, Math.round((h.currentBet + Math.max(h.bb, pot * frac)) / h.sb) * h.sb) });
-    const canRaise = p.chips > toCall;
-    if (str > 0.8 && canRaise && Math.random() < 0.7) return raiseTo(0.75);
-    if (str > 0.55) {
-      if (toCall === 0) return canRaise && Math.random() < 0.35 ? raiseTo(0.5) : { move: "check" };
-      return odds < 0.4 || toCall <= p.chips * 0.25 ? { move: "call" } : { move: "fold" };
+    const canRaise = p.chips > toCall && s.bet + p.chips > h.currentBet;
+    const roll = Math.random();
+    if (toCall === 0) {
+      if (canRaise && equity > 0.6 && roll < 0.65) return raiseTo(0.6);
+      if (canRaise && roll < 0.1) return raiseTo(0.5); // a bluff
+      return { move: "check" };
     }
-    if (toCall === 0) return canRaise && Math.random() < 0.06 ? raiseTo(0.5) : { move: "check" };
-    if (str > 0.35 && odds < 0.22) return { move: "call" };
+    if (canRaise && equity > 0.66 && roll < 0.5) return raiseTo(0.8);
+    // Cheap to see more (a small raise, or the big blind defending): wider.
+    const slack = toCall <= h.bb * 2 ? 0.08 : 0;
+    if (equity + slack >= needs) return { move: "call" };
+    if (roll < 0.04) return { move: "call" }; // the odd hero call
     return { move: "fold" };
   }
 

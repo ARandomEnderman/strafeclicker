@@ -7992,3 +7992,27 @@ body.rain-shake .shell {
 .he-seat-cards .bj-card {
   margin-left: 0;
 }
+
+/* Hold'em: your hand and the action buttons pinned to the bottom of the screen. */
+.he-controls {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin: 0 -8px;
+  padding: 4px 8px 8px;
+  border-radius: 12px 12px 0 0;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(6px);
+}
+.he-controls:empty {
+  display: none;
+}
+.he-controls.turn {
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45);
+}
+.he-controls .he-actions {
+  margin: 6px 0;
+}
+.he-controls .he-myhand {
+  margin: 4px 0;
+}

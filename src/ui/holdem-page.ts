@@ -299,8 +299,8 @@ export function holdemView(id: number) {
     root.replaceChildren(
       h("div", { class: "bt-crumbs" }, h("a", { href: "#/holdem" }, "Tables"), h("h1", null, `Hold'em · ${money(g.fee)} entry`)),
       h("div", { class: "game-stage he-stage" }, felt, h("div", { class: "rl-under" }, status, timer)),
-      myHand ? h("div", { class: "he-myhand" }, "You have ", h("b", null, myHand)) : "",
-      ...controls,
+      // Your hand and the buttons stay at the bottom of the screen, however tall the table is.
+      h("div", { class: `he-controls${hd?.you ? " turn" : ""}` }, myHand ? h("div", { class: "he-myhand" }, "You have ", h("b", null, myHand)) : "", ...controls),
       g.log.length ? h("div", { class: "he-log" }, ...g.log.slice(-6).map((l) => h("div", null, l))) : "",
     );
   };
