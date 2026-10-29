@@ -56,6 +56,12 @@ CREATE TABLE IF NOT EXISTS legacy_accounts (
 );
 `;
 
+/**
+ * The most a balance can hold: $10 trillion. Integers past 2^53 (about $90 trillion in
+ * cents) can't be read back into JavaScript, and an account holding one fails to load.
+ */
+export const MAX_BALANCE_CENTS = 1e15;
+
 export function openDb(file) {
   mkdirSync(dirname(file), { recursive: true });
   const db = new DatabaseSync(file);
@@ -68,6 +74,9 @@ export function openDb(file) {
   if (!userCols.has("banned")) db.exec("ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0");
   if (!userCols.has("muted_until")) db.exec("ALTER TABLE users ADD COLUMN muted_until INTEGER");
   migrate(db);
+  // Balances past the cap (e.g. a huge admin gift from before it existed) are cut back to
+  // it, in SQL, since reading them into JavaScript is what fails.
+  db.prepare("UPDATE users SET balance_cents = ? WHERE balance_cents > ?").run(MAX_BALANCE_CENTS, MAX_BALANCE_CENTS);
   return db;
 }
 

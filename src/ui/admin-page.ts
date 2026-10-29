@@ -612,7 +612,10 @@ export function adminPage() {
                       class: "btn btn-sm",
                       onclick: async () => {
                         const v = prompt(`Add money to ${u.user} (negative takes it away):`, "10");
-                        if (v && (await run(() => adminAction("money", { username: u.user, amount: parseDecimal(v) }), `${parseDecimal(v) >= 0 ? "Gave" : "Took"} ${money(Math.abs(parseDecimal(v)))}`))) void loadUsers();
+                        if (!v) return;
+                        const r = await run(() => adminAction<{ capped?: string }>("money", { username: u.user, amount: parseDecimal(v) }), `${parseDecimal(v) >= 0 ? "Gave" : "Took"} ${money(Math.abs(parseDecimal(v)))}`);
+                        if (r?.capped) toast(r.capped, "error");
+                        if (r) void loadUsers();
                       },
                     },
                     "Money",

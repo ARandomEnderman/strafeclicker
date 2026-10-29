@@ -2,6 +2,7 @@
 // case) gets in; everyone else gets a 404 as if the endpoint didn't exist.
 
 import { BHOP_DIFFICULTIES, DAILY_PRIZES, FB_MAX, RACE_BOTS, PLINKO_TABLES, UPGRADE_RTP, floatInWear, priceKey } from "../shared/game.js";
+import { MAX_BALANCE_CENTS } from "./db.mjs";
 import { GameError, cents } from "./game.mjs";
 import { EVENT_TYPES, RAIN_STORM_MS, RIGGABLE } from "./settings.mjs";
 
@@ -91,7 +92,8 @@ export class Admin {
     this.q = {
       name: db.prepare("SELECT username FROM users WHERE id = ?"),
       byName: db.prepare("SELECT id FROM users WHERE username = ?"),
-      count: db.prepare("SELECT COUNT(*) AS n, COALESCE(SUM(balance_cents), 0) AS bal FROM users"),
+      // TOTAL adds in floating point, so a big sum can't overflow.
+      count: db.prepare("SELECT COUNT(*) AS n, TOTAL(balance_cents) AS bal FROM users"),
       items: db.prepare("SELECT item_id, phase, wear, stattrak FROM items"),
       stats: db.prepare("SELECT stats FROM users"),
       search: db.prepare(`SELECT u.id, u.username, u.display_name, u.balance_cents, u.created_at, u.last_active, u.banned, u.muted_until,
@@ -176,12 +178,14 @@ export class Admin {
     const id = this.#userId(username);
     const c = cents(Number(amount));
     if (!Number.isFinite(c) || c === 0) throw new GameError("bad_input", "Enter an amount");
+    let capped = false;
     const { account } = this.game.act(id, (a) => {
-      a.balanceCents = Math.max(0, a.balanceCents + c);
+      capped = a.balanceCents + c > MAX_BALANCE_CENTS;
+      a.balanceCents = Math.max(0, Math.min(MAX_BALANCE_CENTS, a.balanceCents + c));
       return {};
     });
     this.toUser(id, "account", account);
-    return { balance: account.balance };
+    return { balance: account.balance, ...(capped ? { capped: `Balances top out at $${(MAX_BALANCE_CENTS / 100).toLocaleString("en-US")}` } : {}) };
   }
 
   /** Give a specific item variant. */

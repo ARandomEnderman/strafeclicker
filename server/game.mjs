@@ -32,7 +32,7 @@ import {
   resolveDrop,
   upgradeChance,
 } from "../shared/game.js";
-import { tx } from "./db.mjs";
+import { MAX_BALANCE_CENTS, tx } from "./db.mjs";
 import { ACHIEVEMENTS, newlyMet } from "../shared/achievements.js";
 import { claimMissions, ensureMissions, missionsView, trackMissions } from "./missions.mjs";
 
@@ -245,6 +245,8 @@ export class Game {
   }
 
   #save(a, { added = [], removed = [] } = {}) {
+    // Capped (see MAX_BALANCE_CENTS), and always a whole number of cents.
+    a.balanceCents = Math.max(0, Math.min(MAX_BALANCE_CENTS, Math.round(a.balanceCents)));
     this.q.saveUser.run(a.balanceCents, JSON.stringify(a.perks), JSON.stringify(a.stats), Date.now(), a.id);
     for (const uid of removed) this.q.dropItem.run(uid, a.id);
     for (const it of [...added].reverse()) this.#insertItem(a.id, it);
