@@ -614,7 +614,11 @@ const actions = {
       friendsChanged(userId, ...friends.friendIds(userId));
       return out;
     }
-    if (body.action === "showcase") return game.setShowcase(userId, body);
+    if (body.action === "showcase") {
+      const out = game.setShowcase(userId, body);
+      broadcast("looks", game.looks());
+      return out;
+    }
     if (body.action === "look") {
       const out = game.setLook(userId, body);
       broadcast("looks", game.looks());

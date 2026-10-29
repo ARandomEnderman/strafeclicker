@@ -402,17 +402,25 @@ export class Game {
     for (const fn of this.trackers) fn(a, ev);
   }
 
-  /** Pick up to SHOWCASE_MAX of your items to pin to your profile, and a banner colour. */
-  /** Everyone's custom avatar (username -> { c: colour, s: symbols }), for every page. */
+  /**
+   * Everyone's custom look (username -> { c: avatar colour, s: symbols, b: banner, which
+   * colours their name }), for every page.
+   */
   looks() {
     if (!this.lookMap) {
       this.lookMap = {};
-      for (const r of this.db.prepare("SELECT username, stats FROM users WHERE stats LIKE '%\"look\"%'").all()) {
-        const look = JSON.parse(r.stats).look;
-        if (look?.color || look?.symbols) this.lookMap[r.username] = { c: look.color ?? null, s: look.symbols ?? null };
+      for (const r of this.db.prepare("SELECT username, stats FROM users WHERE stats LIKE '%\"look\"%' OR stats LIKE '%\"banner\"%'").all()) {
+        this.#noteLook(r.username, JSON.parse(r.stats));
       }
     }
     return this.lookMap;
+  }
+  #noteLook(username, stats) {
+    const c = stats.look?.color ?? null;
+    const s = stats.look?.symbols ?? null;
+    const b = stats.showcase?.banner && stats.showcase.banner !== "default" ? stats.showcase.banner : null;
+    if (c || s || b) this.lookMap[username] = { c, s, b };
+    else delete this.lookMap[username];
   }
 
   /**
@@ -437,9 +445,8 @@ export class Game {
       a.stats.look = { color: color?.toLowerCase() ?? null, symbols: symbols.join("") || null };
       a.stats.bio = bio || null;
       if (banner) a.stats.showcase = { uids: a.stats.showcase?.uids ?? [], banner };
-      const map = this.looks();
-      if (a.stats.look.color || a.stats.look.symbols) map[a.username] = { c: a.stats.look.color, s: a.stats.look.symbols };
-      else delete map[a.username];
+      this.looks();
+      this.#noteLook(a.username, a.stats);
       return {};
     });
   }
@@ -452,6 +459,8 @@ export class Game {
       // The banner is set with the profile look now; older pages still send it here.
       const banner = PROFILE_BANNERS.includes(body.banner) ? body.banner : (a.stats.showcase?.banner ?? "default");
       a.stats.showcase = { uids, banner };
+      this.looks();
+      this.#noteLook(a.username, a.stats);
       return {};
     });
   }

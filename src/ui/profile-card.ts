@@ -4,7 +4,7 @@ import { set as setFriends } from "../friends";
 import { h, money, mult, toast } from "./dom";
 import { gameName } from "./game-names";
 import { tagColor, tagOf } from "../tags";
-import { lookOf, type Look } from "../looks";
+import { lookOf, nameColor, type Look } from "../looks";
 import { icon } from "./icons";
 
 // Mini profiles. userLink() is the clickable name used wherever a player shows up;
@@ -56,7 +56,7 @@ export function userLink(user: string, name = user, opts: { avatar?: boolean } =
     { type: "button", class: "user-link", title: name !== user ? `@${user}` : "View profile" },
     ...(opts.avatar ? [avatar(user, name, 18)] : []),
     ...(tagOf(user) ? [clanTag(tagOf(user)!)] : []),
-    h("span", null, name),
+    h("span", { style: nameColor(user) ? `color:${nameColor(user)}` : "" }, name),
   );
   el.addEventListener("click", (e) => {
     e.preventDefault();
@@ -140,7 +140,7 @@ export function profileCard(p: Profile, opts: { compact?: boolean; onChange?: ()
       h(
         "div",
         { class: "pc-names" },
-        h("b", { class: "pc-name" }, p.name, me ? h("span", { class: "pc-you" }, "you") : ""),
+        h("b", { class: "pc-name", style: nameColor(p.user) ? `color:${nameColor(p.user)}` : "" }, p.name, me ? h("span", { class: "pc-you" }, "you") : ""),
         h("span", { class: "pc-user" }, `@${p.user}`),
         h("span", { class: "pc-meta" }, ...(status ? [status, " · "] : []), `Joined ${fmtDate(p.joinedAt)}`),
       ),

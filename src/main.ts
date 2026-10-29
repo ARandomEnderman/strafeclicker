@@ -17,7 +17,7 @@ import { casePage } from "./ui/case-page";
 import { inventoryPage } from "./ui/inventory-page";
 import { holdemPage, holdemView } from "./ui/holdem-page";
 import "./holdem";
-import { onLooks } from "./looks";
+import { nameColor, onLooks } from "./looks";
 import { historyPage } from "./ui/history-page";
 import { clickerPage } from "./ui/clicker-page";
 import { upgraderPage } from "./ui/upgrader-page";
@@ -273,7 +273,7 @@ function topbar() {
 
   // Your name opens the account menu (profile, switch account, log out); follows display name changes.
   const myName = h("button", { type: "button", class: "user-name", title: "Your account", "aria-haspopup": "menu", onclick: () => toggleAccountMenu(myName) });
-  const syncName = () => myName.replaceChildren(avatar(getState().username, getState().displayName, 22), h("span", { class: "user-name-text" }, getState().displayName), icon("chevron", 12));
+  const syncName = () => myName.replaceChildren(avatar(getState().username, getState().displayName, 22), h("span", { class: "user-name-text", style: nameColor(getState().username) ? `color:${nameColor(getState().username)}` : "" }, getState().displayName), icon("chevron", 12));
   subscribe(syncName);
   onLooks(syncName);
   syncName();
