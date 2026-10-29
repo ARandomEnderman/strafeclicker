@@ -1,4 +1,5 @@
 import { onServerEvent } from "./live";
+import { toast } from "./ui/dom";
 
 // Texas Hold'em tables you can see (filtered by the server), as last pushed.
 
@@ -72,7 +73,18 @@ export function onHoldem(fn: () => void) {
   listeners.add(fn);
   return () => void listeners.delete(fn);
 }
+// Your turn at a table you're not looking at: a toast (once per decision), so nobody
+// times out just for being on another page.
+const told = new Set<string>();
 onServerEvent<HeGame[]>("holdem", (l) => {
   list = l;
   listeners.forEach((fn) => fn());
+  for (const g of l) {
+    const hd = g.hand;
+    if (!hd?.you || location.hash === `#/holdem/${g.id}`) continue;
+    const key = `${g.id}:${hd.no}:${hd.street}:${hd.currentBet}`;
+    if (told.has(key)) continue;
+    told.add(key);
+    toast(`Your turn at Hold'em (${g.fee.toLocaleString("en-US", { style: "currency", currency: "USD" })} table). Open Hold'em to play.`, "achievement", 6000);
+  }
 });

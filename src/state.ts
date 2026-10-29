@@ -401,7 +401,7 @@ export const redeemPromo = (code: string) => post<{ reward: string }>("promo", {
 export const claimMission = (id?: string) => post<{ reward: number }>("missions", { id });
 export const getLeaderboard = <T>() => post<{ board: T }>("leaderboard");
 
-export async function holdemAction(action: "create" | "join" | "bots" | "start" | "leave" | "act", body: object) {
+export async function holdemAction(action: "create" | "join" | "bots" | "start" | "leave" | "act" | "back", body: object) {
   await flushClicks();
   return post<{ id: number }>("holdem", { action, ...body });
 }

@@ -7,8 +7,8 @@
 // pays the bots' share, and keeps the pot if a bot wins). No rake.
 //
 // Each player has HOLDEM_TURN_MS to act; time out and you check if you can, else fold.
-// Two timeouts in a row and you're "away": from then on you act at once, until you act
-// yourself again. Leaving a game that's running forfeits it.
+// Two timeouts in a row and you're "away": from then on you get AWAY_MS to act before
+// it's done for you, until you act yourself again or press "I'm back". Leaving a game that's running forfeits it.
 //
 // Fees are debited on create / join and kept with the game in holdem_games, so a restart
 // refunds every game that hadn't finished. Hole cards and the deck never leave the server
@@ -36,7 +36,7 @@ const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const MAX_OPEN_PER_USER = 3;
 const KEEP_DONE = 10;
 const AWAY_AFTER = 2;
-const AWAY_MS = 1200;
+const AWAY_MS = 6000;
 const BOT_NAMES = ["Bot Ace", "Bot King", "Bot Queen", "Bot Jack", "Bot Ten"];
 
 const rankOf = (c) => POKER_RANKS.indexOf(c.r) + 2;
@@ -366,13 +366,14 @@ export class Holdem {
     const done = h.toAct < 0 || actors.length === 0 || (actors.length === 1 && h.seats[actors[0]].bet >= h.currentBet);
     if (done) return this.#nextStreet(g);
     const p = g.players[h.toAct];
-    h.deadline = Date.now() + HOLDEM_TURN_MS;
+    const away = !p.bot && p.away >= AWAY_AFTER;
+    h.deadline = Date.now() + (away ? AWAY_MS : HOLDEM_TURN_MS);
     const seat = h.toAct;
     const no = h.no;
     const street = h.street;
     const still = () => g.hand === h && h.no === no && h.street === street && h.toAct === seat && h.phase === "betting";
     if (p.bot) g.timer = setTimeout(() => still() && this.#safeMove(g, seat, this.#botMove(g, seat)), 900 + randomInt(1600));
-    else if (p.away >= AWAY_AFTER) g.timer = setTimeout(() => still() && this.#safeMove(g, seat, { move: "auto" }), AWAY_MS);
+    else if (away) g.timer = setTimeout(() => still() && this.#safeMove(g, seat, { move: "auto" }), AWAY_MS);
     else
       g.timer = setTimeout(() => {
         if (!still()) return;
@@ -380,6 +381,18 @@ export class Holdem {
         this.#safeMove(g, seat, { move: "auto" });
       }, HOLDEM_TURN_MS);
     this.publish();
+  }
+
+  /** Back from being away: your turns get the full time again (the current one too). */
+  back(userId, body) {
+    const g = this.#get(body.id);
+    const seat = this.#seatOf(g, userId);
+    if (seat < 0) throw new GameError("forbidden", "You're not at this table", 403);
+    g.players[seat].away = 0;
+    const h = g.hand;
+    if (g.status === "playing" && h?.phase === "betting" && h.toAct === seat) this.#prompt(g);
+    else this.publish();
+    return { account: this.game.view(userId) };
   }
 
   act(userId, body) {

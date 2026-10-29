@@ -8016,3 +8016,17 @@ body.rain-shake .shell {
 .he-controls .he-myhand {
   margin: 4px 0;
 }
+
+.he-away {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin: 6px 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(239, 91, 91, 0.45);
+  border-radius: 10px;
+  background: rgba(239, 91, 91, 0.12);
+  font-size: 13px;
+}

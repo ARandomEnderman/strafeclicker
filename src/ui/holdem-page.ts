@@ -14,7 +14,7 @@ import { playReveal, playSafe, playTick } from "./sound";
 
 const SUITS: Record<HeCard["s"], string> = { s: "♠", h: "♥", d: "♦", c: "♣" };
 
-const act = async (action: "create" | "join" | "bots" | "start" | "leave" | "act", body: object) => {
+const act = async (action: "create" | "join" | "bots" | "start" | "leave" | "act" | "back", body: object) => {
   try {
     return await holdemAction(action, body);
   } catch (e) {
@@ -289,6 +289,16 @@ export function holdemView(id: number) {
         ),
       );
     }
+    // Away (timed out twice): say so, and offer the way back.
+    if (g.status === "playing" && mine && !mine.out && mine.away)
+      controls.unshift(
+        h(
+          "div",
+          { class: "he-away" },
+          h("span", null, h("b", null, "You're marked away. "), "Your turns are played for you (check, or fold to a bet) after 6 seconds."),
+          h("button", { class: "btn btn-primary btn-sm", onclick: () => void act("back", { id }) }, "I'm back"),
+        ),
+      );
     if (g.status === "playing" && mine && !mine.out)
       controls.push(h("button", { class: "btn btn-ghost btn-sm he-leave", onclick: () => confirm("Leave the table? You forfeit the game and your entry fee.") && void act("leave", { id }) }, "Leave table"));
     if (g.status === "done" && g.winner != null) {
@@ -311,7 +321,9 @@ export function holdemView(id: number) {
     const hd = g?.hand;
     const left = hd?.deadline ? Math.max(0, hd.deadline - serverNow()) : 0;
     timer.hidden = !(g?.status === "playing" && hd?.phase === "betting" && hd.deadline);
-    bar.style.width = `${(left / HOLDEM_TURN_MS) * 100}%`;
+    // Away players get less time (HOLDEM_AWAY_MS on the server).
+    const total = hd && hd.toAct >= 0 && g.players[hd.toAct]?.away ? 6000 : HOLDEM_TURN_MS;
+    bar.style.width = `${Math.min(100, (left / total) * 100)}%`;
     if (!g) status.textContent = "";
     else if (g.status === "waiting") status.textContent = "Waiting for players";
     else if (g.status === "done") status.textContent = "Game over";

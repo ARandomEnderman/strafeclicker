@@ -677,6 +677,7 @@ const actions = {
     if (body.action === "start") return holdem.startNow(userId, body);
     if (body.action === "leave") return holdem.leave(userId, body);
     if (body.action === "act") return holdem.act(userId, body);
+    if (body.action === "back") return holdem.back(userId, body);
     throw new GameError("bad_input", "Unknown action");
   },
   coinflip: (userId, body) => {
