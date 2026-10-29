@@ -207,20 +207,7 @@ export function adminPage() {
         h("b", null, "Maintenance"),
         h("span", { class: o.settings.maintenance ? "admin-bad" : "admin-good" }, o.settings.maintenance ? "On: no new bets or openings" : "Off"),
         h("button", { class: "btn", onclick: () => void setSettings({ maintenance: !o.settings.maintenance }, o.settings.maintenance ? "Maintenance off" : "Maintenance on") }, o.settings.maintenance ? "Turn off" : "Turn on"),
-        h(
-          "button",
-          {
-            class: "btn",
-            title: "After updating the server: every open page (yours too) reloads within a few seconds and gets the new version",
-            onclick: async () => {
-              if (!confirm("Reload every open page now? Use this after an update so everyone gets the new version.")) return;
-              const r = await run(() => adminAction<{ pages: number }>("reloadAll"));
-              if (r) toast(`Reloading ${r.pages} open page${r.pages === 1 ? "" : "s"}`);
-            },
-          },
-          icon("refresh", 14),
-          " Refresh everyone's page",
-        ),
+        h("span", { class: "admin-muted" }, "Open pages update to a new version by themselves after a server update."),
       ),
       h(
         "div",

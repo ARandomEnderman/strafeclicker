@@ -7,6 +7,7 @@
 //   npm run dev     Vite dev server + API on one port
 //   npm start       production: serves dist/ (run `npm run build` first)
 
+import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import { readFileSync, writeFileSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
@@ -57,6 +58,18 @@ import { Profiles } from "./profiles.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = join(ROOT, "dist");
+/**
+ * Which build of the site this server is serving: a hash of dist/index.html (its asset
+ * names change with every build). Pages get it on every (re)connect and reload when it
+ * isn't the one they were loaded from, so an update reaches everyone without a reload
+ * button, including pages that were asleep or offline when it went out.
+ */
+let BUILD = "dev";
+try {
+  BUILD = createHash("sha256").update(readFileSync(join(DIST, "index.html"))).digest("hex").slice(0, 12);
+} catch {
+  // no build yet (dev mode)
+}
 const SNAPSHOT = join(ROOT, "server/snapshot.json.gz");
 const DATA_DIR = resolve(ROOT, process.env.DATA_DIR ?? "data");
 const DEV = process.argv.includes("--dev");
@@ -348,7 +361,11 @@ function events(req, res) {
     Connection: "keep-alive",
     "X-Accel-Buffering": "no",
   });
-  res.write(`retry: 3000\nevent: status\ndata: ${JSON.stringify(statusBody())}\n\n`);
+  res.write(`retry: 3000\nevent: build\ndata: ${JSON.stringify({ build: BUILD })}\n\n`);
+  // Pages from before the build check only know this older signal; it makes them reload
+  // into the current version once. Today's pages ignore it.
+  res.write(`event: reload\ndata: {}\n\n`);
+  res.write(`event: status\ndata: ${JSON.stringify(statusBody())}\n\n`);
   res.write(`event: wins\ndata: ${JSON.stringify(feed.recent())}\n\n`);
   res.write(`event: site\ndata: ${JSON.stringify(settings.public())}\n\n`);
   res.write(`event: fb\ndata: ${JSON.stringify(flashbang.state())}\n\n`);
@@ -611,7 +628,6 @@ const actions = {
       : a === "houseRain" ? chat.houseRain(userId, body.amount)
       : a === "caseDrop" ? admin.caseDrop(body.caseId)
       : a === "force" ? admin.forceRound(body)
-      : a === "reloadAll" ? (broadcast("reload", {}), { ok: true, pages: clients.size })
       : a === "popup" ? popupAll(body)
       : a === "forcePlayer" ? admin.forcePlayer(body.username, body)
       : null;
