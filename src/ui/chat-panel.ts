@@ -277,6 +277,101 @@ export function chatPanel() {
     applyTab();
   });
 
+  // Typing @ and the start of a name lists matching players as you type (no Tab needed):
+  // Up/Down to choose, Tab or Enter to fill it in, Esc to close.
+  let suggest: { start: number; names: string[]; i: number } | null = null;
+  let suggestTimer = 0;
+  const drawSuggest = () => {
+    const sg = suggest;
+    hints.hidden = !sg;
+    if (!sg) return;
+    hints.replaceChildren(
+      ...sg.names.map((n, i) =>
+        h(
+          "button",
+          {
+            type: "button",
+            class: `chat-hint name${i === sg.i ? " on" : ""}`,
+            onmousedown: (e: Event) => {
+              e.preventDefault();
+              sg.i = i;
+              pickSuggest();
+            },
+          },
+          h("b", null, `@${n}`),
+        ),
+      ),
+    );
+  };
+  const pickSuggest = () => {
+    const sg = suggest!;
+    const caret = field.selectionStart ?? field.value.length;
+    const name = sg.names[sg.i];
+    const after = field.value.slice(caret).replace(/^[A-Za-z0-9_]*/, "").replace(/^ /, "");
+    field.value = `${field.value.slice(0, sg.start)}${name} ${after}`;
+    const at = sg.start + name.length + 1;
+    field.setSelectionRange(at, at);
+    suggest = null;
+    tab = null;
+    drawSuggest();
+    field.focus();
+  };
+  field.addEventListener("input", () => {
+    clearTimeout(suggestTimer);
+    const caret = field.selectionStart ?? field.value.length;
+    const m = field.value.slice(0, caret).match(/(?:^|\s)@([A-Za-z0-9_]*)$/);
+    if (!m) {
+      if (suggest) ((suggest = null), drawSuggest());
+      return;
+    }
+    const prefix = m[1];
+    const start = caret - prefix.length;
+    const show = (names: string[]) => {
+      suggest = names.length ? { start, names: names.slice(0, 8), i: 0 } : null;
+      drawSuggest();
+    };
+    show(knownNames(prefix));
+    // Ask the server for anyone else (after a short pause in typing).
+    if (prefix && (suggest?.names.length ?? 0) < 8) {
+      suggestTimer = setTimeout(async () => {
+        try {
+          const more = await playerNames(prefix);
+          const now = field.value.slice(0, field.selectionStart ?? field.value.length).match(/@([A-Za-z0-9_]*)$/);
+          if (now?.[1] !== prefix) return;
+          const me = getState().username.toLowerCase();
+          const local = knownNames(prefix);
+          show([...local, ...more.filter((n) => n.toLowerCase() !== me && !local.some((x) => x.toLowerCase() === n.toLowerCase()))]);
+        } catch {
+          // offline: the names we know will do
+        }
+      }, 150);
+    }
+  });
+  field.addEventListener("blur", () => {
+    suggest = null;
+    drawSuggest();
+  });
+  // Registered before the Enter-to-send handler, so picking a name doesn't send.
+  field.addEventListener(
+    "keydown",
+    (e) => {
+      if (!suggest) return;
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        suggest.i = (suggest.i + (e.key === "ArrowDown" ? 1 : suggest.names.length - 1)) % suggest.names.length;
+        drawSuggest();
+      } else if (e.key === "Tab" || e.key === "Enter") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        pickSuggest();
+      } else if (e.key === "Escape") {
+        suggest = null;
+        drawSuggest();
+      }
+    },
+    { capture: true },
+  );
+
   const send = async () => {
     const text = field.value.trim();
     if (!text || sending) return;
