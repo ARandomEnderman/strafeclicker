@@ -1,7 +1,7 @@
 import { getCatalog, openableCases, openCost } from "../catalog";
 import { adminAction, ServerError } from "../state";
 import type { Item } from "../types";
-import { decimalInput, h, money, parseDecimal, toast } from "./dom";
+import { decimalInput, h, money, NO_AUTOFILL, parseDecimal, toast } from "./dom";
 import { icon } from "./icons";
 import { userLink } from "./profile-card";
 
@@ -558,7 +558,7 @@ export function adminPage() {
 
   // ---------- users ----------
   const usersBox = h("div", { class: "admin-users" });
-  const search = h("input", { class: "search", placeholder: "Search players" }) as HTMLInputElement;
+  const search = h("input", { class: "search", ...NO_AUTOFILL, name: "player-search", placeholder: "Search players" }) as HTMLInputElement;
   let timer = 0;
   search.addEventListener("input", () => {
     clearTimeout(timer);

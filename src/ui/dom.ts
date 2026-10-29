@@ -41,6 +41,12 @@ export const parseDecimal = (s: string) => (s.trim() ? Number(s.trim().replace(/
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+/**
+ * Attributes for a field that looks up other players: browsers and password managers
+ * otherwise take it for a login box and fill in your own username.
+ */
+export const NO_AUTOFILL = { type: "search", autocomplete: "off", "data-1p-ignore": "", "data-lpignore": "true", "data-bwignore": "", "data-form-type": "other" };
+
 export const money = (n: number) => usd.format(n);
 
 const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 2 });

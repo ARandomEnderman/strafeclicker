@@ -1,13 +1,13 @@
 import { friendLists, loadFriends, onFriends, set } from "../friends";
 import { friendsAction, ServerError } from "../state";
-import { h, toast } from "./dom";
+import { h, NO_AUTOFILL, toast } from "./dom";
 import { icon } from "./icons";
 import { onLeave } from "./page";
 import { avatar, userLink } from "./profile-card";
 import type { Friend } from "../friends";
 
 export function friendsPage() {
-  const input = h("input", { class: "search", placeholder: "Username", autocomplete: "off", "aria-label": "Username to add" }) as HTMLInputElement;
+  const input = h("input", { class: "search", ...NO_AUTOFILL, name: "friend-search", placeholder: "Add a friend by name", "aria-label": "Player to add as a friend" }) as HTMLInputElement;
   const body = h("div", { class: "friends" });
 
   const run = async (action: "request" | "accept" | "remove", user: string, done?: string) => {
