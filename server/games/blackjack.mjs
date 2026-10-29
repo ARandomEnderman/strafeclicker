@@ -88,12 +88,20 @@ export class Blackjack {
     return t;
   }
 
-  /** Seat a player: their own table if they have one, else any table taking bets, else a new one. */
+  /**
+   * Seat a player at the table taking bets with the most other players (anyone can join
+   * anyone), staying at their own table on a tie; a new table only when none has room.
+   * Without this, two players who once landed at different tables would each keep
+   * playing alone at their own.
+   */
   #tableFor(userId) {
     const mine = this.tables.get(this.at.get(userId));
-    if (mine && (mine.phase === "idle" || mine.phase === "betting" || mine.phase === "result") && mine.seats.filter((s) => s.userId !== userId).length < BJ_SEATS) return mine;
-    for (const t of this.tables.values()) if ((t.phase === "idle" || t.phase === "betting") && t.seats.length < BJ_SEATS) return t;
-    return this.#newTable();
+    const others = (t) => t.seats.filter((s) => s.userId !== userId).length;
+    const open = [...this.tables.values()].filter(
+      (t) => others(t) < BJ_SEATS && (t.phase === "idle" || t.phase === "betting" || (t === mine && t.phase === "result")),
+    );
+    if (!open.length) return this.#newTable();
+    return open.reduce((best, t) => (others(t) > others(best) || (others(t) === others(best) && t === mine) ? t : best));
   }
 
   #draw(t) {
