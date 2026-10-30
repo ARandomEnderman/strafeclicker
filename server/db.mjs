@@ -57,14 +57,37 @@ CREATE TABLE IF NOT EXISTS legacy_accounts (
 `;
 
 /**
- * The most a balance can hold: $10 trillion. Integers past 2^53 (about $90 trillion in
- * cents) can't be read back into JavaScript, and an account holding one fails to load.
+ * The most a balance can hold: $1 quadrillion. Past about $90 trillion a balance is no
+ * longer exact to the cent (a double's spacing reaches 16 cents at the cap), which is
+ * fine for play money; much further and small bets would stop registering at all.
  */
-export const MAX_BALANCE_CENTS = 1e15;
+export const MAX_BALANCE_CENTS = 1e17;
+
+/**
+ * node:sqlite throws when it reads an integer past 2^53 into a JavaScript number, so
+ * every statement reads integers as BigInt and hands them back as (rounded) numbers.
+ */
+function readBigNumbers(db) {
+  const toNum = (row) => {
+    if (row) for (const k in row) if (typeof row[k] === "bigint") row[k] = Number(row[k]);
+    return row;
+  };
+  const prepare = db.prepare.bind(db);
+  db.prepare = (sql) => {
+    const s = prepare(sql);
+    s.setReadBigInts(true);
+    const { get, all, run } = s;
+    s.get = (...args) => toNum(get.apply(s, args));
+    s.all = (...args) => all.apply(s, args).map(toNum);
+    s.run = (...args) => toNum(run.apply(s, args));
+    return s;
+  };
+}
 
 export function openDb(file) {
   mkdirSync(dirname(file), { recursive: true });
   const db = new DatabaseSync(file);
+  readBigNumbers(db);
   db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
   db.exec(SCHEMA);
   // Columns added after the first release.
