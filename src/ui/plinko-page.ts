@@ -85,7 +85,7 @@ export function plinkoPage() {
   ro.observe(board);
   onLeave(() => ro.disconnect());
 
-  const drop = (path: number[], onLand: () => void) => {
+  const drop = (path: number[], onLand: () => void, speed = 1) => {
     const R = path.length;
     const ballR = Math.max(4, s * 0.22);
     const pegR = Math.max(2, s * 0.09);
@@ -101,9 +101,11 @@ export function plinkoPage() {
     }
     const end = { x: (k - R / 2) * s, y: top + (R - 0.5) * s + s * 0.55 };
 
-    const total = PLINKO_DROP_MS(R);
-    const first = 200 / total;
-    const hop = (1 - first - 200 / total) / R;
+    // The shape of the fall stays the same at any speed; only its length changes.
+    const full = PLINKO_DROP_MS(R);
+    const total = full / speed;
+    const first = 200 / full;
+    const hop = (1 - first - 200 / full) / R;
     const frames: Keyframe[] = [{ transform: `translate(0px, ${top - s * 1.1}px)`, offset: 0, easing: "cubic-bezier(.5,0,1,1)" }];
     hits.forEach((p, r) => {
       const t = first + r * hop;
@@ -135,7 +137,7 @@ export function plinkoPage() {
 
   const bet = betInput();
   /** Drop one ball; resolves to its profit as soon as the server has rolled it (null if refused). */
-  const dropOne = async (stake: number): Promise<number | null> => {
+  const dropOne = async (stake: number, speed = 1): Promise<number | null> => {
     // Balls still falling don't count: their winnings aren't yours until they land.
     if (stake > displayBalance() + 1e-9) {
       toast("Not enough balance", "error");
@@ -164,11 +166,11 @@ export function plinkoPage() {
       slot?.classList.add("land");
       history.prepend(h("div", { class: `plinko-chip${res.mult >= 1 ? " up" : ""}`, style: `--c:${slotColor(res.slot, res.path.length)}`, title: `${money(res.stake)} → ${money(res.payout)}` }, fmtMult(res.mult)));
       while (history.children.length > 12) history.lastElementChild!.remove();
-    });
+    }, speed);
     return Math.round((res.payout - res.stake) * 100) / 100;
   };
   const dropBtn = hotkey(h("button", { class: "btn btn-primary btn-lg", onclick: () => void dropOne(bet.value()) }, "Drop ball"), "space r");
-  // Auto: a ball every 300 ms; rows and risk stay locked while it runs.
+  // Auto: a ball every 300 ms (faster at a higher speed); rows and risk stay locked while it runs.
   const auto = autoBet({
     bet,
     play: dropOne,

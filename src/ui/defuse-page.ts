@@ -194,7 +194,7 @@ export function defusePage() {
   let left = false;
   onLeave(() => (left = true));
   /** One auto round: the server plays it in one go, then the picks flip over in order. */
-  const autoRound = async (stake: number): Promise<number | null> => {
+  const autoRound = async (stake: number, speed: number): Promise<number | null> => {
     let res;
     try {
       res = (await defuseAction("auto", { bet: stake, bombs, tiles: picks })) as unknown as { result: "boom" | "cashed"; tile?: number; revealed: number[]; mines: number[]; mult: number; payout: number; stake: number };
@@ -212,7 +212,7 @@ export function defusePage() {
       shown = { mines: [], boom: null, found: res.revealed.slice(0, k) };
       drawGrid();
       if (!left) playSafe();
-      await new Promise((ok) => setTimeout(ok, 70));
+      await new Promise((ok) => setTimeout(ok, 70 / speed));
     }
     shown = { mines: res.mines, boom: res.result === "boom" ? res.tile! : null, found: res.revealed };
     drawGrid();
