@@ -531,7 +531,7 @@ export function pokerHand(cards) {
 // blinds go up every HOLDEM_HANDS_PER_LEVEL hands; the last player with chips wins all the
 // entry fees. Cards use the same ranks and suits as video poker.
 
-export const HOLDEM_SIZES = [2, 3, 4, 5, 6];
+export const HOLDEM_SIZES = [2, 3, 4, 5, 6, 7, 8, 9, 10];
 export const HOLDEM_CHIPS = 1000;
 export const HOLDEM_BLINDS = [
   [10, 20],

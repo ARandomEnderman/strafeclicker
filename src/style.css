@@ -2669,6 +2669,12 @@ a.wallet-item:hover {
 .bt-create-row .seg-wrap {
   min-width: 200px;
 }
+/* The bet box (Hold'em's entry fee) shrinks to fit a phone instead of widening the page. */
+.bt-create-row .bet {
+  flex: 1 1 300px;
+  min-width: 0;
+  max-width: 100%;
+}
 .bt-total {
   display: flex;
   flex-direction: column;
@@ -7995,6 +8001,23 @@ body.rain-shake .shell {
 .he-felt.seats6 .he-seat.pos5 {
   left: 97%;
   top: 72%;
+}
+/* Tables over 6 (seats placed round the oval in the page script) get narrower seats. */
+.he-felt.crowded .he-seat {
+  width: 104px;
+}
+.he-felt.crowded .he-seat-box .avatar {
+  display: none;
+}
+@media (max-width: 700px) {
+  .he-felt.crowded .he-seat {
+    width: 72px;
+    font-size: 11px;
+  }
+  /* No room for everyone's face-down cards on a phone; shown ones still appear. */
+  .he-felt.crowded .he-seat:not(.me) .bj-card.back {
+    display: none;
+  }
 }
 /* Hold'em cards side by side, never tucked under each other: the suit matters here. */
 .he-board .bj-card,

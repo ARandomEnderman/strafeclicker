@@ -160,6 +160,21 @@ export function holdemView(id: number) {
     busy = false;
   };
 
+  /**
+   * Where a seat sits on the felt. Up to 6 seats use the spots in the CSS; bigger tables use
+   * these (left %, top %), you at the bottom and going clockwise, never more than three
+   * seats on an edge so they don't overlap.
+   */
+  const BIG_TABLE_SPOTS: Record<number, [number, number][]> = {
+    7: [[50, 100], [15, 100], [2, 45], [30, 0], [70, 0], [98, 45], [85, 100]],
+    8: [[50, 100], [15, 100], [2, 50], [20, 0], [50, 0], [80, 0], [98, 50], [85, 100]],
+    9: [[50, 100], [18, 100], [2, 68], [2, 30], [30, 0], [70, 0], [98, 30], [98, 68], [82, 100]],
+    10: [[50, 100], [18, 100], [2, 68], [2, 30], [20, 0], [50, 0], [80, 0], [98, 30], [98, 68], [82, 100]],
+  };
+  const seatSpot = (n: number, pos: number) => {
+    const spot = BIG_TABLE_SPOTS[n]?.[pos];
+    return spot ? `left:${spot[0]}%;top:${spot[1]}%` : "";
+  };
   const seatEl = (g: HeGame, p: HePlayer, i: number, pos: number) => {
     const hd = g.hand;
     const turn = hd?.phase === "betting" && hd.toAct === i;
@@ -167,7 +182,7 @@ export function holdemView(id: number) {
     const cards = p.cards === null ? [cardEl(null, "sm"), cardEl(null, "sm")] : p.cards.map((c) => cardEl(c, "sm"));
     return h(
       "div",
-      { class: `he-seat pos${pos}${i === g.seat ? " me" : ""}${turn ? " turn" : ""}${p.folded && p.inHand ? " folded" : ""}${p.out ? " out" : ""}${won ? " won" : ""}` },
+      { style: seatSpot(g.players.length, pos), class: `he-seat pos${pos}${i === g.seat ? " me" : ""}${turn ? " turn" : ""}${p.folded && p.inHand ? " folded" : ""}${p.out ? " out" : ""}${won ? " won" : ""}` },
       h("div", { class: "he-seat-cards" }, ...(p.inHand ? cards : [])),
       h(
         "div",
@@ -216,7 +231,7 @@ export function holdemView(id: number) {
       : "";
     const felt = h(
       "div",
-      { class: `he-felt seats${n}` },
+      { class: `he-felt seats${n}${n > 6 ? " crowded" : ""}` },
       h(
         "div",
         { class: "he-centre" },

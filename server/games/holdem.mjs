@@ -1,6 +1,6 @@
 // Texas Hold'em sit-and-go tables, with lobbies like case battles.
 //
-// The creator picks the entry fee and the table size (2-6). Everyone who sits down pays the
+// The creator picks the entry fee and the table size (2-10). Everyone who sits down pays the
 // fee and gets HOLDEM_CHIPS chips; the creator can fill the empty seats with bots or start
 // early with whoever is there. Blinds go up every HOLDEM_HANDS_PER_LEVEL hands. A player
 // who runs out of chips is out; the last one with chips wins every entry fee (the house
@@ -37,7 +37,7 @@ const MAX_OPEN_PER_USER = 3;
 const KEEP_DONE = 10;
 const AWAY_AFTER = 2;
 const AWAY_MS = 6000;
-const BOT_NAMES = ["Bot Ace", "Bot King", "Bot Queen", "Bot Jack", "Bot Ten"];
+const BOT_NAMES = ["Bot Ace", "Bot King", "Bot Queen", "Bot Jack", "Bot Ten", "Bot Nine", "Bot Eight", "Bot Seven", "Bot Six"];
 
 const rankOf = (c) => POKER_RANKS.indexOf(c.r) + 2;
 
