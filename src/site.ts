@@ -105,18 +105,12 @@ onServerEvent<{ build: string }>("build", (b) => {
   reloadOnce();
 });
 
-// The admin's pop-up announcement: a dialog on every open page.
+// The admin's pop-up announcement: a dialog on every open page that only its × closes.
 onServerEvent<{ title: string; text: string }>("popup", (p) => {
-  let close = () => {};
-  close = openModal(
+  openModal(
     p.title,
-    h(
-      "div",
-      { class: "popup-body admin-popup" },
-      h("div", { class: "admin-popup-icon" }, icon("announce", 26)),
-      h("p", { class: "admin-popup-text" }, p.text),
-      h("button", { class: "btn btn-primary", onclick: () => close() }, "Got it"),
-    ),
+    h("div", { class: "popup-body admin-popup" }, h("div", { class: "admin-popup-icon" }, icon("announce", 26)), h("p", { class: "admin-popup-text" }, p.text)),
+    { sticky: true },
   );
   playReveal("covert");
 });
