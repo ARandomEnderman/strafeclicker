@@ -5,7 +5,7 @@
 //   rigGames     per-game overrides of rig: { plinko: 0.2, ... } (missing = use rig)
 //   maintenance  true pauses all betting and opening; players see a banner
 //   announcement a message shown to everyone (null for none)
-//   lbPrizes     USD paid to the top wagerers when a day / week ends: { daily: [1st, 2nd, ...], weekly: [...] }
+//   lbPrizes     USD paid to the top wagerers when a week ends: { weekly: [1st, 2nd, ...] } (daily: no longer used)
 //   rainMin      smallest /rain allowed (USD)
 //   events       timed events the admin started: [{ type, value, endsAt }] (see EVENT_TYPES)
 

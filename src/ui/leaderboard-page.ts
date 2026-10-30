@@ -7,8 +7,8 @@ import { onLeave } from "./page";
 import { gameName } from "./game-names";
 import { userLink } from "./profile-card";
 
-// Leaderboards: most wagered and biggest win today / this week (UTC), and the richest
-// players right now. The top wagerers win the prizes when the day or week ends.
+// Leaderboards: most wagered, biggest win and biggest loss this week (UTC) and of all
+// time, and the richest players right now. The top wagerers win the prizes when the week ends.
 
 interface Row {
   rank: number;
@@ -19,16 +19,18 @@ interface Row {
   mult?: number;
 }
 interface Period {
-  endsAt: number;
+  /** null for all time. */
+  endsAt: number | null;
   prizes: number[];
   wagered: Row[];
   best: Row[];
-  me: { wagered: number; wageredRank: number | null; best: number; bestRank: number | null } | null;
+  loss: Row[];
+  me: { wagered: number; wageredRank: number | null; best: number; bestRank: number | null; loss: number; lossRank: number | null } | null;
   lastWinners: { user: string; name: string; wagered: number; prize: number }[];
 }
 interface Board {
-  daily: Period;
   weekly: Period;
+  alltime: Period;
   richest: { rows: (Row & { balance: number; items: number })[]; me: { rank: number; value: number } | null; updatedAt: number };
 }
 
@@ -71,14 +73,14 @@ function table(title: string, rows: Row[], opts: { prizes?: number[]; extra?: (r
 
 export function leaderboardPage() {
   let board: Board | null = null;
-  let tab: "daily" | "weekly" | "richest" = "daily";
+  let tab: "weekly" | "alltime" | "richest" = "weekly";
   const body = h("div", { class: "lb-body" });
   const resets = h("span", { class: "hint" });
   const tabs = segmented(
     "",
     [
-      { value: "daily", label: "Today" },
       { value: "weekly", label: "This week" },
+      { value: "alltime", label: "All time" },
       { value: "richest", label: "Richest" },
     ],
     tab,
@@ -100,27 +102,37 @@ export function leaderboardPage() {
       return;
     }
     const p = board[tab];
-    const when = tab === "daily" ? "today" : "this week";
-    resets.textContent = `Resets in ${left(p.endsAt - serverNow())} (UTC)`;
+    const when = tab === "weekly" ? "this week" : "yet";
+    resets.textContent = p.endsAt ? `Resets in ${left(p.endsAt - serverNow())} (UTC)` : "Since the site started";
     const me = p.me;
+    const mine = me
+      ? [
+          me.wageredRank ? `${money(me.wagered)} wagered (#${me.wageredRank})` : "",
+          me.bestRank ? `biggest win ${money(me.best)} (#${me.bestRank})` : "",
+          me.lossRank ? `biggest loss ${money(me.loss)} (#${me.lossRank})` : "",
+        ].filter(Boolean)
+      : [];
     body.replaceChildren(
       p.prizes.some((x) => x > 0)
         ? h("p", { class: "lb-prizes" }, icon("award", 16), ` Top wagerers ${when} win: `, ...p.prizes.map((x, i) => h("b", null, `#${i + 1} ${money(x)}${i < p.prizes.length - 1 ? ", " : ""}`)))
         : "",
-      me && (me.wageredRank || me.bestRank)
-        ? h("p", { class: "lb-me" }, `You: ${money(me.wagered)} wagered${me.wageredRank ? ` (#${me.wageredRank})` : ""}${me.bestRank ? `, biggest win ${money(me.best)} (#${me.bestRank})` : ""}`)
-        : h("p", { class: "lb-me" }, `Play anything to get on the board ${when}.`),
+      mine.length ? h("p", { class: "lb-me" }, `You: ${mine.join(", ")}`) : h("p", { class: "lb-me" }, `Play anything to get on the board${tab === "weekly" ? " this week" : ""}.`),
       h(
         "div",
         { class: "lb-grid" },
-        table("Most wagered", p.wagered, { prizes: p.prizes, empty: `No bets ${when} yet.` }),
-        table("Biggest win", p.best, { extra: (r) => `${gameName(r.game ?? "")}${r.mult ? ` · ${mult(r.mult)}` : ""}`, empty: `No wins ${when} yet.` }),
+        table("Most wagered", p.wagered, { prizes: p.prizes, empty: `No bets ${when}${tab === "weekly" ? " yet" : ""}.` }),
+        h(
+          "div",
+          { class: "lb-stack" },
+          table("Biggest win", p.best, { extra: (r) => `${gameName(r.game ?? "")}${r.mult ? ` · ${mult(r.mult)}` : ""}`, empty: `No wins ${when}${tab === "weekly" ? " yet" : ""}.` }),
+          table("Biggest loss", p.loss, { extra: (r) => gameName(r.game ?? ""), empty: `No losses ${when}${tab === "weekly" ? " yet" : ""}.` }),
+        ),
       ),
       p.lastWinners.some((w) => w.prize > 0)
         ? h(
             "div",
             { class: "lb-card lb-last" },
-            h("h2", null, tab === "daily" ? "Yesterday's winners" : "Last week's winners"),
+            h("h2", null, "Last week's winners"),
             ...p.lastWinners.filter((w) => w.prize > 0).map((w, i) => h("div", { class: "lb-row" }, medal(i + 1), h("span", { class: "lb-name" }, userLink(w.user, w.name, { avatar: true })), h("span", { class: "lb-extra" }, `${money(w.wagered)} wagered`), h("b", { class: "lb-value" }, `+${money(w.prize)}`))),
           )
         : "",
@@ -138,7 +150,7 @@ export function leaderboardPage() {
   };
   void load();
   const refresh = setInterval(() => void load(), 30_000);
-  const clock = setInterval(() => tab !== "richest" && board && (resets.textContent = `Resets in ${left(board[tab].endsAt - serverNow())} (UTC)`), 1000);
+  const clock = setInterval(() => tab !== "richest" && board?.[tab].endsAt && (resets.textContent = `Resets in ${left(board[tab].endsAt! - serverNow())} (UTC)`), 1000);
   onLeave(() => (clearInterval(refresh), clearInterval(clock)));
 
   body.append(h("p", { class: "empty" }, "Loading..."));

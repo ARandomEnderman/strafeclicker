@@ -1,5 +1,5 @@
-// Leaderboards: most wagered and biggest win, per UTC day and per week (weeks start
-// Monday 00:00 UTC), plus the richest players right now. When a day or week ends, the
+// Leaderboards: most wagered, biggest win and biggest loss, this week (weeks start Monday
+// 00:00 UTC) and of all time, plus the richest players right now. When a week ends, the
 // top wagerers are paid the prizes set in the admin panel.
 //
 // The admin account is left out: it can give itself anything.
@@ -16,8 +16,10 @@ const weekStart = (t) => {
   const sinceMonday = (d.getUTCDay() + 6) % 7;
   return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - sinceMonday);
 };
-export const periodKey = (kind, t = Date.now()) => (kind === "daily" ? `d:${dayKey(t)}` : `w:${dayKey(weekStart(t))}`);
-const periodEnds = (kind, t = Date.now()) => (kind === "daily" ? nextMidnight(t) : weekStart(t) + 7 * DAY_MS);
+/** The board a moment belongs to: "d:<day>" (no longer kept), "w:<monday>", or "all". */
+export const periodKey = (kind, t = Date.now()) => (kind === "alltime" ? "all" : kind === "daily" ? `d:${dayKey(t)}` : `w:${dayKey(weekStart(t))}`);
+const periodEnds = (kind, t = Date.now()) => (kind === "alltime" ? null : kind === "daily" ? nextMidnight(t) : weekStart(t) + 7 * DAY_MS);
+const KINDS = ["weekly", "alltime"];
 const SHOWN = 10;
 const RICH_CACHE_MS = 60_000;
 
@@ -39,21 +41,38 @@ export class Leaderboard {
       best_cents INTEGER NOT NULL DEFAULT 0, best_game TEXT, best_mult REAL,
       PRIMARY KEY (period, user_id))`);
     db.exec("CREATE TABLE IF NOT EXISTS lb_paid (period TEXT PRIMARY KEY, winners TEXT NOT NULL, at INTEGER NOT NULL)");
-    this.q = {
+    // The biggest single loss (stake minus payout), added later.
+    const cols = new Set(db.prepare("PRAGMA table_info(lb)").all().map((c) => c.name));
+    if (!cols.has("loss_cents")) db.exec("ALTER TABLE lb ADD COLUMN loss_cents INTEGER NOT NULL DEFAULT 0; ALTER TABLE lb ADD COLUMN loss_game TEXT;");
+    // The all-time board starts from every week recorded before it existed.
+    if (!db.prepare("SELECT 1 FROM lb WHERE period = 'all' LIMIT 1").get()) {
+      db.exec(`INSERT INTO lb (period, user_id, wagered_cents, best_cents, best_game, best_mult)
+        SELECT 'all', user_id, SUM(wagered_cents), MAX(best_cents),
+          (SELECT b.best_game FROM lb b WHERE b.user_id = w.user_id AND b.period LIKE 'w:%' ORDER BY b.best_cents DESC LIMIT 1),
+          (SELECT b.best_mult FROM lb b WHERE b.user_id = w.user_id AND b.period LIKE 'w:%' ORDER BY b.best_cents DESC LIMIT 1)
+        FROM lb w WHERE period LIKE 'w:%' GROUP BY user_id`);
+      // Its prizes are never paid: it doesn't end.
+      db.prepare("INSERT OR IGNORE INTO lb_paid (period, winners, at) VALUES ('all', '[]', ?)").run(Date.now());
+    }    this.q = {
       // SET expressions see the row as it was, so best_game / best_mult compare with the old best.
-      note: db.prepare(`INSERT INTO lb (period, user_id, wagered_cents, best_cents, best_game, best_mult) VALUES (?, ?, ?, ?, ?, ?)
+      note: db.prepare(`INSERT INTO lb (period, user_id, wagered_cents, best_cents, best_game, best_mult, loss_cents, loss_game) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (period, user_id) DO UPDATE SET
           wagered_cents = wagered_cents + excluded.wagered_cents,
           best_game = CASE WHEN excluded.best_cents > best_cents THEN excluded.best_game ELSE best_game END,
           best_mult = CASE WHEN excluded.best_cents > best_cents THEN excluded.best_mult ELSE best_mult END,
-          best_cents = MAX(best_cents, excluded.best_cents)`),
+          best_cents = MAX(best_cents, excluded.best_cents),
+          loss_game = CASE WHEN excluded.loss_cents > loss_cents THEN excluded.loss_game ELSE loss_game END,
+          loss_cents = MAX(loss_cents, excluded.loss_cents)`),
       wagered: db.prepare(`SELECT l.user_id, l.wagered_cents AS v, u.username, u.display_name FROM lb l JOIN users u ON u.id = l.user_id
         WHERE l.period = ? AND l.wagered_cents > 0 AND u.banned = 0 ORDER BY l.wagered_cents DESC, l.user_id LIMIT ?`),
       best: db.prepare(`SELECT l.user_id, l.best_cents AS v, l.best_game, l.best_mult, u.username, u.display_name FROM lb l JOIN users u ON u.id = l.user_id
         WHERE l.period = ? AND l.best_cents > 0 AND u.banned = 0 ORDER BY l.best_cents DESC, l.user_id LIMIT ?`),
-      mine: db.prepare("SELECT wagered_cents, best_cents FROM lb WHERE period = ? AND user_id = ?"),
+      loss: db.prepare(`SELECT l.user_id, l.loss_cents AS v, l.loss_game, u.username, u.display_name FROM lb l JOIN users u ON u.id = l.user_id
+        WHERE l.period = ? AND l.loss_cents > 0 AND u.banned = 0 ORDER BY l.loss_cents DESC, l.user_id LIMIT ?`),
+      mine: db.prepare("SELECT wagered_cents, best_cents, loss_cents FROM lb WHERE period = ? AND user_id = ?"),
       rankWagered: db.prepare("SELECT COUNT(*) AS n FROM lb l JOIN users u ON u.id = l.user_id WHERE l.period = ? AND l.wagered_cents > ? AND u.banned = 0"),
       rankBest: db.prepare("SELECT COUNT(*) AS n FROM lb l JOIN users u ON u.id = l.user_id WHERE l.period = ? AND l.best_cents > ? AND u.banned = 0"),
+      rankLoss: db.prepare("SELECT COUNT(*) AS n FROM lb l JOIN users u ON u.id = l.user_id WHERE l.period = ? AND l.loss_cents > ? AND u.banned = 0"),
       unpaid: db.prepare("SELECT DISTINCT period FROM lb WHERE period NOT IN (SELECT period FROM lb_paid)"),
       paid: db.prepare("INSERT OR IGNORE INTO lb_paid (period, winners, at) VALUES (?, ?, ?)"),
       lastPaid: db.prepare("SELECT winners FROM lb_paid WHERE period = ?"),
@@ -78,12 +97,13 @@ export class Leaderboard {
     if (a.username === ADMIN_USERNAME || !(ev.stakeCents > 0)) return;
     const win = ev.payoutCents > ev.stakeCents ? ev.payoutCents : 0;
     const mult = win ? Math.round((ev.payoutCents / ev.stakeCents) * 100) / 100 : null;
-    for (const kind of ["daily", "weekly"]) this.q.note.run(periodKey(kind), a.id, ev.stakeCents, win, win ? ev.game : null, mult);
+    const loss = Math.max(0, ev.stakeCents - (ev.payoutCents ?? 0));
+    for (const kind of KINDS) this.q.note.run(periodKey(kind), a.id, ev.stakeCents, win, win ? ev.game : null, mult, loss, loss ? ev.game : null);
   }
 
-  /** Pay the prizes of every finished day and week not paid yet. */
+  /** Pay the prizes of every finished week (and day, from before days were dropped) not paid yet. */
   #settle() {
-    const current = new Set([periodKey("daily"), periodKey("weekly")]);
+    const current = new Set([periodKey("weekly"), periodKey("alltime")]);
     for (const { period } of this.q.unpaid.all()) {
       if (current.has(period)) continue;
       const kind = period.startsWith("d:") ? "daily" : "weekly";
@@ -128,27 +148,37 @@ export class Leaderboard {
   }
 
   #row(r, i) {
-    return { rank: i + 1, user: r.username, name: r.display_name || r.username, value: r.v / 100, ...(r.best_game ? { game: r.best_game, mult: r.best_mult } : {}) };
+    return {
+      rank: i + 1,
+      user: r.username,
+      name: r.display_name || r.username,
+      value: r.v / 100,
+      ...(r.best_game ? { game: r.best_game, mult: r.best_mult } : {}),
+      ...(r.loss_game ? { game: r.loss_game } : {}),
+    };
   }
 
   view(userId, username) {
     const prizes = this.settings.get("lbPrizes") ?? {};
     const out = {};
-    for (const kind of ["daily", "weekly"]) {
+    for (const kind of KINDS) {
       const period = periodKey(kind);
       const mine = username === ADMIN_USERNAME ? null : this.q.mine.get(period, userId);
-      const last = this.q.lastPaid.get(periodKey(kind, kind === "daily" ? Date.now() - DAY_MS : Date.now() - 7 * DAY_MS));
+      const last = kind === "weekly" ? this.q.lastPaid.get(periodKey(kind, Date.now() - 7 * DAY_MS)) : null;
       out[kind] = {
         endsAt: periodEnds(kind),
-        prizes: prizes[kind] ?? [],
+        prizes: kind === "weekly" ? (prizes.weekly ?? []) : [],
         wagered: this.q.wagered.all(period, SHOWN).map((r, i) => this.#row(r, i)),
         best: this.q.best.all(period, SHOWN).map((r, i) => this.#row(r, i)),
+        loss: this.q.loss.all(period, SHOWN).map((r, i) => this.#row(r, i)),
         me: mine
           ? {
               wagered: mine.wagered_cents / 100,
               wageredRank: mine.wagered_cents > 0 ? this.q.rankWagered.get(period, mine.wagered_cents).n + 1 : null,
               best: mine.best_cents / 100,
               bestRank: mine.best_cents > 0 ? this.q.rankBest.get(period, mine.best_cents).n + 1 : null,
+              loss: mine.loss_cents / 100,
+              lossRank: mine.loss_cents > 0 ? this.q.rankLoss.get(period, mine.loss_cents).n + 1 : null,
             }
           : null,
         lastWinners: last ? JSON.parse(last.winners) : [],

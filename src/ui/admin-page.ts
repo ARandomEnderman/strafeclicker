@@ -391,7 +391,6 @@ export function adminPage() {
   const chatSection = () => {
     const o = ov!;
     const rainMin = decimalInput({ class: "admin-num", value: String(o.settings.rainMin) });
-    const daily = h("input", { class: "search", value: o.settings.lbPrizes.daily.join(", "), placeholder: "e.g. 25, 10, 5" }) as HTMLInputElement;
     const weekly = h("input", { class: "search", value: o.settings.lbPrizes.weekly.join(", "), placeholder: "e.g. 100, 50, 25" }) as HTMLInputElement;
     const nums = (v: string) =>
       v
@@ -401,13 +400,12 @@ export function adminPage() {
         .filter((x) => Number.isFinite(x) && x >= 0);
     const save = () =>
       run(async () => {
-        ov = (await adminAction<Overview>("settings", { rainMin: parseDecimal(rainMin.value), lbPrizes: { daily: nums(daily.value), weekly: nums(weekly.value) } })) as Overview;
+        ov = (await adminAction<Overview>("settings", { rainMin: parseDecimal(rainMin.value), lbPrizes: { daily: [], weekly: nums(weekly.value) } })) as Overview;
         draw();
       }, "Saved");
     return section(
       "Chat & rewards",
-      h("p", { class: "hint" }, "Leaderboard prizes go to the top wagerers when a day / week ends (UTC), first place first. Leave empty for no prizes. The admin account is never on the leaderboards."),
-      h("div", { class: "admin-row" }, h("b", null, "Daily prizes ($)"), daily),
+      h("p", { class: "hint" }, "Leaderboard prizes go to the top wagerers when a week ends (UTC), first place first. Leave empty for no prizes. The admin account is never on the leaderboards."),
       h("div", { class: "admin-row" }, h("b", null, "Weekly prizes ($)"), weekly),
       h("div", { class: "admin-row" }, h("b", null, "Smallest /rain ($)"), rainMin, h("button", { class: "btn btn-primary", onclick: () => void save() }, "Save")),
       h(
