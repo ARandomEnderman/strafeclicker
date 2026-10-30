@@ -7,7 +7,7 @@ import { onLooks } from "../looks";
 import { h, money, toast } from "./dom";
 import { icon } from "./icons";
 import { avatar, openMiniProfile, userLink } from "./profile-card";
-import { rainFx } from "./rain-fx";
+import { rainClasses, rainFx } from "./rain-fx";
 import { playPing } from "./sound";
 
 // The global chat: a column on the right on wide screens, a drawer on narrow ones.
@@ -84,7 +84,7 @@ function messageEl(m: ChatMessage) {
     const you = m.mine ? "You rained this" : m.yours != null ? `You got ${money(m.yours)}` : "You weren't online for this one";
     return h(
       "div",
-      { class: `chat-msg rain lv${level}` },
+      { class: `chat-msg rain lv${level} ${rainClasses(level)}` },
       h("div", { class: "chat-rain-icon" }, icon("rain", 20)),
       h(
         "div",

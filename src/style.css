@@ -5115,14 +5115,31 @@ body.chat-open .rightbar {
   background: linear-gradient(135deg, rgba(79, 143, 220, 0.18), rgba(62, 207, 142, 0.12));
   border: 1px solid rgba(79, 143, 220, 0.35);
 }
-.chat-msg.rain.lv3,
-.chat-msg.rain.lv4 {
+.chat-msg.rain.ge3 {
   background: linear-gradient(135deg, rgba(166, 106, 224, 0.25), rgba(79, 143, 220, 0.18));
   border-color: rgba(166, 106, 224, 0.5);
 }
-.chat-msg.rain.lv5 {
+.chat-msg.rain.ge5 {
   background: linear-gradient(135deg, rgba(245, 165, 36, 0.3), rgba(217, 161, 58, 0.15));
   border-color: var(--accent);
+}
+.chat-msg.rain.ge6 {
+  background: linear-gradient(135deg, rgba(40, 190, 200, 0.3), rgba(245, 165, 36, 0.15));
+  border-color: #2cc3cc;
+}
+.chat-msg.rain.ge8 {
+  background: linear-gradient(135deg, rgba(62, 207, 142, 0.35), rgba(40, 120, 200, 0.25));
+  border-color: var(--up);
+}
+.chat-msg.rain.ge9 {
+  background: linear-gradient(135deg, rgba(239, 91, 91, 0.4), rgba(245, 165, 36, 0.2));
+  border-color: var(--down);
+}
+.chat-msg.rain.ge10 {
+  border-color: transparent;
+  background:
+    linear-gradient(var(--bg-2), var(--bg-2)) padding-box,
+    linear-gradient(90deg, #ef5b5b, #f5a524, #3ecf8e, #4f8fdc, #a66ae0, #ef5b5b) border-box;
 }
 .chat-rain-icon {
   display: grid;
@@ -5134,7 +5151,7 @@ body.chat-open .rightbar {
   color: #8fc0ff;
   flex: none;
 }
-.chat-msg.rain.lv5 .chat-rain-icon {
+.chat-msg.rain.ge5 .chat-rain-icon {
   color: var(--accent);
 }
 .chat-rain-body {
@@ -5282,16 +5299,81 @@ body.chat-open .rightbar {
 }
 .rain-fx > i {
   position: absolute;
-  top: -60px;
+  font-style: normal;
+}
+.rain-fx > .rf-piece {
+  top: calc(var(--y0) - 40px);
   left: var(--x);
-  animation: rf-fall var(--t) var(--d) linear both;
+  perspective: 300px;
+  animation: rf-fall var(--t) var(--d) cubic-bezier(0.45, 0.05, 0.9, 0.6) both;
 }
 @keyframes rf-fall {
+  from {
+    opacity: 0;
+    transform: translate(0, 0) rotate(0) scale(var(--s));
+  }
+  6% {
+    opacity: 1;
+  }
   to {
     transform: translate(var(--sway), calc(100vh + 120px)) rotate(var(--r)) scale(var(--s));
   }
-  from {
+}
+/* Some pieces land: fall with gravity, bounce once, lie in a pile, then fade. */
+.rain-fx > .rf-piece.lands {
+  animation:
+    rf-land var(--t) var(--d) both,
+    rf-gone 0.6s var(--gone) both;
+}
+@keyframes rf-land {
+  0% {
+    opacity: 0;
     transform: translate(0, 0) rotate(0) scale(var(--s));
+    animation-timing-function: cubic-bezier(0.5, 0, 1, 0.65);
+  }
+  5% {
+    opacity: 1;
+  }
+  80% {
+    transform: translate(var(--sway), var(--floor)) rotate(var(--r)) scale(var(--s));
+    animation-timing-function: cubic-bezier(0, 0.5, 0.5, 1);
+  }
+  90% {
+    transform: translate(var(--sway), calc(var(--floor) - 18px)) rotate(var(--r)) scale(var(--s));
+    animation-timing-function: cubic-bezier(0.5, 0, 1, 0.5);
+  }
+  100% {
+    transform: translate(var(--sway), var(--floor)) rotate(var(--r)) scale(var(--s));
+  }
+}
+@keyframes rf-gone {
+  to {
+    opacity: 0;
+  }
+}
+/* The face spins like a tossed coin while it falls. */
+.rf-piece > span {
+  display: grid;
+  animation: rf-flip var(--flip) var(--d) linear var(--flips);
+}
+.rf-piece > .rf-bill {
+  animation-name: rf-flutter;
+}
+@keyframes rf-flip {
+  from {
+    transform: rotateY(0);
+  }
+  to {
+    transform: rotateY(360deg);
+  }
+}
+@keyframes rf-flutter {
+  0%,
+  100% {
+    transform: rotateX(0) skewX(0);
+  }
+  50% {
+    transform: rotateX(70deg) skewX(12deg);
   }
 }
 .rf-coin {
@@ -5300,7 +5382,9 @@ body.chat-open .rightbar {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #ffe08a, #f5a524 55%, #b8740d);
+  background:
+    linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.65) 48%, transparent 60%) no-repeat,
+    radial-gradient(circle at 35% 30%, #ffe08a, #f5a524 55%, #b8740d);
   box-shadow: inset 0 0 0 2px rgba(120, 70, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.4);
   color: #7a4b00;
   font: 900 14px/1 system-ui, sans-serif;
@@ -5327,6 +5411,8 @@ body.chat-open .rightbar {
 }
 .rain-fx > i.rf-streak {
   top: -120px;
+  left: var(--x);
+  animation: rf-streak var(--t) var(--d) linear both;
   width: 2px;
   height: 90px;
   background: linear-gradient(to bottom, transparent, rgba(160, 200, 255, 0.55));
@@ -5341,22 +5427,18 @@ body.chat-open .rightbar {
     transform: translate(-22vh, calc(100vh + 200px)) rotate(12deg);
   }
 }
-.rain-fx.lv2::before,
-.rain-fx.lv3::before,
-.rain-fx.lv4::before,
-.rain-fx.lv5::before {
+.rain-fx.ge2::before {
   content: "";
   position: absolute;
   inset: 0;
   box-shadow: inset 0 0 120px rgba(62, 207, 142, 0.35);
   animation: rf-glow 4s ease-in-out both;
 }
-.rain-fx.lv3::before,
-.rain-fx.lv4::before {
+.rain-fx.ge3::before {
   box-shadow: inset 0 0 160px rgba(120, 110, 255, 0.45);
   background: rgba(10, 12, 30, 0.25);
 }
-.rain-fx.lv5::before {
+.rain-fx.ge5::before {
   box-shadow: inset 0 0 220px rgba(245, 165, 36, 0.6);
   background: rgba(40, 25, 0, 0.25);
   animation-duration: 6s;
@@ -5369,6 +5451,322 @@ body.chat-open .rightbar {
   15%,
   75% {
     opacity: 1;
+  }
+}
+/* Hurricane and up: the wind drives the rain sideways. */
+.ge6 .rf-streak {
+  animation-name: rf-streak-wind;
+}
+@keyframes rf-streak-wind {
+  from {
+    transform: translate(-30vw, 0) rotate(-48deg);
+  }
+  to {
+    transform: translate(60vh, calc(100vh + 200px)) rotate(-48deg);
+  }
+}
+.ge6 .rf-cloud {
+  animation-name: rf-cloud-wind;
+}
+@keyframes rf-cloud-wind {
+  0% {
+    opacity: 0;
+    transform: translate(-40%, -40%);
+  }
+  20%,
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(40%, -40%);
+  }
+}
+/* Typhoon and up: a vortex spins in the middle. */
+.rf-vortex {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 90vmin;
+  height: 90vmin;
+  margin: -45vmin 0 0 -45vmin;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgba(150, 220, 255, 0.28) 0 10deg, transparent 10deg 30deg);
+  mask: radial-gradient(circle, transparent 8%, #000 20%, transparent 70%);
+  mix-blend-mode: screen;
+  animation:
+    rf-spin 1.4s linear infinite,
+    rf-vortex 6s ease-in-out both;
+}
+@keyframes rf-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+@keyframes rf-vortex {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  20%,
+  75% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+/* Tsunami and up: a wave of money washes up the screen and back. */
+.rf-wave {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  bottom: -70vh;
+  height: 70vh;
+  background:
+    radial-gradient(40px 22px at 50% 100%, transparent 98%, rgba(62, 207, 142, 0.75)) 0 0 / 80px 22px repeat-x,
+    linear-gradient(to bottom, transparent 22px, rgba(62, 207, 142, 0.75) 22px, rgba(20, 110, 80, 0.9));
+  animation:
+    rf-wave 5s ease-in-out 0.8s both,
+    rf-wave-roll 1.2s linear infinite;
+}
+.ge9 .rf-wave {
+  background:
+    radial-gradient(40px 22px at 50% 100%, transparent 98%, rgba(245, 165, 36, 0.75)) 0 0 / 80px 22px repeat-x,
+    linear-gradient(to bottom, transparent 22px, rgba(245, 165, 36, 0.75) 22px, rgba(120, 60, 10, 0.9));
+}
+@keyframes rf-wave {
+  0% {
+    transform: translateY(0);
+  }
+  45%,
+  55% {
+    transform: translateY(-58vh);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+@keyframes rf-wave-roll {
+  to {
+    background-position: 80px 0, 0 0;
+  }
+}
+/* Cataclysm and up: a red sky, red lightning, gold bars. */
+.rain-fx.ge9::before {
+  box-shadow: inset 0 0 260px rgba(239, 60, 60, 0.75);
+  background: rgba(60, 0, 0, 0.35);
+}
+.ge9 .rf-bolt polyline {
+  stroke: #ffe1e1;
+  filter: drop-shadow(0 0 6px #ff6b6b) drop-shadow(0 0 18px #ff2a2a);
+}
+.ge9 .rf-flash {
+  background: #ffd6d6;
+}
+.rf-bar {
+  width: 46px;
+  height: 20px;
+  border-radius: 3px;
+  background: linear-gradient(160deg, #fff1b8, #f5c242 40%, #b8860b);
+  clip-path: polygon(12% 0, 88% 0, 100% 100%, 0 100%);
+  filter: drop-shadow(0 0 6px rgba(255, 200, 60, 0.8));
+}
+.ge9 .rf-banner b {
+  color: #ff6b6b;
+  text-shadow: 0 0 28px rgba(255, 60, 60, 0.9);
+}
+.ge9 .rf-banner {
+  border-color: var(--down);
+}
+/* Apocalypse: every colour, and the banner glitches. */
+.rain-fx.ge10 {
+  animation: rf-hue 1.6s linear infinite;
+}
+@keyframes rf-hue {
+  to {
+    filter: hue-rotate(360deg);
+  }
+}
+.ge10 .rf-banner b {
+  font-size: 60px;
+  animation: rf-glitch 0.3s steps(2) infinite;
+}
+@keyframes rf-glitch {
+  0% {
+    transform: translate(0, 0);
+    text-shadow: 3px 0 #ff2a6a, -3px 0 #2af0ff;
+  }
+  50% {
+    transform: translate(-2px, 1px);
+    text-shadow: -3px 0 #ff2a6a, 3px 0 #2af0ff;
+  }
+}
+body.rain-shake-hard .shell {
+  animation: rf-shake-hard 0.09s linear infinite;
+}
+@keyframes rf-shake-hard {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0);
+  }
+  25% {
+    transform: translate(-7px, 4px) rotate(-0.4deg);
+  }
+  50% {
+    transform: translate(6px, -5px) rotate(0.4deg);
+  }
+  75% {
+    transform: translate(-4px, -6px) rotate(0);
+  }
+}
+/* Sparkle ring where a piece lands. */
+.rain-fx > .rf-splash {
+  width: 34px;
+  height: 12px;
+  margin-left: -4px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 214, 120, 0.9);
+  box-shadow: 0 0 10px rgba(255, 200, 80, 0.7);
+  opacity: 0;
+  animation: rf-splash 0.55s ease-out both;
+}
+@keyframes rf-splash {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.2);
+  }
+}
+/* Your share, flying into your balance (moved by the script). */
+.rain-fx > .rf-pay {
+  left: -13px;
+  top: -13px;
+  z-index: 3;
+}
+.balance-amount.rf-got {
+  animation: rf-got 0.9s ease-out;
+}
+@keyframes rf-got {
+  0% {
+    text-shadow: 0 0 0 transparent;
+    transform: scale(1);
+  }
+  25% {
+    text-shadow: 0 0 18px rgba(62, 207, 142, 0.9);
+    transform: scale(1.18);
+  }
+  100% {
+    text-shadow: 0 0 0 transparent;
+    transform: scale(1);
+  }
+}
+/* Downpour and up: a storm cloud rolls in along the top and the money pours from it. */
+.rf-cloud {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  top: -6vh;
+  height: 20vh;
+  background:
+    radial-gradient(closest-side, rgba(118, 128, 158, 0.92), transparent) 0% 40% / 22% 90% no-repeat,
+    radial-gradient(closest-side, rgba(96, 106, 136, 0.92), transparent) 18% 20% / 26% 110% no-repeat,
+    radial-gradient(closest-side, rgba(128, 138, 168, 0.92), transparent) 40% 45% / 24% 95% no-repeat,
+    radial-gradient(closest-side, rgba(104, 114, 146, 0.92), transparent) 62% 25% / 28% 110% no-repeat,
+    radial-gradient(closest-side, rgba(120, 130, 160, 0.92), transparent) 84% 40% / 24% 95% no-repeat,
+    radial-gradient(closest-side, rgba(98, 108, 140, 0.92), transparent) 100% 20% / 22% 100% no-repeat;
+  filter: blur(3px) drop-shadow(0 8px 18px rgba(0, 0, 0, 0.5));
+  animation: rf-cloud 5.5s ease-in-out both;
+}
+.ge5 .rf-cloud {
+  filter: blur(2px) sepia(0.6) saturate(2.2) hue-rotate(-12deg) brightness(0.8);
+  animation-duration: 7s;
+}
+@keyframes rf-cloud {
+  0% {
+    opacity: 0;
+    transform: translate(-12%, -60%);
+  }
+  18%,
+  78% {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(10%, -60%);
+  }
+}
+/* Storm and up: jagged bolts out of the cloud. */
+.rf-bolt {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  animation: rf-bolt 0.5s steps(1, end) both;
+}
+.rf-bolt polyline {
+  fill: none;
+  stroke: #f2f6ff;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 6px #9ec4ff) drop-shadow(0 0 14px #6f8cff);
+}
+.ge5 .rf-bolt polyline {
+  stroke: #fff4d6;
+  filter: drop-shadow(0 0 6px #ffd27a) drop-shadow(0 0 16px #f5a524);
+}
+@keyframes rf-bolt {
+  0% {
+    opacity: 1;
+  }
+  15% {
+    opacity: 0.2;
+  }
+  25% {
+    opacity: 1;
+  }
+  60% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+/* Monsoon: slow gold rays turning behind the banner. */
+.rf-rays {
+  position: absolute;
+  left: 50%;
+  top: 24%;
+  width: 160vmax;
+  height: 160vmax;
+  margin: -80vmax 0 0 -80vmax;
+  background: repeating-conic-gradient(from 0deg, rgba(245, 165, 36, 0.16) 0 6deg, transparent 6deg 18deg);
+  mask: radial-gradient(circle, #000 0, transparent 45%);
+  animation: rf-rays 7s linear both;
+}
+@keyframes rf-rays {
+  0% {
+    opacity: 0;
+    transform: rotate(0) scale(0.6);
+  }
+  12%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(70deg) scale(1);
   }
 }
 .rf-flash {
@@ -5429,16 +5827,15 @@ body.chat-open .rightbar {
   color: var(--up);
   font-weight: 800;
 }
-.lv3 .rf-banner b,
-.lv4 .rf-banner b {
+.ge3 .rf-banner b {
   font-size: 34px;
   color: #c5b5ff;
 }
-.lv5 .rf-banner {
+.ge5 .rf-banner {
   border-color: var(--accent);
   animation-duration: 6s;
 }
-.lv5 .rf-banner b {
+.ge5 .rf-banner b {
   font-size: 48px;
   color: var(--accent);
   text-shadow: 0 0 24px rgba(245, 165, 36, 0.8);
