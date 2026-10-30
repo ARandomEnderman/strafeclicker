@@ -228,19 +228,79 @@ export function indexListings(lists) {
 }
 
 /**
- * Flat price map for the whole catalog. A variant missing from the listings keeps
- * its `previous` price; one never seen at all is filled from the nearest wear.
+ * Lone overpriced listings. The lowest listing of a rare variant can be one seller asking
+ * anything, so a price is held back when:
+ *   - a Doppler phase is far above the regular phases (Phase 1-4) of the same wear: over
+ *     DOPPLER_X for a regular phase (they trade close together), over RARE_PHASE_X for
+ *     Ruby, Sapphire, Black Pearl or Emerald (which really are worth far more);
+ *   - any price jumps over SPIKE_X from its previous one: that's only believed once it
+ *     has held for SPIKE_HOLD_MS. Real prices almost never move that much in a day.
+ * Other wears and StatTrak twins aren't compared: a rare Factory New can honestly be
+ * worth 10x Minimal Wear, and many twins have no listing of their own.
  */
-export function priceCatalog(contents, index, previous = {}) {
+export const DOPPLER_X = 5;
+export const RARE_PHASE_X = 30;
+export const SPIKE_X = 5;
+export const SPIKE_HOLD_MS = 24 * 3600_000;
+
+const isRegularPhase = (version) => /^Phase /.test(version);
+
+/** The cap from the regular phases of the same wear and StatTrak-ness, or null. */
+function phaseCap(item, groups, rows, g, i) {
+  if (!item.phases) return null;
+  const st = item.stattrak ? 2 : 1;
+  const near = [];
+  for (let o = g % st; o < groups.length; o += st) if (o !== g && isRegularPhase(groups[o][0].version) && rows[o][i] != null) near.push(rows[o][i]);
+  if (!near.length) return null;
+  return Math.max(...near) * (isRegularPhase(groups[g][0].version) ? DOPPLER_X : RARE_PHASE_X);
+}
+
+/**
+ * Flat price map for the whole catalog. A variant missing from the listings keeps
+ * its `previous` price; one never seen at all is filled from the nearest wear. Lone
+ * overpriced listings (see above) are held back: the previous price stays.
+ *
+ * @param {Map<string, number>} [spikes] key -> when a big jump was first seen, kept by
+ *   the caller between ticks so a jump that holds for SPIKE_HOLD_MS goes through
+ */
+export function priceCatalog(contents, index, previous = {}, spikes = new Map(), now = Date.now()) {
   const prices = {};
   let filled = 0;
   let unpriced = 0;
+  let outliers = 0;
   const lookup = (v) => index.get(`${v.hashName}|${v.version}`) ?? previous[v.key] ?? null;
 
   for (const item of Object.values(contents.items)) {
     const groups = variantGroups(item);
+    const rows = groups.map((grp) => grp.map(lookup));
+    // Checked against the prices as they came in, so the order doesn't matter.
+    const seen = rows.map((r) => [...r]);
     for (let g = 0; g < groups.length; g++) {
-      const row = groups[g].map(lookup);
+      for (let i = 0; i < rows[g].length; i++) {
+        const p = seen[g][i];
+        if (p == null) continue;
+        const key = groups[g][i].key;
+        const prev = previous[key];
+        const cap = phaseCap(item, groups, seen, g, i);
+        if (cap != null && p > cap) {
+          rows[g][i] = prev != null && prev <= cap ? prev : cap / (isRegularPhase(groups[g][0].version) ? DOPPLER_X : RARE_PHASE_X);
+          outliers++;
+          continue;
+        }
+        // (Not from Steam's 3-cent placeholder: a first real listing isn't a spike.)
+        if (prev != null && prev > 0.05 && p > prev * SPIKE_X) {
+          if (!spikes.has(key)) spikes.set(key, now);
+          if (now - spikes.get(key) < SPIKE_HOLD_MS) {
+            rows[g][i] = prev;
+            outliers++;
+            continue;
+          }
+        }
+        spikes.delete(key);
+      }
+    }
+    for (let g = 0; g < groups.length; g++) {
+      const row = rows[g];
       for (let i = 0; i < row.length; i++) {
         if (row[i] != null) continue;
         let best = null;
@@ -262,7 +322,7 @@ export function priceCatalog(contents, index, previous = {}) {
     if (p == null) unpriced++;
     else prices[`case|${c.id}`] = round2(p);
   }
-  return { prices, filled, unpriced };
+  return { prices, filled, unpriced, outliers };
 }
 
 /**

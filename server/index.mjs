@@ -218,6 +218,9 @@ function schedule() {
   setTimeout(() => tick(next), next - Date.now());
 }
 
+/** Big price jumps waiting to hold long enough to be believed (see priceCatalog). */
+const priceSpikes = new Map();
+
 async function tick(scheduledAt) {
   const n = Math.round(scheduledAt / TICK_MS);
   try {
@@ -239,7 +242,7 @@ async function tick(scheduledAt) {
     // Steam listing, so those (and anything Steam hasn't reached yet) use Skinport.
     const index = indexListings([mainListing ?? [], tradableListing ?? []]);
     for (const [name, usd] of steam.snapshot()) index.set(`${name}|`, usd);
-    const { prices: next, filled, unpriced } = priceCatalog(contents, index, prices);
+    const { prices: next, filled, unpriced, outliers } = priceCatalog(contents, index, prices, priceSpikes);
 
     const changes = {};
     for (const [k, v] of Object.entries(next)) if (prices[k] !== v) changes[k] = v;
@@ -254,7 +257,7 @@ async function tick(scheduledAt) {
       if (diffs.length > KEEP_DIFFS) diffs.shift();
     }
     Object.assign(status, { lastUpdateAt: now, changed: Object.keys(changes).length, error: null });
-    log(`tick: ${status.changed} prices changed (v${version}, ${filled} interpolated, ${unpriced} unpriced)`);
+    log(`tick: ${status.changed} prices changed (v${version}, ${filled} interpolated, ${unpriced} unpriced, ${outliers} lone overpriced listings ignored)`);
   } catch (err) {
     status.error = err.message;
     log(`tick failed: ${err.message}`);
